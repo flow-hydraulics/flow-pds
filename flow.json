@@ -5,7 +5,21 @@
 			"serviceAccount": "emulator-account"
 		}
 	},
-	"contracts": {},
+	"contracts": {
+    "NonFungibleToken": {
+      "source": "./contracts/NonFungibleToken.cdc",
+      "aliases": {
+        "testnet": "0x631e88ae7f1d7c20"
+      }
+    },
+    "FungibleToken": {
+      "source": "./cadence/contracts/FungibleToken.cdc",
+      "aliases": {
+        "testnet": "9a0766d93b6608b7",
+        "emulator": "ee82856bf20e2aa6"
+      }
+    }
+  },
 	"networks": {
 		"emulator": "127.0.0.1:3569",
 		"mainnet": "access.mainnet.nodes.onflow.org:9000",
@@ -17,5 +31,12 @@
 			"key": "27f93302f5851077d63ece5b693094c0e5fc0a169369069fa8fb6a134ffc0eab"
 		}
 	},
-	"deployments": {}
+	"deployments": {
+    "emulator": {
+      "emulator-account": [
+        "FungibleToken",
+        "NonFungibleToken"
+      ]
+    }
+  }
 }
