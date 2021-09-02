@@ -25,9 +25,9 @@ NBA Top Shot, however MUST be secured such that such compatibility MUST NOT be r
 * MUST NOT leak any on-chain information about their contents, as on-chain data should be
 considered public
 * MUST BE populated with NFTS at the earliest time of pack creation
-* MUST NOT must maintain static content, i.e. MUST NOT change their internal NFTs over time
+* MUST maintain static content, i.e. MUST NOT change their internal NFTs over time
 * MUST report a _state_: one of "Sealed", "Revealed", or "Empty"
-  * MAY report more than the above two states
+  * MAY report more than the above three states
 * MAY BE transferred if they are in the "Revealed" state and the NFTs are not withdrawn
   * MUST validate content expectations via e.g. post-condition state of the Flow transaction
 
@@ -58,9 +58,9 @@ The back-end service that the smart contract will interact with to create Distri
   one (“uncommons”), the second from a mix of Buckets one and two (Bucket two is “rares”)
   and slots three and four come from Bucket three (“commons”)
 * MUST assign Collectible NFTs to Packs off-chain
-* MUST asynchronously determine if the configuration of Packs, Collectibles, and Buckets is valid
+* MUST asynchronously determine if the configuration of Packs Templates, Collectibles, and Buckets is valid
   * MUST emit an on-chain event reporting any such invalid configurations to the Issuer
-* MUST provide a long-term storage container for Pack NFTs after creation
+* MUST provide a long-term storage container for Collectible NFTs after creation
   * MUST only approve withdrawal during the pack opening process
   * MUST split withdrawals randomly into transactions to obfuscate information about pack contents
 * MUST observe "reveal" events emitted by the PackReceiverCap with a Pack NFT ID (see below)
@@ -106,4 +106,4 @@ e.g. the PDS malfunctions
   * marks a Pack NFT as "Revealed"
   * emits an on-chain event to be observed by the PDS with the Pack ID
 * MUST expose the `Withdraw` function on an owned Pack NFT, which:
-  * withdraws ALL Collectible NFTs from  
+  * withdraws ALL Collectible NFTs from
