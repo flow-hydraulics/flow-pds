@@ -58,7 +58,7 @@ The back-end service that the smart contract will interact with to create Distri
     and slots three and four come from Bucket three (“commons”)
 - MUST assign Collectible NFTs to Packs off-chain
 - MUST asynchronously determine if the configuration of Pack Template, Collectibles, Buckets, and number of Packs is valid
-  - MUST emit an on-chain event reporting any such invalid configurations to the Issuer
+  - MUST emit an off-chain response reporting any such invalid configurations to the Issuer
 - MUST provide a long-term storage container for Collectible NFTs after creation Pack creation
   - MUST only approve withdrawal during the pack opening process
   - MUST split withdrawals randomly into transactions to obfuscate information about pack contents
