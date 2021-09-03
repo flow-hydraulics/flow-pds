@@ -64,7 +64,8 @@ type PackSlot struct {
 // Resolve should
 // - validate the distribution
 // - distribute given collectible IDs into packs based on given template
-// - set the distribution state to complete
+// - seal each pack??
+// - set the distributions state to complete
 func (dist *Distribution) Resolve() error {
 	if dist.State == DistributionStateComplete {
 		return fmt.Errorf("distribution has already been resolved")
@@ -77,11 +78,13 @@ func (dist *Distribution) Resolve() error {
 	packCount := int(dist.PackTemplate.PackCount)
 	slotCount := int(dist.PackTemplate.SlotCount())
 
+	// Init packs and their slots
 	packs := make([]Pack, packCount)
 	for i := range packs {
 		packs[i].Slots = make([]PackSlot, slotCount)
 	}
 
+	// Distributing collectibles
 	slotBaseIndex := 0
 	for _, pst := range dist.PackTemplate.PackSlotTemplates {
 		collectibleCount := int(pst.CollectibleCount)
@@ -100,6 +103,7 @@ func (dist *Distribution) Resolve() error {
 		slotBaseIndex += collectibleCount
 	}
 
+	// Sealing each pack
 	for i := range packs {
 		if err := packs[i].Seal(); err != nil {
 			return fmt.Errorf("error while sealing pack %d: %w", i+1, err)
