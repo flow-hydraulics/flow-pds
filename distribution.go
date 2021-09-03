@@ -58,7 +58,7 @@ type Pack struct {
 }
 
 type PackSlot struct {
-	ColletibleID CollectibleID
+	CollectibleID CollectibleID
 }
 
 // Resolve should
@@ -91,7 +91,7 @@ func (dist *Distribution) Resolve() error {
 		r := rand.New(rand.NewSource(time.Now().Unix()))
 
 		for i, randomIndex := range r.Perm(totalCollectibleCount) {
-			slot := PackSlot{ColletibleID: pst.CollectibleCollection[randomIndex]}
+			slot := PackSlot{CollectibleID: pst.CollectibleCollection[randomIndex]}
 			packIndex := i % packCount
 			slotIndex := (i / packCount) + slotBaseIndex
 			packs[packIndex].Slots[slotIndex] = slot
@@ -213,7 +213,7 @@ func (p Pack) Validate() error {
 	}
 
 	for i := range p.Slots {
-		if p.Slots[i].ColletibleID == CollectibleID(0) {
+		if p.Slots[i].CollectibleID == CollectibleID(0) {
 			return fmt.Errorf("uninitilized collectible in slot %d", i+1)
 		}
 	}
