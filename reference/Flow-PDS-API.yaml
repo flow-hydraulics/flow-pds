@@ -104,7 +104,7 @@ paths:
         in: path
         required: true
     delete:
-      summary: ''
+      summary: Cancel distribution
       operationId: cancel-distribution
       responses:
         '200':
