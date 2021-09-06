@@ -20,6 +20,7 @@ properties:
   collection:
     type: array
     items:
-      $ref: ./Collectible.yaml
+      type: integer
+      format: int64
   settlementStatus:
     $ref: ./Settlement-Status.yaml
