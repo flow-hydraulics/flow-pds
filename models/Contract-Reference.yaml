@@ -1,6 +1,6 @@
 type: object
-title: Contract Identifier
-description: Way of identifying a contract on Flow.
+title: Contract Reference
+description: Way of referencing a contract on Flow.
 properties:
   contractName:
     type: string
