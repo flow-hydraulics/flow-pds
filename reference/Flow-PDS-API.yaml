@@ -103,8 +103,8 @@ paths:
         name: distributionId
         in: path
         required: true
-    put:
-      summary: Cancel distribution
+    delete:
+      summary: ''
       operationId: cancel-distribution
       responses:
         '200':
