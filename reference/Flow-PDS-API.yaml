@@ -78,7 +78,7 @@ paths:
         in: path
         required: true
     put:
-      summary: ''
+      summary: Settle distribution
       operationId: settle-distribution
       responses: {}
       description: Start the settlement of a distribution which is in "resolved" state. This will start the transferring of the collectible NFTs to the long time storage and set the distribution in "settling" state. Once complete the distribution is set in "settled" state.
@@ -90,7 +90,7 @@ paths:
         in: path
         required: true
     put:
-      summary: ''
+      summary: Confirm distribution
       operationId: confirm-distribution
       responses:
         '200':
@@ -104,8 +104,8 @@ paths:
         in: path
         required: true
     put:
-      summary: ''
-      operationId: put-distribution-distributionId-cancel
+      summary: Cancel distribution
+      operationId: cancel-distribution
       responses:
         '200':
           description: OK
