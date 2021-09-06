@@ -5,8 +5,5 @@ properties:
   id:
     type: integer
     minimum: 1
-  type:
-    $ref: ./Contract-Identifier.yaml
 required:
   - id
-  - type
