@@ -1,0 +1,11 @@
+type: object
+title: Contract Identifier
+description: Way of identifying a contract on Flow.
+properties:
+  contractName:
+    type: string
+  contractAddress:
+    $ref: ./Flow-Address.yaml
+required:
+  - contractName
+  - contractAddress

@@ -1,0 +1,15 @@
+title: Distribution
+type: object
+properties:
+  id:
+    type: string
+  issuer:
+    $ref: ./Flow-Address.yaml
+  state:
+    type: string
+    enum:
+      - init
+      - resolved
+      - settling
+      - settled
+      - complete

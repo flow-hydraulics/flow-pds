@@ -1,0 +1,2 @@
+$ref: ./Flow-Address.yaml
+description: Issuer of a distribution. All packs in a distribution are initially sent to this address. This address is requested for a capability to transfer the required NFTs to escrow.

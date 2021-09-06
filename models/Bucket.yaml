@@ -1,0 +1,14 @@
+type: object
+title: Bucket
+description: A bucket from which to pick collectibles into a pack.
+properties:
+  collectibleCount:
+    type: integer
+    format: int64
+    minimum: 1
+  collectibleCollection:
+    type: array
+    uniqueItems: true
+    minItems: 1
+    items:
+      $ref: ./Collectible.yaml

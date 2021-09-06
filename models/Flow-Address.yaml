@@ -1,0 +1,7 @@
+type: string
+title: Flow Address
+examples:
+  - '0x1'
+description: An accounts address on Flow.
+pattern: '^0[xX][0-9a-fA-F]+$'
+minLength: 3
