@@ -5,12 +5,10 @@ import (
 	"math/rand"
 	"time"
 
+	"github.com/onflow/cadence"
+	"github.com/onflow/cadence/runtime/common"
 	"github.com/onflow/flow-go-sdk"
 )
-
-// Someway of determining what NFTs (collectible) we should be interacting with
-// If we run a PDS per collectible type then this should not be needed
-type CollectibleContractIdentifier string
 
 type CollectibleID uint64
 type PackSalt string
@@ -43,21 +41,22 @@ const (
 )
 
 type Distribution struct {
-	Issuer             flow.Address
-	State              DistributionState
-	PackTemplate       PackTemplate
-	Packs              []Pack
-	ContractIdentifier CollectibleContractIdentifier
+	Issuer       flow.Address
+	State        DistributionState
+	PackTemplate PackTemplate
+	Packs        []Pack
 }
 
 type PackTemplate struct {
-	PackCount uint64   // How many packs to create
-	Buckets   []Bucket // How to distribute collectibles in a pack
+	PackCount            uint64                 // How many packs to create
+	Buckets              []Bucket               // How to distribute collectibles in a pack
+	PackReference        common.AddressLocation // Reference to the pack NFT contract
+	CollectibleReference common.AddressLocation // Reference to the collectible NFT contract
 }
 
 type Bucket struct {
-	CollectibleCount      uint64          // How many collectibles to pick from this bucket
-	CollectibleCollection []CollectibleID // Collection of collectibles IDs to pick from
+	CollectibleCount      uint64        // How many collectibles to pick from this bucket
+	CollectibleCollection []Collectible // Collection of collectibles to pick from
 }
 
 type Pack struct {
@@ -68,13 +67,17 @@ type Pack struct {
 }
 
 type PackSlot struct {
-	State         PackSlotState
-	CollectibleID CollectibleID
+	State       PackSlotState
+	Collectible Collectible
+}
+
+type Collectible struct {
+	ID cadence.UInt64
 }
 
 // Resolve should
 // - validate the distribution
-// - distribute given collectible IDs into packs based on given template
+// - distribute given collectibles into packs based on given template
 // - seal each pack??
 // - set the distributions state to resolved
 func (dist *Distribution) Resolve() error {
@@ -108,7 +111,7 @@ func (dist *Distribution) Resolve() error {
 
 		for i, randomIndex := range r.Perm(countTotal) {
 			collectible := bucket.CollectibleCollection[randomIndex]
-			slot := PackSlot{CollectibleID: collectible}
+			slot := PackSlot{Collectible: collectible}
 			packIndex := i % packCount
 			slotIndex := (i / packCount) + slotBaseIndex
 			packs[packIndex].Slots[slotIndex] = slot
@@ -152,11 +155,11 @@ func (dist Distribution) packSlots() []PackSlot {
 
 // ResolvedCollection should publicly present what collectibles got in the distribution
 // without revealing in which pack each one resides
-func (dist Distribution) ResolvedCollection() []CollectibleID {
+func (dist Distribution) ResolvedCollection() []Collectible {
 	slots := dist.packSlots()
-	res := make([]CollectibleID, len(slots))
+	res := make([]Collectible, len(slots))
 	for i := range slots {
-		res[i] = slots[i].CollectibleID
+		res[i] = slots[i].Collectible
 	}
 	r := rand.New(rand.NewSource(time.Now().UnixNano()))
 	r.Shuffle(len(res), func(i, j int) { res[i], res[j] = res[j], res[i] })
@@ -214,6 +217,14 @@ func (pt PackTemplate) Validate() error {
 		return fmt.Errorf("no slot templates provided")
 	}
 
+	if err := ValidateContractReference(pt.PackReference); err != nil {
+		return fmt.Errorf("error while validating PackReference: %w", err)
+	}
+
+	if err := ValidateContractReference(pt.CollectibleReference); err != nil {
+		return fmt.Errorf("error while validating CollectibleReference: %w", err)
+	}
+
 	for i, bucket := range pt.Buckets {
 		if err := bucket.Validate(); err != nil {
 			return fmt.Errorf("error in slot template %d: %w", i+1, err)
@@ -256,11 +267,25 @@ func (p Pack) Validate() error {
 		return fmt.Errorf("no slots")
 	}
 
-	for i := range p.Slots {
-		if p.Slots[i].CollectibleID == CollectibleID(0) {
+	for i, slot := range p.Slots {
+		if slot.Collectible.ID == cadence.NewUInt64(0) {
 			return fmt.Errorf("uninitilized collectible in slot %d", i+1)
 		}
 	}
 
+	return nil
+}
+
+func ValidateContractReference(ref common.AddressLocation) error {
+	empty, err := common.HexToAddress("0")
+	if err != nil {
+		return err
+	}
+	if ref.Address == empty {
+		return fmt.Errorf("empty address")
+	}
+	if ref.Name == "" {
+		return fmt.Errorf("empty name")
+	}
 	return nil
 }
