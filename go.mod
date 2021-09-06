@@ -2,7 +2,10 @@ module github.com/flow-hydraulics/flow-pds
 
 go 1.17
 
-require github.com/onflow/flow-go-sdk v0.21.0
+require (
+	github.com/onflow/cadence v0.18.0
+	github.com/onflow/flow-go-sdk v0.21.0
+)
 
 require (
 	github.com/btcsuite/btcd v0.20.1-beta // indirect
@@ -12,7 +15,6 @@ require (
 	github.com/fxamacker/cbor/v2 v2.2.1-0.20210510192846-c3f3c69e7bc8 // indirect
 	github.com/go-test/deep v1.0.5 // indirect
 	github.com/logrusorgru/aurora v0.0.0-20200102142835-e9ef32dff381 // indirect
-	github.com/onflow/cadence v0.18.0 // indirect
 	github.com/onflow/flow-go/crypto v0.12.0 // indirect
 	github.com/pkg/errors v0.8.1 // indirect
 	github.com/pmezard/go-difflib v1.0.0 // indirect
