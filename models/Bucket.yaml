@@ -11,4 +11,13 @@ properties:
     uniqueItems: true
     minItems: 1
     items:
-      $ref: ./Collectible.yaml
+      type: integer
+      format: int64
+      minimum: 1
+examples:
+  - collectibleCount: 1
+    collectibleCollection:
+      - 1
+      - 2
+      - 3
+      - 4
