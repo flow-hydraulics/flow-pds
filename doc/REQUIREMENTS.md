@@ -105,6 +105,10 @@ The back-end service that the smart contract will interact with to create Distri
 > NFT Pack Receiver Capability
 
 - MUST receive Pack NFTs after successful creation by the PDS
+
+### PackOwnerCap
+> NFT Pack Owner Capability
+
 - MUST expose the `Reveal` function on an owned Pack NFT, which:
   - marks a Pack NFT as "Revealed"
   - emits an on-chain event to be observed by the PDS with the Pack ID
