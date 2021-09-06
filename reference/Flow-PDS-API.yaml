@@ -81,7 +81,7 @@ paths:
       summary: ''
       operationId: settle-distribution
       responses: {}
-      description: Start the settlement of a distribution which is in "resolved" state. This will start the withdrawal of collectible NFTs from the NFT Provider Capability provided by the Issuer and set the distribution in "settling" state. Once complete the distribution is set in "settled" state.
+      description: Start the settlement of a distribution which is in "resolved" state. This will start the transferring of the collectible NFTs to the long time storage and set the distribution in "settling" state. Once complete the distribution is set in "settled" state.
   '/distribution/{distributionId}/confirm':
     parameters:
       - schema:
