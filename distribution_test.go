@@ -1,6 +1,7 @@
 package flowpds
 
 import (
+	"reflect"
 	"testing"
 
 	"github.com/onflow/flow-go-sdk"
@@ -19,7 +20,7 @@ func TestDistributionValidation(t *testing.T) {
 		Issuer: flow.HexToAddress("0x1"),
 		PackTemplate: PackTemplate{
 			PackCount: 3,
-			PackSlotTemplates: []PackSlotTemplate{
+			Buckets: []Bucket{
 				{
 					CollectibleCount:      10,
 					CollectibleCollection: bucket1,
@@ -50,7 +51,7 @@ func TestDistributionResolution(t *testing.T) {
 		Issuer: flow.HexToAddress("0x1"),
 		PackTemplate: PackTemplate{
 			PackCount: 4,
-			PackSlotTemplates: []PackSlotTemplate{
+			Buckets: []Bucket{
 				{
 					CollectibleCount:      2,
 					CollectibleCollection: bucket1,
@@ -67,5 +68,12 @@ func TestDistributionResolution(t *testing.T) {
 		t.Fatalf("didn't expect an error, got %s", err)
 	}
 
-	t.Log(distribution)
+	r1 := distribution.ResolvedCollection()
+	r2 := distribution.ResolvedCollection()
+
+	if reflect.DeepEqual(r1, r2) {
+		t.Fatalf("resolved collections should not match")
+	}
+
+	// t.Log(distribution)
 }

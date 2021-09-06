@@ -18,10 +18,13 @@ type PackCommitmentHash string
 
 type DistributionState int
 type PackState int
+type PackSlotState int
 
 const (
 	DistributionStateInit DistributionState = iota
-	DistributionStateEditable
+	DistributionStateResolved
+	DistributionStateSettling
+	DistributionStateSettled
 	DistributionStateComplete
 )
 
@@ -30,6 +33,13 @@ const (
 	PackStateSealed
 	PackStateRevealed
 	PackStateEmpty
+)
+
+const (
+	PackSlotStateInit PackSlotState = iota
+	PackSlotStateInTransit
+	PackSlotStateInStorage
+	PackSlotStateEmtpy
 )
 
 type Distribution struct {
@@ -41,12 +51,12 @@ type Distribution struct {
 }
 
 type PackTemplate struct {
-	PackCount         uint64             // How many packs to create
-	PackSlotTemplates []PackSlotTemplate // How to distribute collectibles in a pack
+	PackCount uint64   // How many packs to create
+	Buckets   []Bucket // How to distribute collectibles in a pack
 }
 
-type PackSlotTemplate struct {
-	CollectibleCount      uint64          // How many collectibles to pick for this slot
+type Bucket struct {
+	CollectibleCount      uint64          // How many collectibles to pick from this bucket
 	CollectibleCollection []CollectibleID // Collection of collectibles IDs to pick from
 }
 
@@ -58,6 +68,7 @@ type Pack struct {
 }
 
 type PackSlot struct {
+	State         PackSlotState
 	CollectibleID CollectibleID
 }
 
@@ -65,10 +76,10 @@ type PackSlot struct {
 // - validate the distribution
 // - distribute given collectible IDs into packs based on given template
 // - seal each pack??
-// - set the distributions state to complete
+// - set the distributions state to resolved
 func (dist *Distribution) Resolve() error {
-	if dist.State == DistributionStateComplete {
-		return fmt.Errorf("distribution has already been resolved")
+	if dist.State != DistributionStateInit {
+		return fmt.Errorf("distribution can not be resolved anymore")
 	}
 
 	if err := dist.Validate(); err != nil {
@@ -76,31 +87,34 @@ func (dist *Distribution) Resolve() error {
 	}
 
 	packCount := int(dist.PackTemplate.PackCount)
-	slotCount := int(dist.PackTemplate.SlotCount())
+	packSlotCount := int(dist.PackTemplate.PackSlotCount())
 
 	// Init packs and their slots
 	packs := make([]Pack, packCount)
 	for i := range packs {
-		packs[i].Slots = make([]PackSlot, slotCount)
+		packs[i].Slots = make([]PackSlot, packSlotCount)
 	}
 
 	// Distributing collectibles
 	slotBaseIndex := 0
-	for _, pst := range dist.PackTemplate.PackSlotTemplates {
-		collectibleCount := int(pst.CollectibleCount)
-		totalCollectibleCount := packCount * collectibleCount
+	for _, bucket := range dist.PackTemplate.Buckets {
+		// How many collectibles to pick from this bucket per pack
+		countPerPack := int(bucket.CollectibleCount)
+		// How many collectibles to pick from this bucket in total
+		countTotal := packCount * countPerPack
 
 		// TODO (latenssi): Is this safe enough?
-		r := rand.New(rand.NewSource(time.Now().Unix()))
+		r := rand.New(rand.NewSource(time.Now().UnixNano()))
 
-		for i, randomIndex := range r.Perm(totalCollectibleCount) {
-			slot := PackSlot{CollectibleID: pst.CollectibleCollection[randomIndex]}
+		for i, randomIndex := range r.Perm(countTotal) {
+			collectible := bucket.CollectibleCollection[randomIndex]
+			slot := PackSlot{CollectibleID: collectible}
 			packIndex := i % packCount
 			slotIndex := (i / packCount) + slotBaseIndex
 			packs[packIndex].Slots[slotIndex] = slot
 		}
 
-		slotBaseIndex += collectibleCount
+		slotBaseIndex += countPerPack
 	}
 
 	// Sealing each pack
@@ -111,16 +125,42 @@ func (dist *Distribution) Resolve() error {
 	}
 
 	dist.Packs = packs
-	dist.State = DistributionStateComplete
+	dist.State = DistributionStateResolved
 
 	return nil
+}
+
+func (dist *Distribution) StartSettlement() error {
+	if dist.State != DistributionStateResolved {
+		return fmt.Errorf("settlement can not be started for distribution")
+	}
+
+	dist.State = DistributionStateSettling
+
+	// TODO (latenssi)
+
+	return nil
+}
+
+func (dist Distribution) packSlots() []PackSlot {
+	res := make([]PackSlot, 0, dist.PackTemplate.PackSlotCount())
+	for _, pack := range dist.Packs {
+		res = append(res, pack.Slots...)
+	}
+	return res
 }
 
 // ResolvedCollection should publicly present what collectibles got in the distribution
 // without revealing in which pack each one resides
 func (dist Distribution) ResolvedCollection() []CollectibleID {
-	// TODO (latenssi)
-	return []CollectibleID{}
+	slots := dist.packSlots()
+	res := make([]CollectibleID, len(slots))
+	for i := range slots {
+		res[i] = slots[i].CollectibleID
+	}
+	r := rand.New(rand.NewSource(time.Now().UnixNano()))
+	r.Shuffle(len(res), func(i, j int) { res[i], res[j] = res[j], res[i] })
+	return res
 }
 
 // Seal should
@@ -144,11 +184,11 @@ func (p *Pack) Seal() error {
 	return nil
 }
 
-// SlotCount calculates the sum of CollectibleCounts of PackSlotTemplates
-func (pt PackTemplate) SlotCount() int {
+// PackSlotCount returns the number of slots in each pack
+func (pt PackTemplate) PackSlotCount() int {
 	res := 0
-	for _, pst := range pt.PackSlotTemplates {
-		res += int(pst.CollectibleCount)
+	for _, bucket := range pt.Buckets {
+		res += int(bucket.CollectibleCount)
 	}
 	return res
 }
@@ -170,17 +210,17 @@ func (pt PackTemplate) Validate() error {
 		return fmt.Errorf("pack count can not be zero")
 	}
 
-	if len(pt.PackSlotTemplates) == 0 {
+	if len(pt.Buckets) == 0 {
 		return fmt.Errorf("no slot templates provided")
 	}
 
-	for i, pst := range pt.PackSlotTemplates {
-		if err := pst.Validate(); err != nil {
+	for i, bucket := range pt.Buckets {
+		if err := bucket.Validate(); err != nil {
 			return fmt.Errorf("error in slot template %d: %w", i+1, err)
 		}
 
-		requiredCount := int(pt.PackCount * pst.CollectibleCount)
-		allocatedCount := len(pst.CollectibleCollection)
+		requiredCount := int(pt.PackCount * bucket.CollectibleCount)
+		allocatedCount := len(bucket.CollectibleCollection)
 		if requiredCount > allocatedCount {
 			return fmt.Errorf(
 				"collection too small for slot template %d, required %d got %d",
@@ -192,19 +232,19 @@ func (pt PackTemplate) Validate() error {
 	return nil
 }
 
-func (pst PackSlotTemplate) Validate() error {
-	if pst.CollectibleCount == 0 {
+func (bucket Bucket) Validate() error {
+	if bucket.CollectibleCount == 0 {
 		return fmt.Errorf("collectible count can not be zero")
 	}
 
-	if len(pst.CollectibleCollection) == 0 {
+	if len(bucket.CollectibleCollection) == 0 {
 		return fmt.Errorf("empty collection")
 	}
 
-	if int(pst.CollectibleCount) > len(pst.CollectibleCollection) {
+	if int(bucket.CollectibleCount) > len(bucket.CollectibleCollection) {
 		return fmt.Errorf(
 			"collection too small, required %d got %d",
-			int(pst.CollectibleCount), len(pst.CollectibleCollection),
+			int(bucket.CollectibleCount), len(bucket.CollectibleCollection),
 		)
 	}
 
