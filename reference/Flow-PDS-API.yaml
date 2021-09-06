@@ -1,0 +1,133 @@
+openapi: 3.1.0
+info:
+  title: Flow PDS API
+  version: '1.0'
+servers:
+  - url: 'http://localhost:3000'
+paths:
+  /distribution:
+    post:
+      summary: Initialize Distribution
+      operationId: init-distribution
+      responses:
+        '201':
+          $ref: '#/components/responses/Distribution-Create-Ok'
+        '400':
+          $ref: '#/components/responses/Distribution-Create-Error'
+      requestBody:
+        content:
+          application/json:
+            schema:
+              type: object
+              properties:
+                issuer:
+                  $ref: ../models/Distribution-Issuer.yaml
+                meta:
+                  $ref: ../models/Distribution-Meta.yaml
+                packTemplate:
+                  $ref: ../models/Pack-Template.yaml
+              required:
+                - issuer
+                - meta
+                - packTemplate
+      description: 'Initialize a distribution. If template is valid, a distribution is created in database and the id is returned.'
+    parameters: []
+    get:
+      summary: ''
+      operationId: get-distribution
+      responses:
+        '200':
+          description: OK
+      description: List all distributions in the database.
+      parameters:
+        - schema:
+            type: number
+            minimum: 0
+            maximum: 1000
+            default: 1000
+          in: query
+          name: limit
+        - schema:
+            type: number
+            minimum: 0
+          in: query
+          name: offset
+  '/distribution/{distributionId}':
+    parameters:
+      - schema:
+          type: string
+        name: distributionId
+        in: path
+        required: true
+    get:
+      summary: Get Distribution
+      operationId: get-distribution-by-id
+      responses:
+        '200':
+          description: OK
+          content:
+            application/json:
+              schema:
+                $ref: ../models/Distribution.yaml
+      description: Returns the details for a distribution.
+  '/distribution/{distributionId}/settle':
+    parameters:
+      - schema:
+          type: string
+        name: distributionId
+        in: path
+        required: true
+    put:
+      summary: ''
+      operationId: settle-distribution
+      responses: {}
+      description: Start the settlement of a distribution which is in "resolved" state. This will start the transferring of the collectible NFTs to the long time storage and set the distribution in "settling" state. Once complete the distribution is set in "settled" state.
+  '/distribution/{distributionId}/confirm':
+    parameters:
+      - schema:
+          type: string
+        name: distributionId
+        in: path
+        required: true
+    put:
+      summary: ''
+      operationId: confirm-distribution
+      responses:
+        '200':
+          description: OK
+      description: Confirm a distribution which is in "settled" state. This will start the process of minting Pack NFTs and transferring them to the Pack Receiver provided by the Issuer in the configuration phase.
+  '/distribution/{distributionId}/cancel':
+    parameters:
+      - schema:
+          type: string
+        name: distributionId
+        in: path
+        required: true
+    put:
+      summary: ''
+      operationId: put-distribution-distributionId-cancel
+      responses:
+        '200':
+          description: OK
+      description: Cancel a distribution which is not in "complete" state. PDS should return all withdrawn NFTs and once all have been returned revoke all capabilities created during this distribution and delete the distribution from database.
+components:
+  schemas: {}
+  responses:
+    Distribution-Create-Ok:
+      description: Example response
+      content:
+        application/json:
+          schema:
+            type: object
+            properties:
+              distributionId:
+                type: string
+    Distribution-Create-Error:
+      description: Example response
+      content:
+        application/json:
+          schema:
+            type: object
+            properties:
+              message:
+                type: string

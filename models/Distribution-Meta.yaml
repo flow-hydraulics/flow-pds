@@ -1,0 +1,12 @@
+type: object
+title: Distribution Meta
+description: Meta information for a distribution. Each pack in a distribution is populated with this meta information.
+properties:
+  title:
+    type: string
+  description:
+    type: string
+  image:
+    type: string
+required:
+  - title

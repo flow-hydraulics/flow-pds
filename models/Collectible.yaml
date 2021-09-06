@@ -1,0 +1,12 @@
+type: object
+title: Collectible
+description: A reference to a collectible that can be included in a pack.
+properties:
+  id:
+    type: integer
+    minimum: 1
+  type:
+    $ref: ./Contract-Identifier.yaml
+required:
+  - id
+  - type

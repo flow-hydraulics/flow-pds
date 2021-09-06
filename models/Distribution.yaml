@@ -1,0 +1,25 @@
+title: Distribution
+type: object
+properties:
+  id:
+    type: string
+  issuer:
+    $ref: ./Flow-Address.yaml
+  meta:
+    $ref: ./Distribution-Meta.yaml
+  packTemplate:
+    $ref: ./Pack-Template.yaml
+  state:
+    type: string
+    enum:
+      - init
+      - resolved
+      - settling
+      - settled
+      - complete
+  collection:
+    type: array
+    items:
+      $ref: ./Collectible.yaml
+  settlementStatus:
+    $ref: ./Settlement-Status.yaml

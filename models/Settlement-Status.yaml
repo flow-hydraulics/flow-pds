@@ -1,0 +1,8 @@
+title: Settlement Status
+type: object
+properties:
+  settled:
+    type: integer
+  total:
+    type: integer
+description: Settlement status indicates how many collectibles have been transferred to escrow (settled) out of the collection of the distribution (total).
