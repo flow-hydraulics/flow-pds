@@ -5,7 +5,7 @@ info:
 servers:
   - url: 'http://localhost:3000'
 paths:
-  /distribution:
+  /distributions:
     post:
       summary: Initialize Distribution
       operationId: init-distribution
@@ -52,7 +52,7 @@ paths:
             minimum: 0
           in: query
           name: offset
-  '/distribution/{distributionId}':
+  '/distributions/{distributionId}':
     parameters:
       - schema:
           type: string
@@ -70,7 +70,7 @@ paths:
               schema:
                 $ref: ../models/Distribution.yaml
       description: Returns the details for a distribution.
-  '/distribution/{distributionId}/settle':
+  '/distributions/{distributionId}/settle':
     parameters:
       - schema:
           type: string
@@ -82,7 +82,7 @@ paths:
       operationId: settle-distribution
       responses: {}
       description: Start the settlement of a distribution which is in "resolved" state. This will start the transferring of the collectible NFTs to the long time storage and set the distribution in "settling" state. Once complete the distribution is set in "settled" state.
-  '/distribution/{distributionId}/confirm':
+  '/distributions/{distributionId}/confirm':
     parameters:
       - schema:
           type: string
@@ -96,7 +96,7 @@ paths:
         '200':
           description: OK
       description: Confirm a distribution which is in "settled" state. This will start the process of minting Pack NFTs and transferring them to the Pack Receiver provided by the Issuer in the configuration phase.
-  '/distribution/{distributionId}/cancel':
+  '/distributions/{distributionId}/cancel':
     parameters:
       - schema:
           type: string
@@ -125,9 +125,6 @@ components:
     Distribution-Create-Error:
       description: Example response
       content:
-        application/json:
+        text/plain:
           schema:
-            type: object
-            properties:
-              message:
-                type: string
+            type: string
