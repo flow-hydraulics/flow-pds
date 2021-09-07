@@ -27,8 +27,8 @@ Note: "blind" is used in this document to mean “the contents of which are hidd
 - MUST maintain static content, i.e. MUST NOT change their salt value or _commitment hash_ over time
 - MUST report a _state_: one of "Sealed", "Revealed", or "Empty"
   - MAY report more than the above three states
-- MAY BE transferred if they are in the "Revealed" state and the NFTs are not withdrawn
-  - MUST validate content expectations via e.g. post-condition state of the Flow transaction
+- MUST have content expectations validated by the PDS
+  - MAY use the post-condition state of the Flow transaction to further validate
 
 ### Distributions
 
@@ -65,7 +65,6 @@ The back-end service that the smart contract will interact with to create Distri
 - MUST observe "reveal" events emitted by the PackReceiverCap with a Pack NFT ID (see below)
   - MUST respond with an on-chain event with the IDs of the Collectible NFTs within the Pack NFT
   - MUST check that the pack content hash (plus a salt value) matches the hash of the pack
-- MAY be deleted in the "Empty" state
 
 ### Issuer
 
@@ -94,7 +93,6 @@ The back-end service that the smart contract will interact with to create Distri
 
 - MUST be configured by the Issuer via the PDS before the capability is finally granted
 - MUST allow the issuer to transfer Pack NFTs.
-- MUST be lockable, i.e. during the Pack NFT creation period
 - MAY abort distribution at any time before a successful creation event
 - MUST provide an emergency abort function that can be triggered in certain circumstances
   e.g. the PDS malfunctions
