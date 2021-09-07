@@ -9,7 +9,7 @@ import (
 	"github.com/flow-hydraulics/flow-pds/service/app"
 	"github.com/flow-hydraulics/flow-pds/service/config"
 	"github.com/flow-hydraulics/flow-pds/service/errors"
-	pds_http "github.com/flow-hydraulics/flow-pds/service/http"
+	"github.com/flow-hydraulics/flow-pds/service/http"
 	"github.com/flow-hydraulics/flow-pds/service/store"
 	"github.com/onflow/flow-go-sdk/client"
 	"google.golang.org/grpc"
@@ -91,7 +91,7 @@ func runServer(cfg *config.Config) error {
 	app := app.New(cfg, store, flowClient)
 
 	// HTTP server
-	server := pds_http.NewServer(cfg, logServer, app)
+	server := http.NewServer(cfg, logServer, app)
 
 	server.ListenAndServe()
 
