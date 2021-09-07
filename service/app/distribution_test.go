@@ -1,4 +1,4 @@
-package flowpds
+package app
 
 import (
 	"reflect"
