@@ -54,7 +54,7 @@ The back-end service that the smart contract will interact with to create Distri
 - MUST allow Issuers to configure a _Pack Template_ to assign NFTs to buckets.
   - **Example 1**: A simple Pack of three Collectibles, all pulled from a single Bucket
   - **Example 2**: A Pack of four Collectibles, the first slot is filled by pulling from Bucket
-    one (“uncommons”), the second from a mix of Buckets one and two (Bucket two is “rares”)
+    one (“uncommons”), the second from Bucket two (a mix of “rares” and “uncommons”)
     and slots three and four come from Bucket three (“commons”)
 - MUST assign Collectible NFTs to Packs off-chain
 - MUST asynchronously determine if the configuration of Pack Template, Collectibles, Buckets, and number of Packs is valid
