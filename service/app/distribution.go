@@ -40,7 +40,10 @@ func (dist *Distribution) Resolve() error {
 		// TODO (latenssi): Is this safe enough?
 		r := rand.New(rand.NewSource(time.Now().UnixNano()))
 
-		for i, randomIndex := range r.Perm(countTotal) {
+		permutation := r.Perm(len(bucket.CollectibleCollection))
+
+		for i := 0; i < countTotal; i++ {
+			randomIndex := permutation[i]
 			collectible := bucket.CollectibleCollection[randomIndex]
 			slot := PackSlot{Collectible: collectible}
 			packIndex := i % packCount
