@@ -44,15 +44,19 @@ type Distribution struct {
 }
 
 type PackTemplate struct {
-	PackCount            uint64                 // How many packs to create
-	Buckets              []Bucket               // How to distribute collectibles in a pack
+	PackCount            uint64 // How many packs to create
+	Buckets              []Bucket
+	Slots                []SlotTemplate
 	PackReference        common.AddressLocation // Reference to the pack NFT contract
 	CollectibleReference common.AddressLocation // Reference to the collectible NFT contract
 }
 
 type Bucket struct {
-	CollectibleCount      uint64        // How many collectibles to pick from this bucket
 	CollectibleCollection []Collectible // Collection of collectibles to pick from
+}
+
+type SlotTemplate struct {
+	BucketIndexes []int
 }
 
 type Pack struct {

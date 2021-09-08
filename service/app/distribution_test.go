@@ -29,13 +29,17 @@ func TestDistributionValidation(t *testing.T) {
 			PackCount: 3,
 			Buckets: []Bucket{
 				{
-					CollectibleCount:      10,
 					CollectibleCollection: bucket1,
 				},
 				{
-					CollectibleCount:      3,
 					CollectibleCollection: bucket2,
 				},
+			},
+			Slots: []SlotTemplate{
+				{BucketIndexes: []int{0}},
+				{BucketIndexes: []int{0, 1}},
+				{BucketIndexes: []int{0, 1, 1}},
+				{BucketIndexes: []int{1}},
 			},
 		},
 	}
@@ -65,13 +69,17 @@ func TestDistributionResolution(t *testing.T) {
 			PackCount: 4,
 			Buckets: []Bucket{
 				{
-					CollectibleCount:      2,
 					CollectibleCollection: bucket1,
 				},
 				{
-					CollectibleCount:      2,
 					CollectibleCollection: bucket2,
 				},
+			},
+			Slots: []SlotTemplate{
+				{BucketIndexes: []int{0}},
+				{BucketIndexes: []int{0, 1}},
+				{BucketIndexes: []int{0, 1, 1}},
+				{BucketIndexes: []int{1}},
 			},
 			PackReference: common.AddressLocation{
 				Name:    "TestPackNFT",
@@ -95,5 +103,6 @@ func TestDistributionResolution(t *testing.T) {
 		t.Fatalf("resolved collections should not match")
 	}
 
+	t.Log(distribution.Packs)
 	t.Log(distribution.PackTemplate.CollectibleReference.ID())
 }

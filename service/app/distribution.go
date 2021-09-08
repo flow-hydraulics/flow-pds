@@ -30,28 +30,29 @@ func (dist *Distribution) Resolve() error {
 	}
 
 	// Distributing collectibles
-	slotBaseIndex := 0
-	for _, bucket := range dist.PackTemplate.Buckets {
-		// How many collectibles to pick from this bucket per pack
-		countPerPack := int(bucket.CollectibleCount)
-		// How many collectibles to pick from this bucket in total
-		countTotal := packCount * countPerPack
 
-		// TODO (latenssi): Is this safe enough?
-		r := rand.New(rand.NewSource(time.Now().UnixNano()))
+	// TODO (latenssi): Is this safe enough?
+	r := rand.New(rand.NewSource(time.Now().UnixNano()))
 
-		permutation := r.Perm(len(bucket.CollectibleCollection))
+	// Copy buckets from template and shuffle each bucket
+	buckets := make([]Bucket, len(dist.PackTemplate.Buckets))
+	copy(buckets, dist.PackTemplate.Buckets)
+	for i := range buckets {
+		c := buckets[i].CollectibleCollection
+		r.Shuffle(len(c), func(i, j int) { c[i], c[j] = c[j], c[i] })
+		buckets[i].CollectibleCollection = c
+	}
 
-		for i := 0; i < countTotal; i++ {
-			randomIndex := permutation[i]
-			collectible := bucket.CollectibleCollection[randomIndex]
-			slot := PackSlot{Collectible: collectible}
-			packIndex := i % packCount
-			slotIndex := (i / packCount) + slotBaseIndex
-			packs[packIndex].Slots[slotIndex] = slot
+	for slotIndex, templateSlot := range dist.PackTemplate.Slots {
+		for packIndex := 0; packIndex < packCount; packIndex++ {
+			// Choose a random entry from 'templateSlot.BucketIndexes'
+			index := templateSlot.BucketIndexes[r.Intn(len(templateSlot.BucketIndexes))]
+			// Pop a collectible from the chosen bucket
+			collectible, rest := buckets[index].CollectibleCollection[0], buckets[index].CollectibleCollection[1:]
+			// Store the rest of the bucket
+			buckets[index].CollectibleCollection = rest
+			packs[packIndex].Slots[slotIndex] = PackSlot{Collectible: collectible}
 		}
-
-		slotBaseIndex += countPerPack
 	}
 
 	// Sealing each pack
@@ -102,9 +103,5 @@ func (dist Distribution) ResolvedCollection() []Collectible {
 
 // PackSlotCount returns the number of slots in each pack
 func (dist Distribution) PackSlotCount() int {
-	res := 0
-	for _, bucket := range dist.PackTemplate.Buckets {
-		res += int(bucket.CollectibleCount)
-	}
-	return res
+	return len(dist.PackTemplate.Slots)
 }
