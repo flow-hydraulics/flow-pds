@@ -1,0 +1,23 @@
+### Create
+POST  http://localhost:3000/v1/distributions HTTP/1.1
+content-type: application/json
+
+### List
+GET http://localhost:3000/v1/distributions HTTP/1.1
+content-type: application/json
+
+### Get
+GET http://localhost:3000/v1/distributions/id HTTP/1.1
+content-type: application/json
+
+### Settle
+PUT http://localhost:3000/v1/distributions/id/settle HTTP/1.1
+content-type: application/json
+
+### Confirm
+PUT http://localhost:3000/v1/distributions/id/confirm HTTP/1.1
+content-type: application/json
+
+### Cancel
+DELETE  http://localhost:3000/v1/distributions/id HTTP/1.1
+content-type: application/json

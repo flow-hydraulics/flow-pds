@@ -1,0 +1,33 @@
+version: "3.9"
+services:
+  db:
+    image: postgres:13-alpine
+    restart: unless-stopped
+    ports:
+      - "5432:5432"
+    environment:
+      - POSTGRES_DB=pds
+      - POSTGRES_USER=pds
+      - POSTGRES_PASSWORD=pds
+
+  pgadmin:
+    image: dpage/pgadmin4
+    restart: unless-stopped
+    environment:
+      PGADMIN_DEFAULT_EMAIL: admin@example.com
+      PGADMIN_DEFAULT_PASSWORD: admin
+    ports:
+      - "5050:80"
+
+  emulator:
+    image: gcr.io/flow-container-registry/emulator:v0.23.0
+    restart: unless-stopped
+    command: emulator -v
+    ports:
+      - "3569:3569"
+    env_file:
+      - ./.env
+    environment:
+      - FLOW_SERVICEPRIVATEKEY=${FLOW_PDS_ADMIN_PRIVATE_KEY}
+      - FLOW_SERVICEKEYSIGALGO=ECDSA_P256
+      - FLOW_SERVICEKEYHASHALGO=SHA3_256
