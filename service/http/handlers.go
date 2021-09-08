@@ -19,7 +19,7 @@ func HandleCreateDistribution(logger *log.Logger, app *app.App) http.HandlerFunc
 			return
 		}
 
-		var dist CreatDistributionRequest
+		var dist CreateDistributionRequest
 
 		// Decode JSON
 		if err := json.NewDecoder(r.Body).Decode(&dist); err != nil {

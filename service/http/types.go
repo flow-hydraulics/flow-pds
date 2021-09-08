@@ -10,7 +10,7 @@ type CreateDistributionResponse struct {
 	DistributionId string `json:"distributionId"`
 }
 
-type CreatDistributionRequest struct {
+type CreateDistributionRequest struct {
 	// TODO (latenssi)
 	Issuer string `json:"issuer"`
 }
@@ -27,7 +27,7 @@ func DistributionFromApp(appDist app.Distribution) Distribution {
 	}
 }
 
-func (d *CreatDistributionRequest) ToApp() app.Distribution {
+func (d *CreateDistributionRequest) ToApp() app.Distribution {
 	// TODO (latenssi)
 	return app.Distribution{
 		Issuer: flow.HexToAddress(d.Issuer),
