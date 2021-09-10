@@ -2,10 +2,10 @@ type: object
 title: Contract Reference
 description: Way of referencing a contract on Flow.
 properties:
-  contractName:
+  name:
     type: string
-  contractAddress:
+  address:
     $ref: ./Flow-Address.yaml
 required:
-  - contractName
-  - contractAddress
+  - name
+  - address

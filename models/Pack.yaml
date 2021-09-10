@@ -1,0 +1,10 @@
+title: Pack
+type: object
+description: A public representation of a Pack
+properties:
+  flowID:
+    type: string
+  state:
+    type: string
+  commitmentHash:
+    type: string

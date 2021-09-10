@@ -39,6 +39,12 @@ paths:
       responses:
         '200':
           description: OK
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  $ref: ../models/DistributionListItem.yaml
       description: List all distributions in the database.
       parameters:
         - schema:
@@ -81,7 +87,9 @@ paths:
     put:
       summary: Settle distribution
       operationId: settle-distribution
-      responses: {}
+      responses:
+        '200':
+          description: OK
       description: Start the settlement of a distribution which is in "resolved" state. This will start the transferring of the collectible NFTs to the long time storage and set the distribution in "settling" state. Once complete the distribution is set in "settled" state.
   '/distributions/{distributionId}/confirm':
     parameters:
