@@ -2,11 +2,12 @@ package http
 
 import (
 	"encoding/json"
-	"fmt"
 	"log"
 	"net/http"
+	"strconv"
 
 	"github.com/flow-hydraulics/flow-pds/service/app"
+	"github.com/google/uuid"
 	"github.com/gorilla/mux"
 )
 
@@ -19,11 +20,11 @@ func HandleCreateDistribution(logger *log.Logger, app *app.App) http.HandlerFunc
 			return
 		}
 
-		var dist CreateDistributionRequest
+		var dist ReqCreateDistribution
 
 		// Decode JSON
 		if err := json.NewDecoder(r.Body).Decode(&dist); err != nil {
-			handleError(rw, logger, fmt.Errorf("invalid body"))
+			handleError(rw, logger, err)
 			return
 		}
 
@@ -34,7 +35,7 @@ func HandleCreateDistribution(logger *log.Logger, app *app.App) http.HandlerFunc
 			return
 		}
 
-		res := CreateDistributionResponse{DistributionId: id}
+		res := ResCreateDistribution{DistributionId: id}
 
 		handleJsonResponse(rw, http.StatusCreated, res)
 	}
@@ -43,14 +44,25 @@ func HandleCreateDistribution(logger *log.Logger, app *app.App) http.HandlerFunc
 // List distributions
 func HandleListDistributions(logger *log.Logger, app *app.App) http.HandlerFunc {
 	return func(rw http.ResponseWriter, r *http.Request) {
-		list, err := app.ListDistributions()
+		limit, err := strconv.Atoi(r.FormValue("limit"))
 		if err != nil {
-			handleError(rw, logger, err)
+			limit = 0
 		}
 
-		res := make([]Distribution, len(list))
+		offset, err := strconv.Atoi(r.FormValue("offset"))
+		if err != nil {
+			offset = 0
+		}
+
+		list, err := app.ListDistributions(limit, offset)
+		if err != nil {
+			handleError(rw, logger, err)
+			return
+		}
+
+		res := make([]ReqDistributionListItem, len(list))
 		for i := range res {
-			res[i] = DistributionFromApp(list[i])
+			res[i] = ReqDistributionListItemFromApp(list[i])
 		}
 
 		handleJsonResponse(rw, http.StatusOK, res)
@@ -62,12 +74,19 @@ func HandleGetDistribution(logger *log.Logger, app *app.App) http.HandlerFunc {
 	return func(rw http.ResponseWriter, r *http.Request) {
 		vars := mux.Vars(r)
 
-		dist, err := app.GetDistribution(vars["id"])
+		id, err := uuid.Parse(vars["id"])
 		if err != nil {
 			handleError(rw, logger, err)
+			return
 		}
 
-		res := DistributionFromApp(*dist)
+		dist, err := app.GetDistribution(id)
+		if err != nil {
+			handleError(rw, logger, err)
+			return
+		}
+
+		res := ReqDistributionFromApp(*dist)
 
 		handleJsonResponse(rw, http.StatusOK, res)
 	}
@@ -78,9 +97,16 @@ func HandleSettleDistribution(logger *log.Logger, app *app.App) http.HandlerFunc
 	return func(rw http.ResponseWriter, r *http.Request) {
 		vars := mux.Vars(r)
 
-		err := app.SettleDistribution(vars["id"])
+		id, err := uuid.Parse(vars["id"])
 		if err != nil {
 			handleError(rw, logger, err)
+			return
+		}
+
+		err = app.SettleDistribution(id)
+		if err != nil {
+			handleError(rw, logger, err)
+			return
 		}
 
 		handleJsonResponse(rw, http.StatusOK, "Ok")
@@ -92,9 +118,16 @@ func HandleConfirmDistribution(logger *log.Logger, app *app.App) http.HandlerFun
 	return func(rw http.ResponseWriter, r *http.Request) {
 		vars := mux.Vars(r)
 
-		err := app.ConfirmDistribution(vars["id"])
+		id, err := uuid.Parse(vars["id"])
 		if err != nil {
 			handleError(rw, logger, err)
+			return
+		}
+
+		err = app.ConfirmDistribution(id)
+		if err != nil {
+			handleError(rw, logger, err)
+			return
 		}
 
 		handleJsonResponse(rw, http.StatusOK, "Ok")
@@ -106,9 +139,16 @@ func HandleCancelDistribution(logger *log.Logger, app *app.App) http.HandlerFunc
 	return func(rw http.ResponseWriter, r *http.Request) {
 		vars := mux.Vars(r)
 
-		err := app.CancelDistribution(vars["id"])
+		id, err := uuid.Parse(vars["id"])
 		if err != nil {
 			handleError(rw, logger, err)
+			return
+		}
+
+		err = app.CancelDistribution(id)
+		if err != nil {
+			handleError(rw, logger, err)
+			return
 		}
 
 		handleJsonResponse(rw, http.StatusOK, "Ok")

@@ -1,4 +1,6 @@
-package store
+package app
+
+import "github.com/google/uuid"
 
 type Store interface {
 	// Insert distribution
@@ -11,10 +13,10 @@ type Store interface {
 	RemoveDistribution(*Distribution) error
 
 	// List distributions
-	ListDistributions(ListOptions) ([]*Distribution, error)
+	ListDistributions(ListOptions) ([]Distribution, error)
 
 	// Get distribution
-	GetDistribution() (*Distribution, error)
+	GetDistribution(id uuid.UUID) (*Distribution, error)
 }
 
 type ListOptions struct {

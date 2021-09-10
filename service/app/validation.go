@@ -3,13 +3,13 @@ package app
 import (
 	"fmt"
 
+	"github.com/flow-hydraulics/flow-pds/service/common"
 	"github.com/onflow/cadence"
-	"github.com/onflow/cadence/runtime/common"
 	"github.com/onflow/flow-go-sdk"
 )
 
 func (dist Distribution) Validate() error {
-	if dist.Issuer == flow.EmptyAddress {
+	if flow.Address(dist.Issuer) == flow.EmptyAddress {
 		return fmt.Errorf("issuer must be defined")
 	}
 
@@ -80,24 +80,20 @@ func (p Pack) Validate() error {
 	}
 
 	for i, slot := range p.Slots {
-		if slot.Collectible.ID == cadence.NewUInt64(0) {
-			return fmt.Errorf("uninitilized collectible in slot %d", i+1)
+		if slot.CollectibleFlowID == common.FlowID(cadence.NewUInt64(0)) {
+			return fmt.Errorf("uninitialized collectible in slot %d", i+1)
 		}
 	}
 
 	return nil
 }
 
-func ValidateContractReference(ref common.AddressLocation) error {
-	empty, err := common.HexToAddress("0")
-	if err != nil {
-		return err
-	}
-	if ref.Address == empty {
-		return fmt.Errorf("empty address")
-	}
+func ValidateContractReference(ref AddressLocation) error {
 	if ref.Name == "" {
 		return fmt.Errorf("empty name")
+	}
+	if flow.Address(ref.Address) == flow.EmptyAddress {
+		return fmt.Errorf("empty address")
 	}
 	return nil
 }

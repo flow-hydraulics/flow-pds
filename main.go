@@ -10,7 +10,6 @@ import (
 	"github.com/flow-hydraulics/flow-pds/service/config"
 	"github.com/flow-hydraulics/flow-pds/service/errors"
 	"github.com/flow-hydraulics/flow-pds/service/http"
-	"github.com/flow-hydraulics/flow-pds/service/store"
 	"github.com/onflow/flow-go-sdk/client"
 	"google.golang.org/grpc"
 )
@@ -78,14 +77,14 @@ func runServer(cfg *config.Config) error {
 	}()
 
 	// Database
-	db, err := store.NewGormDB(cfg)
+	db, err := app.NewGormDB(cfg)
 	if err != nil {
 		return err
 	}
-	defer store.CloseGormDB(db)
+	defer app.CloseGormDB(db)
 
 	// Datastore
-	store := store.NewGormStore(db)
+	store := app.NewGormStore(db)
 
 	// Application
 	app := app.New(cfg, store, flowClient)

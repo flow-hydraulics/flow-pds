@@ -4,6 +4,8 @@ import (
 	"fmt"
 	"math/rand"
 	"time"
+
+	"github.com/flow-hydraulics/flow-pds/service/common"
 )
 
 // Resolve should
@@ -12,7 +14,7 @@ import (
 // - seal each pack??
 // - set the distributions state to resolved
 func (dist *Distribution) Resolve() error {
-	if dist.State != DistributionStateInit {
+	if dist.State != common.DistributionStateInit {
 		return fmt.Errorf("distribution can not be resolved anymore")
 	}
 
@@ -45,7 +47,7 @@ func (dist *Distribution) Resolve() error {
 		for i := 0; i < countTotal; i++ {
 			randomIndex := permutation[i]
 			collectible := bucket.CollectibleCollection[randomIndex]
-			slot := PackSlot{Collectible: collectible}
+			slot := PackSlot{CollectibleFlowID: collectible}
 			packIndex := i % packCount
 			slotIndex := (i / packCount) + slotBaseIndex
 			packs[packIndex].Slots[slotIndex] = slot
@@ -62,17 +64,46 @@ func (dist *Distribution) Resolve() error {
 	}
 
 	dist.Packs = packs
-	dist.State = DistributionStateResolved
+	dist.State = common.DistributionStateResolved
 
 	return nil
 }
 
-func (dist *Distribution) StartSettlement() error {
-	if dist.State != DistributionStateResolved {
-		return fmt.Errorf("settlement can not be started for distribution")
+func (dist *Distribution) Settle() error {
+	if dist.State != common.DistributionStateResolved {
+		return fmt.Errorf("distribution can not be settled at this state")
 	}
 
-	dist.State = DistributionStateSettling
+	dist.State = common.DistributionStateSettling
+
+	// TODO (latenssi)
+
+	return nil
+}
+
+func (dist *Distribution) Confirm() error {
+	if dist.State != common.DistributionStateSettled {
+		return fmt.Errorf("distribution can not be confirmed at this state")
+	}
+
+	dist.State = common.DistributionStateConfirmed
+
+	// TODO (latenssi)
+
+	return nil
+}
+
+func (dist *Distribution) Cancel() error {
+	switch dist.State {
+	default:
+		break
+	case common.DistributionStateConfirmed:
+		fallthrough
+	case common.DistributionStateComplete:
+		return fmt.Errorf("distribution can not be confirmed at this state")
+	}
+
+	dist.State = common.DistributionStateCancelled
 
 	// TODO (latenssi)
 
@@ -80,20 +111,20 @@ func (dist *Distribution) StartSettlement() error {
 }
 
 func (dist Distribution) packSlots() []PackSlot {
-	res := make([]PackSlot, 0, dist.PackSlotCount())
+	var slots []PackSlot
 	for _, pack := range dist.Packs {
-		res = append(res, pack.Slots...)
+		slots = append(slots, pack.Slots...)
 	}
-	return res
+	return slots
 }
 
 // ResolvedCollection should publicly present what collectibles got in the distribution
 // without revealing in which pack each one resides
-func (dist Distribution) ResolvedCollection() []Collectible {
+func (dist Distribution) ResolvedCollection() common.FlowIDList {
 	slots := dist.packSlots()
-	res := make([]Collectible, len(slots))
+	res := make([]common.FlowID, len(slots))
 	for i := range slots {
-		res[i] = slots[i].Collectible
+		res[i] = slots[i].CollectibleFlowID
 	}
 	r := rand.New(rand.NewSource(time.Now().UnixNano()))
 	r.Shuffle(len(res), func(i, j int) { res[i], res[j] = res[j], res[i] })
