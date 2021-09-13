@@ -1,4 +1,4 @@
-title: Distribution
+title: Distribution List Item
 type: object
 properties:
   id:
@@ -23,14 +23,3 @@ properties:
     $ref: ./Distribution-Meta.yaml
   packTemplate:
     $ref: ./Pack-Template.yaml
-  packs:
-    type: array
-    items:
-      $ref: ./Pack.yaml
-  resolvedCollection:
-    type: array
-    items:
-      type: integer
-      format: int64
-  settlementStatus:
-    $ref: ./Settlement-Status.yaml

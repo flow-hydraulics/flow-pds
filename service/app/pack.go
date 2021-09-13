@@ -1,6 +1,10 @@
 package app
 
-import "fmt"
+import (
+	"fmt"
+
+	"github.com/flow-hydraulics/flow-pds/service/common"
+)
 
 // Seal should
 // - validate the pack
@@ -8,7 +12,7 @@ import "fmt"
 // - calculate the commitment hash for the pack
 // - set the pack as sealed
 func (p *Pack) Seal() error {
-	if p.State != PackStateInit {
+	if p.State != common.PackStateInit {
 		return fmt.Errorf("pack in unexpected state: %d", p.State)
 	}
 
@@ -18,7 +22,7 @@ func (p *Pack) Seal() error {
 
 	p.Salt = "TODO"
 	p.CommitmentHash = "TODO"
-	p.State = PackStateSealed
+	p.State = common.PackStateSealed
 
 	return nil
 }

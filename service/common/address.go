@@ -1,0 +1,38 @@
+package common
+
+import (
+	"database/sql/driver"
+	"fmt"
+
+	"github.com/onflow/flow-go-sdk"
+)
+
+type FlowAddress flow.Address
+
+func (a FlowAddress) MarshalJSON() ([]byte, error) {
+	return flow.Address(a).MarshalJSON()
+}
+
+func (a *FlowAddress) UnmarshalJSON(data []byte) error {
+	b := flow.Address(*a)
+	b.UnmarshalJSON(data)
+	*a = FlowAddress(b)
+	return nil
+}
+
+func (FlowAddress) GormDataType() string {
+	return "text"
+}
+
+func (a *FlowAddress) Scan(value interface{}) error {
+	str, ok := value.(string)
+	if !ok {
+		return fmt.Errorf("failed to unmarshal FlowAddress value: %v", value)
+	}
+	*a = FlowAddress(flow.HexToAddress(str))
+	return nil
+}
+
+func (a FlowAddress) Value() (driver.Value, error) {
+	return flow.Address(a).Hex(), nil
+}

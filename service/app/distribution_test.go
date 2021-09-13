@@ -4,15 +4,15 @@ import (
 	"reflect"
 	"testing"
 
+	"github.com/flow-hydraulics/flow-pds/service/common"
 	"github.com/onflow/cadence"
-	"github.com/onflow/cadence/runtime/common"
 	"github.com/onflow/flow-go-sdk"
 )
 
-func makeCollection(size int) []Collectible {
-	collection := make([]Collectible, size)
+func makeCollection(size int) []common.FlowID {
+	collection := make([]common.FlowID, size)
 	for i := range collection {
-		collection[i] = Collectible{ID: cadence.NewUInt64(uint64(i + 1))}
+		collection[i] = common.FlowID(cadence.NewUInt64(uint64(i + 1)))
 	}
 	return collection
 }
@@ -24,7 +24,7 @@ func TestDistributionValidation(t *testing.T) {
 	bucket2 := collection[20:25]
 
 	distribution := Distribution{
-		Issuer: flow.HexToAddress("0x1"),
+		Issuer: common.FlowAddress(flow.HexToAddress("0x1")),
 		PackTemplate: PackTemplate{
 			PackCount: 3,
 			Buckets: []Bucket{
@@ -44,8 +44,7 @@ func TestDistributionValidation(t *testing.T) {
 		t.Error("expected a validation error")
 	}
 
-	t.Log(distribution.PackTemplate.CollectibleReference.ID())
-	t.Log(distribution.PackTemplate.CollectibleReference.Address.Bytes())
+	t.Log(flow.Address(distribution.PackTemplate.CollectibleReference.Address).Bytes())
 }
 
 func TestDistributionResolution(t *testing.T) {
@@ -54,13 +53,8 @@ func TestDistributionResolution(t *testing.T) {
 	bucket1 := collection[:80]
 	bucket2 := collection[80:100]
 
-	addr1, err := common.HexToAddress("0x1")
-	if err != nil {
-		t.Fatal(err)
-	}
-
 	distribution := Distribution{
-		Issuer: flow.HexToAddress("0x1"),
+		Issuer: common.FlowAddress(flow.HexToAddress("0x1")),
 		PackTemplate: PackTemplate{
 			PackCount: 4,
 			Buckets: []Bucket{
@@ -73,13 +67,13 @@ func TestDistributionResolution(t *testing.T) {
 					CollectibleCollection: bucket2,
 				},
 			},
-			PackReference: common.AddressLocation{
+			PackReference: AddressLocation{
 				Name:    "TestPackNFT",
-				Address: addr1,
+				Address: common.FlowAddress(flow.HexToAddress("0x2")),
 			},
-			CollectibleReference: common.AddressLocation{
+			CollectibleReference: AddressLocation{
 				Name:    "TestCollectibleNFT",
-				Address: addr1,
+				Address: common.FlowAddress(flow.HexToAddress("0x2")),
 			},
 		},
 	}
@@ -94,6 +88,4 @@ func TestDistributionResolution(t *testing.T) {
 	if reflect.DeepEqual(r1, r2) {
 		t.Fatalf("resolved collections should not match")
 	}
-
-	t.Log(distribution.PackTemplate.CollectibleReference.ID())
 }
