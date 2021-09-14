@@ -9,7 +9,7 @@ import (
 )
 
 type ResCreateDistribution struct {
-	DistributionId string `json:"distributionId"`
+	DistributionId uuid.UUID `json:"distributionId"`
 }
 
 type ReqCreateDistribution struct {

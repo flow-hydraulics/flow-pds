@@ -16,20 +16,20 @@ func New(cfg *config.Config, db Store, flowClient *client.Client) *App {
 	return &App{cfg, db, flowClient}
 }
 
-func (app *App) CreateDistribution(distribution Distribution) (string, error) {
+func (app *App) CreateDistribution(distribution Distribution) (uuid.UUID, error) {
 	if err := distribution.Validate(); err != nil {
-		return "", err
+		return uuid.Nil, err
 	}
 
 	if err := distribution.Resolve(); err != nil {
-		return "", err
+		return uuid.Nil, err
 	}
 
 	if err := app.db.InsertDistribution(&distribution); err != nil {
-		return "", err
+		return uuid.Nil, err
 	}
 
-	return distribution.ID.String(), nil
+	return distribution.ID, nil
 }
 
 func (app *App) ListDistributions(limit, offset int) ([]Distribution, error) {
