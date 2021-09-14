@@ -19,7 +19,7 @@ type ReqCreateDistribution struct {
 	PackTemplate PackTemplate         `json:"packTemplate"`
 }
 
-type ReqDistribution struct {
+type ResDistribution struct {
 	ID                 uuid.UUID                `json:"id"`
 	CreatedAt          time.Time                `json:"createdAt"`
 	UpdatedAt          time.Time                `json:"updatedAt"`
@@ -33,7 +33,7 @@ type ReqDistribution struct {
 	SettlementStatus   SettlementStatus         `json:"settlementStatuts"`
 }
 
-type ReqDistributionListItem struct {
+type ResDistributionListItem struct {
 	ID           uuid.UUID                `json:"id"`
 	CreatedAt    time.Time                `json:"createdAt"`
 	UpdatedAt    time.Time                `json:"updatedAt"`
@@ -80,8 +80,8 @@ type SettlementStatus struct {
 	Total   uint `json:"total"`
 }
 
-func ReqDistributionFromApp(d app.Distribution) ReqDistribution {
-	return ReqDistribution{
+func ResDistributionFromApp(d app.Distribution) ResDistribution {
+	return ResDistribution{
 		ID:                 d.ID,
 		CreatedAt:          d.CreatedAt,
 		UpdatedAt:          d.UpdatedAt,
@@ -95,8 +95,8 @@ func ReqDistributionFromApp(d app.Distribution) ReqDistribution {
 	}
 }
 
-func ReqDistributionListItemFromApp(d app.Distribution) ReqDistributionListItem {
-	return ReqDistributionListItem{
+func ResDistributionListItemFromApp(d app.Distribution) ResDistributionListItem {
+	return ResDistributionListItem{
 		ID:           d.ID,
 		CreatedAt:    d.CreatedAt,
 		UpdatedAt:    d.UpdatedAt,
