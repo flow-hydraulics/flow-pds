@@ -8,8 +8,8 @@ servers:
 paths:
   /distributions:
     post:
-      summary: Initialize Distribution
-      operationId: init-distribution
+      summary: Create Distribution
+      operationId: create-distribution
       responses:
         '201':
           $ref: '#/components/responses/Distribution-Create-Ok'
@@ -21,6 +21,11 @@ paths:
             schema:
               type: object
               properties:
+                distId:
+                  type: integer
+                  format: int64
+                  minimum: 0
+                  example: 1
                 issuer:
                   $ref: ../models/Distribution-Issuer.yaml
                 meta:
@@ -31,7 +36,39 @@ paths:
                 - issuer
                 - meta
                 - packTemplate
-      description: 'Initialize a distribution. If template is valid, a distribution is created in database and the id is returned.'
+            examples:
+              example-1:
+                value:
+                  distId: 12
+                  issuer: '0x1'
+                  meta:
+                    title: string
+                    description: string
+                    image: string
+                    startDate: '2019-08-24T14:15:22Z'
+                    endDate: '2019-08-24T14:15:22Z'
+                  packTemplate:
+                    packReference:
+                      name: string
+                      address: '0x1'
+                    collectibleReference:
+                      name: string
+                      address: '0x1'
+                    packCount: 3
+                    buckets:
+                      - collectibleCount: 2
+                        collectibleCollection:
+                          - 1
+                          - 2
+                          - 3
+                          - 4
+                          - 5
+                          - 6
+                          - 7
+                          - 8
+                          - 9
+                          - 10
+      description: 'Create a distribution. If template is valid, a distribution is created in database and the id is returned. All the related tasks are started asynchronously (settling and minting).'
     parameters: []
     get:
       summary: List distributions
@@ -77,34 +114,6 @@ paths:
               schema:
                 $ref: ../models/Distribution.yaml
       description: Returns the details for a distribution.
-  '/distributions/{distributionId}/settle':
-    parameters:
-      - schema:
-          type: string
-        name: distributionId
-        in: path
-        required: true
-    put:
-      summary: Settle distribution
-      operationId: settle-distribution
-      responses:
-        '200':
-          description: OK
-      description: Start the settlement of a distribution which is in "resolved" state. This will start the transferring of the collectible NFTs to the long time storage and set the distribution in "settling" state. Once complete the distribution is set in "settled" state.
-  '/distributions/{distributionId}/confirm':
-    parameters:
-      - schema:
-          type: string
-        name: distributionId
-        in: path
-        required: true
-    put:
-      summary: Confirm distribution
-      operationId: confirm-distribution
-      responses:
-        '200':
-          description: OK
-      description: Confirm a distribution which is in "settled" state. This will start the process of minting Pack NFTs and transferring them to the Pack Receiver provided by the Issuer in the configuration phase.
   '/distributions/{distributionId}/cancel':
     parameters:
       - schema:

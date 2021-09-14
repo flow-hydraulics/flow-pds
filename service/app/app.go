@@ -52,40 +52,6 @@ func (app *App) GetDistribution(id uuid.UUID) (*Distribution, error) {
 	return distribution, nil
 }
 
-func (app *App) SettleDistribution(id uuid.UUID) error {
-	distribution, err := app.db.GetDistribution(id)
-	if err != nil {
-		return err
-	}
-
-	if err := distribution.Settle(); err != nil {
-		return err
-	}
-
-	if err := app.db.UpdateDistribution(distribution); err != nil {
-		return err
-	}
-
-	return nil
-}
-
-func (app *App) ConfirmDistribution(id uuid.UUID) error {
-	distribution, err := app.db.GetDistribution(id)
-	if err != nil {
-		return err
-	}
-
-	if err := distribution.Confirm(); err != nil {
-		return err
-	}
-
-	if err := app.db.UpdateDistribution(distribution); err != nil {
-		return err
-	}
-
-	return nil
-}
-
 func (app *App) CancelDistribution(id uuid.UUID) error {
 	distribution, err := app.db.GetDistribution(id)
 	if err != nil {

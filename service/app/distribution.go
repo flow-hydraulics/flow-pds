@@ -69,6 +69,7 @@ func (dist *Distribution) Resolve() error {
 	return nil
 }
 
+// Settle starts the transferring of collectible NFTs to escrow
 func (dist *Distribution) Settle() error {
 	if dist.State != common.DistributionStateResolved {
 		return fmt.Errorf("distribution can not be settled at this state")
@@ -81,12 +82,13 @@ func (dist *Distribution) Settle() error {
 	return nil
 }
 
-func (dist *Distribution) Confirm() error {
+// Mint starts the minting of Pack NFTs
+func (dist *Distribution) Mint() error {
 	if dist.State != common.DistributionStateSettled {
-		return fmt.Errorf("distribution can not be confirmed at this state")
+		return fmt.Errorf("distribution can not start minting at this state")
 	}
 
-	dist.State = common.DistributionStateConfirmed
+	dist.State = common.DistributionStateMinting
 
 	// TODO (latenssi)
 
@@ -94,13 +96,8 @@ func (dist *Distribution) Confirm() error {
 }
 
 func (dist *Distribution) Cancel() error {
-	switch dist.State {
-	default:
-		break
-	case common.DistributionStateConfirmed:
-		fallthrough
-	case common.DistributionStateComplete:
-		return fmt.Errorf("distribution can not be confirmed at this state")
+	if dist.State == common.DistributionStateComplete {
+		return fmt.Errorf("distribution can not be cancelled at this state")
 	}
 
 	dist.State = common.DistributionStateCancelled

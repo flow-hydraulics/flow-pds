@@ -92,48 +92,6 @@ func HandleGetDistribution(logger *log.Logger, app *app.App) http.HandlerFunc {
 	}
 }
 
-// Settle a distribution
-func HandleSettleDistribution(logger *log.Logger, app *app.App) http.HandlerFunc {
-	return func(rw http.ResponseWriter, r *http.Request) {
-		vars := mux.Vars(r)
-
-		id, err := uuid.Parse(vars["id"])
-		if err != nil {
-			handleError(rw, logger, err)
-			return
-		}
-
-		err = app.SettleDistribution(id)
-		if err != nil {
-			handleError(rw, logger, err)
-			return
-		}
-
-		handleJsonResponse(rw, http.StatusOK, "Ok")
-	}
-}
-
-// Confirm a distribution
-func HandleConfirmDistribution(logger *log.Logger, app *app.App) http.HandlerFunc {
-	return func(rw http.ResponseWriter, r *http.Request) {
-		vars := mux.Vars(r)
-
-		id, err := uuid.Parse(vars["id"])
-		if err != nil {
-			handleError(rw, logger, err)
-			return
-		}
-
-		err = app.ConfirmDistribution(id)
-		if err != nil {
-			handleError(rw, logger, err)
-			return
-		}
-
-		handleJsonResponse(rw, http.StatusOK, "Ok")
-	}
-}
-
 // Cancel a distribution
 func HandleCancelDistribution(logger *log.Logger, app *app.App) http.HandlerFunc {
 	return func(rw http.ResponseWriter, r *http.Request) {

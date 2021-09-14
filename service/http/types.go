@@ -13,6 +13,7 @@ type ResCreateDistribution struct {
 }
 
 type ReqCreateDistribution struct {
+	DistID       common.FlowID        `json:"distId"`
 	Issuer       common.FlowAddress   `json:"issuer"`
 	MetaData     DistributionMetaData `json:"meta"`
 	PackTemplate PackTemplate         `json:"packTemplate"`
@@ -22,6 +23,7 @@ type ReqDistribution struct {
 	ID                 uuid.UUID                `json:"id"`
 	CreatedAt          time.Time                `json:"createdAt"`
 	UpdatedAt          time.Time                `json:"updatedAt"`
+	DistID             common.FlowID            `json:"distId"`
 	Issuer             common.FlowAddress       `json:"issuer"`
 	State              common.DistributionState `json:"state"`
 	MetaData           DistributionMetaData     `json:"meta"`
@@ -35,6 +37,7 @@ type ReqDistributionListItem struct {
 	ID           uuid.UUID                `json:"id"`
 	CreatedAt    time.Time                `json:"createdAt"`
 	UpdatedAt    time.Time                `json:"updatedAt"`
+	DistID       common.FlowID            `json:"distId"`
 	Issuer       common.FlowAddress       `json:"issuer"`
 	State        common.DistributionState `json:"state"`
 	MetaData     DistributionMetaData     `json:"meta"`
@@ -82,6 +85,7 @@ func ReqDistributionFromApp(d app.Distribution) ReqDistribution {
 		ID:                 d.ID,
 		CreatedAt:          d.CreatedAt,
 		UpdatedAt:          d.UpdatedAt,
+		DistID:             d.DistID,
 		Issuer:             d.Issuer,
 		State:              d.State,
 		MetaData:           DistributionMetaData(d.MetaData),
@@ -96,6 +100,7 @@ func ReqDistributionListItemFromApp(d app.Distribution) ReqDistributionListItem 
 		ID:           d.ID,
 		CreatedAt:    d.CreatedAt,
 		UpdatedAt:    d.UpdatedAt,
+		DistID:       d.DistID,
 		Issuer:       d.Issuer,
 		State:        d.State,
 		MetaData:     DistributionMetaData(d.MetaData),
@@ -137,6 +142,7 @@ func PacksFromApp(d app.Distribution) []Pack {
 
 func (d ReqCreateDistribution) ToApp() app.Distribution {
 	return app.Distribution{
+		DistID:       d.DistID,
 		Issuer:       d.Issuer,
 		MetaData:     app.DistributionMetaData(d.MetaData),
 		PackTemplate: d.PackTemplate.ToApp(),

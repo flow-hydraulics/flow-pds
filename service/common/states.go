@@ -10,7 +10,7 @@ const (
 	DistributionStateResolved
 	DistributionStateSettling
 	DistributionStateSettled
-	DistributionStateConfirmed
+	DistributionStateMinting
 	DistributionStateComplete
 )
 
