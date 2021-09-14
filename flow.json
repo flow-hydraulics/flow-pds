@@ -13,12 +13,15 @@
       }
     },
     "FungibleToken": {
-      "source": "./cadence/contracts/FungibleToken.cdc",
+      "source": "./contracts/FungibleToken.cdc",
       "aliases": {
         "testnet": "9a0766d93b6608b7",
         "emulator": "ee82856bf20e2aa6"
       }
-    }
+    },
+    "IPackNFT": "./contracts/IPackNFT.cdc", 
+    "PackNFT": "./contracts/PackNFT.cdc",
+    "PDSInterface": "./contracts/PDSInterface.cdc"
   },
 	"networks": {
 		"emulator": "127.0.0.1:3569",
@@ -26,10 +29,6 @@
 		"testnet": "access.devnet.nodes.onflow.org:9000"
 	},
 	"accounts": {
-    "admin-account": {
-      "address": "$TESTNET_ADMIN_ACCOUNT_ADDR",
-      "key": "$TESTNET_ADMIN_ACCOUNT_SK"
-    },
 		"emulator-account": {
 			"address": "f8d6e0586b0a20c7",
 			"key": "27f93302f5851077d63ece5b693094c0e5fc0a169369069fa8fb6a134ffc0eab"
@@ -39,8 +38,11 @@
     "emulator": {
       "emulator-account": [
         "FungibleToken",
-        "NonFungibleToken"
+        "NonFungibleToken",
+        "IPackNFT",
+        "PDSInterface"
       ]
     }
   }
 }
+ 
