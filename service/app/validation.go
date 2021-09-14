@@ -9,6 +9,10 @@ import (
 )
 
 func (dist Distribution) Validate() error {
+	if dist.DistID == 0 {
+		return fmt.Errorf("distId must be defined")
+	}
+
 	if flow.Address(dist.Issuer) == flow.EmptyAddress {
 		return fmt.Errorf("issuer must be defined")
 	}

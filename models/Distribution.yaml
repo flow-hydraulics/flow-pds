@@ -3,14 +3,19 @@ type: object
 properties:
   id:
     type: string
-  issuer:
-    $ref: ./Flow-Address.yaml
   createdAt:
     type: string
     format: date-time
   updatedAt:
     type: string
     format: date-time
+  distId:
+    type: integer
+    format: int64
+    minimum: 0
+    example: 1
+  issuer:
+    $ref: ./Flow-Address.yaml
   state:
     type: string
     enum:
