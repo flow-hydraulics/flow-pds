@@ -24,6 +24,7 @@ func TestDistributionValidation(t *testing.T) {
 	bucket2 := collection[20:25]
 
 	distribution := Distribution{
+		DistID: common.FlowID(1),
 		Issuer: common.FlowAddress(flow.HexToAddress("0x1")),
 		PackTemplate: PackTemplate{
 			PackCount: 3,
@@ -54,6 +55,7 @@ func TestDistributionResolution(t *testing.T) {
 	bucket2 := collection[80:100]
 
 	distribution := Distribution{
+		DistID: common.FlowID(1),
 		Issuer: common.FlowAddress(flow.HexToAddress("0x1")),
 		PackTemplate: PackTemplate{
 			PackCount: 4,
