@@ -20,19 +20,15 @@ func (a *FlowAddress) UnmarshalJSON(data []byte) error {
 	return nil
 }
 
-func (FlowAddress) GormDataType() string {
-	return "text"
+func (a FlowAddress) Value() (driver.Value, error) {
+	return flow.Address(a).Bytes(), nil
 }
 
 func (a *FlowAddress) Scan(value interface{}) error {
-	str, ok := value.(string)
+	bytes, ok := value.([]byte)
 	if !ok {
 		return fmt.Errorf("failed to unmarshal FlowAddress value: %v", value)
 	}
-	*a = FlowAddress(flow.HexToAddress(str))
+	*a = FlowAddress(flow.BytesToAddress(bytes))
 	return nil
-}
-
-func (a FlowAddress) Value() (driver.Value, error) {
-	return flow.Address(a).Hex(), nil
 }
