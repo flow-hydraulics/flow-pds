@@ -22,13 +22,19 @@ Note: "blind" is used in this document to mean “the contents of which are hidd
   transferrable, storable, and sellable like any other NFT on the Flow blockchain.
   - SHOULD BE _compatible_ with other project's NFTs by e.g. the pack distribution capability of
     NBA Top Shot, however MUST be secured such that such compatibility MUST NOT be realized.
-- MUST contain a random salt value
+- MUST NOT contain a random salt value before being revealed
+- MUST contain a random salt value after the Pack has been revealed for verifying the _commitment hash_
 - MUST contain a _commitment hash_ of the contents of the Pack plus the salt value
 - MUST maintain static content, i.e. MUST NOT change their salt value or _commitment hash_ over time
-- MUST report a _state_: one of "Sealed", "Revealed", or "Empty"
-  - MAY report more than the above three states
+- MUST report a _state_: one of `"Building"`, `"Sealed"`, `"Revealed"`, `"Empty"`, or `"Invalid"`
 - MUST have content expectations validated by the PDS
   - MAY use the post-condition state of the Flow transaction to further validate
+- MUST contain a `Reveal` function which:
+  - sets the `Pack` NFT state as `"Revealed"`
+  - emits an on-chain event to be observed by the PDS with the `Pack` ID
+- MUST contain a `Withdraw` function which:
+  - withdraws ALL Collectible NFTs from the `Pack` NFT
+
 
 ### Distributions
 
@@ -37,8 +43,7 @@ Note: "blind" is used in this document to mean “the contents of which are hidd
 - MUST contain the (public) set of Pack NFTs
 - MUST NOT reveal the set of Collectible NFTs within Pack NFTs
 - SHOULD keep the revelation of unopened Pack NFT contents (by process of elimination) to a minimum
-- MUST report a "state": one of "editable" or "complete"
-  - MAY report more than the above two states
+- MUST report a "state": one of "editable", "complete" or "invalid"
 - MUST not allow for re-use of a distribution in a "complete" state
 
 ## Roles
@@ -47,9 +52,10 @@ Note: "blind" is used in this document to mean “the contents of which are hidd
 
 The back-end service that the smart contract will interact with to create Distributions
 
-- MUST only be accessibly via be the Cadence smart contract(s)
-- MUST allow issuers to configure Collectible "Buckets" for managing rarity tiers
-- MUST assign Collectibles to Buckets
+- SHOULD only be accessibly via be the Cadence smart contract(s)
+  - MAY be accessible via an API for the first iteration(s)
+- MUST allow Issuers to configure Collectible "Buckets" for managing rarity tiers
+- MUST assign Collectibles to Packs according to the Issuer's configuration
   - Collectibles MAY be assigned at the time of pack assignment to reduce transactions
 - MUST allow Issuers to configure a _Pack Template_ to assign NFTs to buckets.
   - **Example 1**: A simple Pack of three Collectibles, all pulled from a single Bucket
@@ -81,7 +87,7 @@ The back-end service that the smart contract will interact with to create Distri
 > The entity that comes into possession of a Pack NFT
 
 - MUST be represented by a Flow account
-- MUST be able to receive the `PackReceiverCap` capability
+- MUST be able to receive the `PackReceiverCap` (a normal NFT `Receiver` object for the `Pack` NFT type) capability
 - MUST be able to `Reveal` the contents of an NFT pack
 - MUST be able to `Withdraw` Collectible NFTs from a successfully "Revealed" pack
 
@@ -103,12 +109,3 @@ The back-end service that the smart contract will interact with to create Distri
 > NFT Pack Receiver Capability
 
 - MUST receive Pack NFTs after successful creation by the PDS
-
-### PackOwnerCap
-> NFT Pack Owner Capability
-
-- MUST expose the `Reveal` function on an owned Pack NFT, which:
-  - marks a Pack NFT as "Revealed"
-  - emits an on-chain event to be observed by the PDS with the Pack ID
-- MUST expose the `Withdraw` function on an owned Pack NFT, which:
-  - withdraws ALL Collectible NFTs from
