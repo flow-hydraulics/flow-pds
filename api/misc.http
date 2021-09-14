@@ -16,11 +16,11 @@ content-type: application/json
   },
   "packTemplate":{
     "packReference": {
-      "name": "Pack NFT",
+      "name": "PackNFT",
       "address": "0x2"
     },
     "collectibleReference": {
-      "name": "Collectible NFT",
+      "name": "CollectibleNFT",
       "address": "0x3"
     },
     "packCount":2,

@@ -11,7 +11,7 @@ import (
 // Resolve should
 // - validate the distribution
 // - distribute given collectibles into packs based on given template
-// - seal each pack??
+// - hash each pack
 // - set the distributions state to resolved
 func (dist *Distribution) Resolve() error {
 	if dist.State != common.DistributionStateInit {
@@ -55,10 +55,10 @@ func (dist *Distribution) Resolve() error {
 		slotBaseIndex += countPerPack
 	}
 
-	// Sealing each pack
+	// Setting commitment hashes of each pack
 	for i := range packs {
-		if err := packs[i].Seal(); err != nil {
-			return fmt.Errorf("error while sealing pack %d: %w", i+1, err)
+		if err := packs[i].SetCommitmentHash(dist); err != nil {
+			return fmt.Errorf("error while hashing pack %d: %w", i+1, err)
 		}
 	}
 

@@ -65,9 +65,9 @@ type Bucket struct {
 }
 
 type Pack struct {
-	FlowID         common.FlowID             `json:"flowID"`
-	State          common.PackState          `json:"state"`
-	CommitmentHash common.PackCommitmentHash `json:"commitmentHash"`
+	FlowID         common.FlowID      `json:"flowID"`
+	State          common.PackState   `json:"state"`
+	CommitmentHash common.BinaryValue `json:"commitmentHash"`
 }
 
 type AddressLocation struct {

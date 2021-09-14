@@ -1,6 +1,7 @@
 package app
 
 import (
+	"fmt"
 	"time"
 
 	"github.com/flow-hydraulics/flow-pds/service/common"
@@ -51,11 +52,11 @@ type Pack struct {
 	DistributionID uuid.UUID
 	ID             uuid.UUID `gorm:"column:id;primary_key;type:uuid;"`
 
-	FlowID         common.FlowID             `gorm:"column:flow_id;index"`         // ID of the Pack NFT
-	State          common.PackState          `gorm:"column:state"`                 // public
-	Salt           common.PackSalt           `gorm:"column:salt"`                  // private
-	CommitmentHash common.PackCommitmentHash `gorm:"column:commitment_hash;index"` // public
-	Slots          common.FlowIDList         // private
+	FlowID         common.FlowID      `gorm:"column:flow_id;index"`         // ID of the Pack NFT
+	State          common.PackState   `gorm:"column:state"`                 // public
+	Salt           common.BinaryValue `gorm:"column:salt"`                  // private
+	CommitmentHash common.BinaryValue `gorm:"column:commitment_hash;index"` // public
+	Slots          common.FlowIDList  // private
 }
 
 // AddressLocation is a reference to a contract on flow chain
@@ -89,4 +90,8 @@ func (Pack) TableName() string {
 func (p *Pack) BeforeCreate(tx *gorm.DB) (err error) {
 	p.ID = uuid.New()
 	return nil
+}
+
+func (al AddressLocation) String() string {
+	return fmt.Sprintf("A.%s.%s", al.Address, al.Name)
 }

@@ -9,6 +9,10 @@ import (
 
 type FlowAddress flow.Address
 
+func (a FlowAddress) String() string {
+	return flow.Address(a).String()
+}
+
 func (a FlowAddress) MarshalJSON() ([]byte, error) {
 	return flow.Address(a).MarshalJSON()
 }
