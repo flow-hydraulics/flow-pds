@@ -23,7 +23,7 @@ func TestDistributionValidation(t *testing.T) {
 	bucket1 := collection[:20]
 	bucket2 := collection[20:25]
 
-	distribution := Distribution{
+	d := Distribution{
 		DistID: common.FlowID(1),
 		Issuer: common.FlowAddress(flow.HexToAddress("0x1")),
 		PackTemplate: PackTemplate{
@@ -41,31 +41,31 @@ func TestDistributionValidation(t *testing.T) {
 		},
 	}
 
-	if err := distribution.Validate(); err == nil {
+	if err := d.Validate(); err == nil {
 		t.Error("expected a validation error")
 	}
-
-	t.Log(flow.Address(distribution.PackTemplate.CollectibleReference.Address).Bytes())
 }
 
 func TestDistributionResolution(t *testing.T) {
 	collection := makeCollection(100)
 
+	packCount := 4
+
 	bucket1 := collection[:80]
 	bucket2 := collection[80:100]
 
-	distribution := Distribution{
+	d := Distribution{
 		DistID: common.FlowID(1),
 		Issuer: common.FlowAddress(flow.HexToAddress("0x1")),
 		PackTemplate: PackTemplate{
-			PackCount: 4,
+			PackCount: uint(packCount),
 			Buckets: []Bucket{
 				{
 					CollectibleCount:      2,
 					CollectibleCollection: bucket1,
 				},
 				{
-					CollectibleCount:      2,
+					CollectibleCount:      3,
 					CollectibleCollection: bucket2,
 				},
 			},
@@ -80,14 +80,31 @@ func TestDistributionResolution(t *testing.T) {
 		},
 	}
 
-	if err := distribution.Resolve(); err != nil {
+	if err := d.Resolve(); err != nil {
 		t.Fatalf("didn't expect an error, got %s", err)
 	}
 
-	r1 := distribution.ResolvedCollection()
-	r2 := distribution.ResolvedCollection()
+	r1 := d.ResolvedCollection()
+	r2 := d.ResolvedCollection()
 
 	if reflect.DeepEqual(r1, r2) {
 		t.Fatalf("resolved collections should not match")
+	}
+
+	if len(d.Packs) != packCount {
+		t.Fatalf("expected there to be %d packs", packCount)
+	}
+
+	for _, p := range d.Packs {
+		expected := d.PackSlotCount()
+		if len(p.Slots) != expected {
+			t.Fatalf("expected there to be %d slots", expected)
+		}
+
+		for _, s := range p.Slots {
+			if s == common.FlowID(0) {
+				t.Fatalf("did not expect 0 value in a slot")
+			}
+		}
 	}
 }

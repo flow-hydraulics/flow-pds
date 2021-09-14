@@ -28,7 +28,7 @@ func (dist *Distribution) Resolve() error {
 	// Init packs and their slots
 	packs := make([]Pack, packCount)
 	for i := range packs {
-		packs[i].Slots = make([]PackSlot, packSlotCount)
+		packs[i].Slots = make(common.FlowIDList, packSlotCount)
 	}
 
 	// Distributing collectibles
@@ -47,10 +47,9 @@ func (dist *Distribution) Resolve() error {
 		for i := 0; i < countTotal; i++ {
 			randomIndex := permutation[i]
 			collectible := bucket.CollectibleCollection[randomIndex]
-			slot := PackSlot{CollectibleFlowID: collectible}
 			packIndex := i % packCount
 			slotIndex := (i / packCount) + slotBaseIndex
-			packs[packIndex].Slots[slotIndex] = slot
+			packs[packIndex].Slots[slotIndex] = collectible
 		}
 
 		slotBaseIndex += countPerPack
@@ -107,8 +106,8 @@ func (dist *Distribution) Cancel() error {
 	return nil
 }
 
-func (dist Distribution) packSlots() []PackSlot {
-	var slots []PackSlot
+func (dist Distribution) packSlots() common.FlowIDList {
+	var slots common.FlowIDList
 	for _, pack := range dist.Packs {
 		slots = append(slots, pack.Slots...)
 	}
@@ -118,11 +117,7 @@ func (dist Distribution) packSlots() []PackSlot {
 // ResolvedCollection should publicly present what collectibles got in the distribution
 // without revealing in which pack each one resides
 func (dist Distribution) ResolvedCollection() common.FlowIDList {
-	slots := dist.packSlots()
-	res := make([]common.FlowID, len(slots))
-	for i := range slots {
-		res[i] = slots[i].CollectibleFlowID
-	}
+	res := dist.packSlots()
 	r := rand.New(rand.NewSource(time.Now().UnixNano()))
 	r.Shuffle(len(res), func(i, j int) { res[i], res[j] = res[j], res[i] })
 	return res

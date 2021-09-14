@@ -84,7 +84,7 @@ func (p Pack) Validate() error {
 	}
 
 	for i, slot := range p.Slots {
-		if slot.CollectibleFlowID == common.FlowID(cadence.NewUInt64(0)) {
+		if slot == common.FlowID(cadence.NewUInt64(0)) {
 			return fmt.Errorf("uninitialized collectible in slot %d", i+1)
 		}
 	}

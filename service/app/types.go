@@ -55,16 +55,7 @@ type Pack struct {
 	State          common.PackState          `gorm:"column:state"`                 // public
 	Salt           common.PackSalt           `gorm:"column:salt"`                  // private
 	CommitmentHash common.PackCommitmentHash `gorm:"column:commitment_hash;index"` // public
-	Slots          []PackSlot                // private
-}
-
-type PackSlot struct {
-	gorm.Model
-	PackID uuid.UUID
-	ID     uuid.UUID `gorm:"column:id;primary_key;type:uuid;"`
-
-	State             common.PackSlotState `gorm:"column:state"`
-	CollectibleFlowID common.FlowID        `gorm:"column:collectible_flow_id"`
+	Slots          common.FlowIDList         // private
 }
 
 // AddressLocation is a reference to a contract on flow chain
@@ -97,14 +88,5 @@ func (Pack) TableName() string {
 
 func (p *Pack) BeforeCreate(tx *gorm.DB) (err error) {
 	p.ID = uuid.New()
-	return nil
-}
-
-func (PackSlot) TableName() string {
-	return "distribution_packslots"
-}
-
-func (ps *PackSlot) BeforeCreate(tx *gorm.DB) (err error) {
-	ps.ID = uuid.New()
 	return nil
 }
