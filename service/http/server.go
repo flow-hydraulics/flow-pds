@@ -3,6 +3,7 @@ package http
 import (
 	"context"
 	"fmt"
+	"io"
 	"log"
 	"net/http"
 	"os"
@@ -14,14 +15,15 @@ import (
 )
 
 type Server struct {
+	Server *http.Server
 	cfg    *config.Config
-	srv    *http.Server
 	logger *log.Logger
 }
 
 func NewServer(cfg *config.Config, logger *log.Logger, app *app.App) *Server {
 	if logger == nil {
-		logger = log.New(os.Stdout, "", log.LstdFlags|log.Lshortfile)
+		// A discarding logger
+		logger = log.New(io.Discard, "", log.LstdFlags|log.Lshortfile)
 	}
 
 	r := NewRouter(logger, app)
@@ -34,14 +36,14 @@ func NewServer(cfg *config.Config, logger *log.Logger, app *app.App) *Server {
 		ReadTimeout:  15 * time.Second,
 	}
 
-	return &Server{cfg, srv, logger}
+	return &Server{srv, cfg, logger}
 }
 
 func (s *Server) ListenAndServe() {
 	// Run our server in a goroutine so that it doesn't block.
 	go func() {
 		s.logger.Printf("Server listening on %s:%d\n", s.cfg.Host, s.cfg.Port)
-		s.logger.Print(s.srv.ListenAndServe())
+		s.logger.Print(s.Server.ListenAndServe())
 	}()
 
 	// Trap interupt or sigterm and gracefully shutdown the server
@@ -59,7 +61,7 @@ func (s *Server) ListenAndServe() {
 	ctx, cancel := context.WithTimeout(context.Background(), time.Second*15)
 	defer cancel()
 
-	if err := s.srv.Shutdown(ctx); err != nil {
+	if err := s.Server.Shutdown(ctx); err != nil {
 		s.logger.Fatal("Error in server shutdown; ", err)
 	}
 }
