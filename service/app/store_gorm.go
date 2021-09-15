@@ -11,7 +11,7 @@ type GormStore struct {
 }
 
 func NewGormStore(db *gorm.DB) *GormStore {
-	db.AutoMigrate(&Distribution{}, &Bucket{}, &Pack{}, &Collectible{})
+	db.AutoMigrate(&Distribution{}, &Bucket{}, &Pack{})
 	return &GormStore{db}
 }
 
@@ -38,19 +38,8 @@ func (s *GormStore) InsertDistribution(d *Distribution) error {
 		}
 
 		// Store packs in batches
-		if err := tx.Omit(clause.Associations).CreateInBatches(d.Packs, 1000).Error; err != nil {
+		if err := tx.CreateInBatches(d.Packs, 1000).Error; err != nil {
 			return err
-		}
-
-		// Store pack collectibles, assuming we won't have too many collectibles per pack
-		for _, p := range d.Packs {
-			for i := range p.Collectibles {
-				// Update pack ID
-				p.Collectibles[i].PackID = p.ID
-			}
-			if err := tx.Create(p.Collectibles).Error; err != nil {
-				return err
-			}
 		}
 
 		// Commit
@@ -84,7 +73,7 @@ func (s *GormStore) ListDistributions(opt ListOptions) ([]Distribution, error) {
 // Get distribution
 func (s *GormStore) GetDistribution(id uuid.UUID) (*Distribution, error) {
 	distribution := Distribution{}
-	if err := s.db.Preload("Packs.Collectibles").Preload(clause.Associations).First(&distribution, id).Error; err != nil {
+	if err := s.db.Preload(clause.Associations).First(&distribution, id).Error; err != nil {
 		return nil, err
 	}
 	return &distribution, nil

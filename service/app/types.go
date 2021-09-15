@@ -1,7 +1,6 @@
 package app
 
 import (
-	"fmt"
 	"time"
 
 	"github.com/flow-hydraulics/flow-pds/service/common"
@@ -56,7 +55,7 @@ type Pack struct {
 	State          common.PackState   `gorm:"column:state"`                 // public
 	Salt           common.BinaryValue `gorm:"column:salt"`                  // private
 	CommitmentHash common.BinaryValue `gorm:"column:commitment_hash;index"` // public
-	Collectibles   []Collectible      // private
+	Collectibles   Collectibles       `gorm:"column:collectibles"`          // private
 }
 
 // AddressLocation is a reference to a contract on chain.
@@ -64,21 +63,13 @@ type AddressLocation struct {
 	Name    string             `gorm:"column:name"`
 	Address common.FlowAddress `gorm:"column:address"`
 }
-type Collectible struct {
-	gorm.Model
-	PackID uuid.UUID
-	ID     uuid.UUID `gorm:"column:id;primary_key;type:uuid;"`
 
-	FlowID            common.FlowID          `gorm:"column:flow_id"`                        // ID of the collectible NFT
-	ContractReference common.AddressLocation `gorm:"embedded;embeddedPrefix:contract_ref_"` // Reference to the collectible NFT contract
+type Collectible struct {
+	FlowID            common.FlowID   // ID of the collectible NFT
+	ContractReference AddressLocation // Reference to the collectible NFT contract
 }
 
-// Implement sort.Interface by FlowID for Collectible slice
-type CollectibleByFlowID []Collectible
-
-func (c CollectibleByFlowID) Len() int           { return len(c) }
-func (c CollectibleByFlowID) Less(i, j int) bool { return c[i].FlowID < c[j].FlowID }
-func (c CollectibleByFlowID) Swap(i, j int)      { c[i], c[j] = c[j], c[i] }
+type Collectibles []Collectible
 
 func (Distribution) TableName() string {
 	return "distributions"
@@ -105,17 +96,4 @@ func (Pack) TableName() string {
 func (p *Pack) BeforeCreate(tx *gorm.DB) (err error) {
 	p.ID = uuid.New()
 	return nil
-}
-
-func (Collectible) TableName() string {
-	return "distribution_collectibles"
-}
-
-func (c *Collectible) BeforeCreate(tx *gorm.DB) (err error) {
-	c.ID = uuid.New()
-	return nil
-}
-
-func (c Collectible) String() string {
-	return fmt.Sprintf("%s.%d", c.ContractReference, c.FlowID)
 }
