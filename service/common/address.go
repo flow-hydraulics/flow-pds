@@ -9,6 +9,16 @@ import (
 
 type FlowAddress flow.Address
 
+// AddressLocation is a reference to a contract on chain.
+type AddressLocation struct {
+	Name    string      `json:"name" gorm:"column:name"`
+	Address FlowAddress `json:"address" gorm:"column:address"`
+}
+
+func (a FlowAddress) String() string {
+	return flow.Address(a).String()
+}
+
 func (a FlowAddress) MarshalJSON() ([]byte, error) {
 	return flow.Address(a).MarshalJSON()
 }
@@ -20,19 +30,19 @@ func (a *FlowAddress) UnmarshalJSON(data []byte) error {
 	return nil
 }
 
-func (FlowAddress) GormDataType() string {
-	return "text"
+func (a FlowAddress) Value() (driver.Value, error) {
+	return flow.Address(a).Bytes(), nil
 }
 
 func (a *FlowAddress) Scan(value interface{}) error {
-	str, ok := value.(string)
+	bytes, ok := value.([]byte)
 	if !ok {
 		return fmt.Errorf("failed to unmarshal FlowAddress value: %v", value)
 	}
-	*a = FlowAddress(flow.HexToAddress(str))
+	*a = FlowAddress(flow.BytesToAddress(bytes))
 	return nil
 }
 
-func (a FlowAddress) Value() (driver.Value, error) {
-	return flow.Address(a).Hex(), nil
+func (al AddressLocation) String() string {
+	return fmt.Sprintf("A.%s.%s", al.Address, al.Name)
 }

@@ -4,7 +4,6 @@ import (
 	"fmt"
 
 	"github.com/flow-hydraulics/flow-pds/service/common"
-	"github.com/onflow/cadence"
 	"github.com/onflow/flow-go-sdk"
 )
 
@@ -37,10 +36,6 @@ func (pt PackTemplate) Validate() error {
 		return fmt.Errorf("error while validating PackReference: %w", err)
 	}
 
-	if err := ValidateContractReference(pt.CollectibleReference); err != nil {
-		return fmt.Errorf("error while validating CollectibleReference: %w", err)
-	}
-
 	for i, bucket := range pt.Buckets {
 		if err := bucket.Validate(); err != nil {
 			return fmt.Errorf("error in slot template %d: %w", i+1, err)
@@ -64,6 +59,10 @@ func (bucket Bucket) Validate() error {
 		return fmt.Errorf("collectible count can not be zero")
 	}
 
+	if err := ValidateContractReference(bucket.CollectibleReference); err != nil {
+		return fmt.Errorf("error while validating CollectibleReference: %w", err)
+	}
+
 	if len(bucket.CollectibleCollection) == 0 {
 		return fmt.Errorf("empty collection")
 	}
@@ -79,25 +78,38 @@ func (bucket Bucket) Validate() error {
 }
 
 func (p Pack) Validate() error {
-	if len(p.Slots) == 0 {
+	if len(p.Collectibles) == 0 {
 		return fmt.Errorf("no slots")
 	}
 
-	for i, slot := range p.Slots {
-		if slot.CollectibleFlowID == common.FlowID(cadence.NewUInt64(0)) {
-			return fmt.Errorf("uninitialized collectible in slot %d", i+1)
+	for i, c := range p.Collectibles {
+		err := c.Validate()
+		if err != nil {
+			return fmt.Errorf("error while validating collectible in slot #%d: %w", i+1, err)
 		}
 	}
 
 	return nil
 }
 
-func ValidateContractReference(ref AddressLocation) error {
+func ValidateContractReference(ref common.AddressLocation) error {
 	if ref.Name == "" {
 		return fmt.Errorf("empty name")
 	}
 	if flow.Address(ref.Address) == flow.EmptyAddress {
 		return fmt.Errorf("empty address")
 	}
+	return nil
+}
+
+func (c Collectible) Validate() error {
+	if err := ValidateContractReference(c.ContractReference); err != nil {
+		return fmt.Errorf("error while validating ContractReference: %w", err)
+	}
+
+	if c.FlowID == common.FlowID(0) {
+		return fmt.Errorf("uninitialized flowID")
+	}
+
 	return nil
 }

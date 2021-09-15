@@ -22,18 +22,28 @@ func TestDistributionValidation(t *testing.T) {
 
 	bucket1 := collection[:20]
 	bucket2 := collection[20:25]
+	collectibleRef := common.AddressLocation{
+		Name:    "TestCollectibleNFT",
+		Address: common.FlowAddress(flow.HexToAddress("0x2")),
+	}
 
-	distribution := Distribution{
+	d := Distribution{
 		DistID: common.FlowID(1),
 		Issuer: common.FlowAddress(flow.HexToAddress("0x1")),
 		PackTemplate: PackTemplate{
+			PackReference: common.AddressLocation{
+				Name:    "TestPackNFT",
+				Address: common.FlowAddress(flow.HexToAddress("0x2")),
+			},
 			PackCount: 3,
 			Buckets: []Bucket{
 				{
+					CollectibleReference:  collectibleRef,
 					CollectibleCount:      10,
 					CollectibleCollection: bucket1,
 				},
 				{
+					CollectibleReference:  collectibleRef,
 					CollectibleCount:      3,
 					CollectibleCollection: bucket2,
 				},
@@ -41,53 +51,78 @@ func TestDistributionValidation(t *testing.T) {
 		},
 	}
 
-	if err := distribution.Validate(); err == nil {
+	if err := d.Validate(); err == nil {
 		t.Error("expected a validation error")
 	}
-
-	t.Log(flow.Address(distribution.PackTemplate.CollectibleReference.Address).Bytes())
 }
 
 func TestDistributionResolution(t *testing.T) {
 	collection := makeCollection(100)
 
+	packCount := 4
+
 	bucket1 := collection[:80]
 	bucket2 := collection[80:100]
+	collectibleRef := common.AddressLocation{
+		Name:    "TestCollectibleNFT",
+		Address: common.FlowAddress(flow.HexToAddress("0x2")),
+	}
 
-	distribution := Distribution{
+	d := Distribution{
 		DistID: common.FlowID(1),
 		Issuer: common.FlowAddress(flow.HexToAddress("0x1")),
 		PackTemplate: PackTemplate{
-			PackCount: 4,
+			PackReference: common.AddressLocation{
+				Name:    "TestPackNFT",
+				Address: common.FlowAddress(flow.HexToAddress("0x2")),
+			},
+			PackCount: uint(packCount),
 			Buckets: []Bucket{
 				{
+					CollectibleReference:  collectibleRef,
 					CollectibleCount:      2,
 					CollectibleCollection: bucket1,
 				},
 				{
-					CollectibleCount:      2,
+					CollectibleReference:  collectibleRef,
+					CollectibleCount:      3,
 					CollectibleCollection: bucket2,
 				},
-			},
-			PackReference: AddressLocation{
-				Name:    "TestPackNFT",
-				Address: common.FlowAddress(flow.HexToAddress("0x2")),
-			},
-			CollectibleReference: AddressLocation{
-				Name:    "TestCollectibleNFT",
-				Address: common.FlowAddress(flow.HexToAddress("0x2")),
 			},
 		},
 	}
 
-	if err := distribution.Resolve(); err != nil {
+	if err := d.Resolve(); err != nil {
 		t.Fatalf("didn't expect an error, got %s", err)
 	}
 
-	r1 := distribution.ResolvedCollection()
-	r2 := distribution.ResolvedCollection()
+	r1 := d.ResolvedCollection()
+	r2 := d.ResolvedCollection()
 
-	if reflect.DeepEqual(r1, r2) {
-		t.Fatalf("resolved collections should not match")
+	if !reflect.DeepEqual(r1, r2) {
+		t.Fatalf("resolved collections should match")
+	}
+
+	for i := range r1 {
+		if i > 0 && r1[i-1].FlowID > r1[i].FlowID {
+			t.Fatal("resolved collection should be sorted ascending by flow id")
+		}
+	}
+
+	if len(d.Packs) != packCount {
+		t.Fatalf("expected there to be %d packs", packCount)
+	}
+
+	for _, p := range d.Packs {
+		expected := d.PackSlotCount()
+		if len(p.Collectibles) != expected {
+			t.Fatalf("expected there to be %d slots", expected)
+		}
+
+		for _, c := range p.Collectibles {
+			if c.FlowID == common.FlowID(0) {
+				t.Fatalf("did not expect 0 value in a slot")
+			}
+		}
 	}
 }

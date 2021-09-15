@@ -3,6 +3,7 @@ package app
 import (
 	"fmt"
 	"math/rand"
+	"sort"
 	"time"
 
 	"github.com/flow-hydraulics/flow-pds/service/common"
@@ -11,7 +12,7 @@ import (
 // Resolve should
 // - validate the distribution
 // - distribute given collectibles into packs based on given template
-// - seal each pack??
+// - hash each pack
 // - set the distributions state to resolved
 func (dist *Distribution) Resolve() error {
 	if dist.State != common.DistributionStateInit {
@@ -28,7 +29,7 @@ func (dist *Distribution) Resolve() error {
 	// Init packs and their slots
 	packs := make([]Pack, packCount)
 	for i := range packs {
-		packs[i].Slots = make([]PackSlot, packSlotCount)
+		packs[i].Collectibles = make([]Collectible, packSlotCount)
 	}
 
 	// Distributing collectibles
@@ -42,24 +43,29 @@ func (dist *Distribution) Resolve() error {
 		// TODO (latenssi): Is this safe enough?
 		r := rand.New(rand.NewSource(time.Now().UnixNano()))
 
+		// Generate a slice of random indexes to bucket.CollectibleCollection
 		permutation := r.Perm(len(bucket.CollectibleCollection))
 
 		for i := 0; i < countTotal; i++ {
 			randomIndex := permutation[i]
-			collectible := bucket.CollectibleCollection[randomIndex]
-			slot := PackSlot{CollectibleFlowID: collectible}
 			packIndex := i % packCount
 			slotIndex := (i / packCount) + slotBaseIndex
-			packs[packIndex].Slots[slotIndex] = slot
+
+			collectible := Collectible{
+				ContractReference: bucket.CollectibleReference,
+				FlowID:            bucket.CollectibleCollection[randomIndex],
+			}
+
+			packs[packIndex].Collectibles[slotIndex] = collectible
 		}
 
 		slotBaseIndex += countPerPack
 	}
 
-	// Sealing each pack
+	// Setting commitment hashes of each pack
 	for i := range packs {
-		if err := packs[i].Seal(); err != nil {
-			return fmt.Errorf("error while sealing pack %d: %w", i+1, err)
+		if err := packs[i].SetCommitmentHash(); err != nil {
+			return fmt.Errorf("error while hashing pack %d: %w", i+1, err)
 		}
 	}
 
@@ -107,32 +113,32 @@ func (dist *Distribution) Cancel() error {
 	return nil
 }
 
-func (dist Distribution) packSlots() []PackSlot {
-	var slots []PackSlot
-	for _, pack := range dist.Packs {
-		slots = append(slots, pack.Slots...)
-	}
-	return slots
-}
-
 // ResolvedCollection should publicly present what collectibles got in the distribution
 // without revealing in which pack each one resides
-func (dist Distribution) ResolvedCollection() common.FlowIDList {
-	slots := dist.packSlots()
-	res := make([]common.FlowID, len(slots))
-	for i := range slots {
-		res[i] = slots[i].CollectibleFlowID
+func (dist Distribution) ResolvedCollection() []Collectible {
+	res := make([]Collectible, 0, dist.SlotCount())
+	for _, pack := range dist.Packs {
+		res = append(res, pack.Collectibles...)
 	}
-	r := rand.New(rand.NewSource(time.Now().UnixNano()))
-	r.Shuffle(len(res), func(i, j int) { res[i], res[j] = res[j], res[i] })
+	// Sort collection by flowID
+	sort.Sort(CollectibleByFlowID(res))
 	return res
 }
 
-// PackSlotCount returns the number of slots in each pack
+func (dist Distribution) PackCount() int {
+	return int(dist.PackTemplate.PackCount)
+}
+
+// PackSlotCount returns the number of slots per pack
 func (dist Distribution) PackSlotCount() int {
 	res := 0
 	for _, bucket := range dist.PackTemplate.Buckets {
 		res += int(bucket.CollectibleCount)
 	}
 	return res
+}
+
+// SlotCount returns the total number of slots in distribution
+func (dist Distribution) SlotCount() int {
+	return dist.PackCount() * dist.PackSlotCount()
 }

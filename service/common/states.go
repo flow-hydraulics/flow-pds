@@ -2,7 +2,6 @@ package common
 
 type DistributionState uint
 type PackState uint
-type PackSlotState uint
 
 const (
 	DistributionStateInit DistributionState = iota
@@ -19,11 +18,4 @@ const (
 	PackStateSealed
 	PackStateRevealed
 	PackStateEmpty
-)
-
-const (
-	PackSlotStateInit PackSlotState = iota
-	PackSlotStateInTransit
-	PackSlotStateInStorage
-	PackSlotStateEmtpy
 )

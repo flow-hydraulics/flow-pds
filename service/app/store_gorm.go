@@ -11,7 +11,7 @@ type GormStore struct {
 }
 
 func NewGormStore(db *gorm.DB) *GormStore {
-	db.AutoMigrate(&Distribution{}, &Bucket{}, &Pack{}, &PackSlot{})
+	db.AutoMigrate(&Distribution{}, &Bucket{}, &Pack{}, &Collectible{})
 	return &GormStore{db}
 }
 
@@ -46,7 +46,7 @@ func (s *GormStore) ListDistributions(opt ListOptions) ([]Distribution, error) {
 // Get distribution
 func (s *GormStore) GetDistribution(id uuid.UUID) (*Distribution, error) {
 	distribution := Distribution{}
-	if err := s.db.Preload("Packs.Slots").Preload(clause.Associations).First(&distribution, id).Error; err != nil {
+	if err := s.db.Preload("Packs.Collectibles").Preload(clause.Associations).First(&distribution, id).Error; err != nil {
 		return nil, err
 	}
 	return &distribution, nil

@@ -35,6 +35,7 @@ func HandleCreateDistribution(logger *log.Logger, app *app.App) http.HandlerFunc
 			return
 		}
 
+		// TODO (latenssi): respond with the distribution instead of ID
 		res := ResCreateDistribution{DistributionId: id}
 
 		handleJsonResponse(rw, http.StatusCreated, res)
@@ -60,9 +61,9 @@ func HandleListDistributions(logger *log.Logger, app *app.App) http.HandlerFunc 
 			return
 		}
 
-		res := make([]ReqDistributionListItem, len(list))
+		res := make([]ResDistributionListItem, len(list))
 		for i := range res {
-			res[i] = ReqDistributionListItemFromApp(list[i])
+			res[i] = ResDistributionListItemFromApp(list[i])
 		}
 
 		handleJsonResponse(rw, http.StatusOK, res)
@@ -86,7 +87,7 @@ func HandleGetDistribution(logger *log.Logger, app *app.App) http.HandlerFunc {
 			return
 		}
 
-		res := ReqDistributionFromApp(*dist)
+		res := ResDistributionFromApp(*dist)
 
 		handleJsonResponse(rw, http.StatusOK, res)
 	}
