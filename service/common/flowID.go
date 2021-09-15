@@ -9,8 +9,6 @@ import (
 	"github.com/onflow/cadence"
 )
 
-const FLOW_ID_LIST_SCAN_DELIM = ","
-
 type FlowID cadence.UInt64
 type FlowIDList []FlowID
 
@@ -39,7 +37,7 @@ func (l *FlowIDList) Scan(value interface{}) error {
 	if !ok {
 		return fmt.Errorf("failed to unmarshal FlowIDList value: %v", value)
 	}
-	strSplit := strings.Split(string(str), FLOW_ID_LIST_SCAN_DELIM)
+	strSplit := strings.Split(string(str), ",")
 	list := make([]FlowID, len(strSplit))
 	for i, s := range strSplit {
 		id, err := FlowIDFromStr(s)
@@ -53,5 +51,5 @@ func (l *FlowIDList) Scan(value interface{}) error {
 }
 
 func (l FlowIDList) Value() (driver.Value, error) {
-	return strings.Trim(strings.Join(strings.Fields(fmt.Sprint(l)), FLOW_ID_LIST_SCAN_DELIM), "[]"), nil
+	return strings.Trim(strings.Join(strings.Fields(fmt.Sprint(l)), ","), "[]"), nil
 }

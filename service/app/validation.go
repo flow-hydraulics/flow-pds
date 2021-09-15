@@ -32,7 +32,7 @@ func (pt PackTemplate) Validate() error {
 		return fmt.Errorf("no slot templates provided")
 	}
 
-	if err := ValidateContractReference(pt.PackReference); err != nil {
+	if err := pt.PackReference.Validate(); err != nil {
 		return fmt.Errorf("error while validating PackReference: %w", err)
 	}
 
@@ -59,7 +59,7 @@ func (bucket Bucket) Validate() error {
 		return fmt.Errorf("collectible count can not be zero")
 	}
 
-	if err := ValidateContractReference(bucket.CollectibleReference); err != nil {
+	if err := bucket.CollectibleReference.Validate(); err != nil {
 		return fmt.Errorf("error while validating CollectibleReference: %w", err)
 	}
 
@@ -92,18 +92,18 @@ func (p Pack) Validate() error {
 	return nil
 }
 
-func ValidateContractReference(ref common.AddressLocation) error {
-	if ref.Name == "" {
+func (al AddressLocation) Validate() error {
+	if al.Name == "" {
 		return fmt.Errorf("empty name")
 	}
-	if flow.Address(ref.Address) == flow.EmptyAddress {
+	if flow.Address(al.Address) == flow.EmptyAddress {
 		return fmt.Errorf("empty address")
 	}
 	return nil
 }
 
 func (c Collectible) Validate() error {
-	if err := ValidateContractReference(c.ContractReference); err != nil {
+	if err := c.ContractReference.Validate(); err != nil {
 		return fmt.Errorf("error while validating ContractReference: %w", err)
 	}
 

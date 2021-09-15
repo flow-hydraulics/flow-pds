@@ -32,9 +32,9 @@ type DistributionMetaData struct {
 }
 
 type PackTemplate struct {
-	PackReference common.AddressLocation `gorm:"embedded;embeddedPrefix:pack_ref_"` // Reference to the pack NFT contract
-	PackCount     uint                   `gorm:"column:pack_count"`                 // How many packs to create
-	Buckets       []Bucket               // How to distribute collectibles in a pack
+	PackReference AddressLocation `gorm:"embedded;embeddedPrefix:pack_ref_"` // Reference to the pack NFT contract
+	PackCount     uint            `gorm:"column:pack_count"`                 // How many packs to create
+	Buckets       []Bucket        // How to distribute collectibles in a pack
 }
 
 type Bucket struct {
@@ -42,9 +42,9 @@ type Bucket struct {
 	DistributionID uuid.UUID
 	ID             uuid.UUID `gorm:"column:id;primary_key;type:uuid;"`
 
-	CollectibleReference  common.AddressLocation `gorm:"embedded;embeddedPrefix:collectible_ref_"` // Reference to the collectible NFT contract
-	CollectibleCount      uint                   `gorm:"column:collectible_count"`                 // How many collectibles to pick from this bucket
-	CollectibleCollection common.FlowIDList      `gorm:"column:collectible_collection"`            // Collection of collectibles to pick from
+	CollectibleReference  AddressLocation   `gorm:"embedded;embeddedPrefix:collectible_ref_"` // Reference to the collectible NFT contract
+	CollectibleCount      uint              `gorm:"column:collectible_count"`                 // How many collectibles to pick from this bucket
+	CollectibleCollection common.FlowIDList `gorm:"column:collectible_collection"`            // Collection of collectibles to pick from
 }
 
 type Pack struct {
@@ -59,6 +59,11 @@ type Pack struct {
 	Collectibles   []Collectible      // private
 }
 
+// AddressLocation is a reference to a contract on chain.
+type AddressLocation struct {
+	Name    string             `gorm:"column:name"`
+	Address common.FlowAddress `gorm:"column:address"`
+}
 type Collectible struct {
 	gorm.Model
 	PackID uuid.UUID
