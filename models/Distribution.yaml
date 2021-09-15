@@ -35,7 +35,7 @@ properties:
   resolvedCollection:
     type: array
     items:
-      type: integer
-      format: int64
+      type: string
+      example: A.0000000000000003.CollectibleNFT.11
   settlementStatus:
     $ref: ./Settlement-Status.yaml
