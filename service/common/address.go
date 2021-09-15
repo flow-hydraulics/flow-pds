@@ -9,6 +9,12 @@ import (
 
 type FlowAddress flow.Address
 
+// AddressLocation is a reference to a contract on chain.
+type AddressLocation struct {
+	Name    string      `json:"name" gorm:"column:name"`
+	Address FlowAddress `json:"address" gorm:"column:address"`
+}
+
 func (a FlowAddress) String() string {
 	return flow.Address(a).String()
 }
@@ -35,4 +41,8 @@ func (a *FlowAddress) Scan(value interface{}) error {
 	}
 	*a = FlowAddress(flow.BytesToAddress(bytes))
 	return nil
+}
+
+func (al AddressLocation) String() string {
+	return fmt.Sprintf("A.%s.%s", al.Address, al.Name)
 }

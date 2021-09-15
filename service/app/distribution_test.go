@@ -22,18 +22,28 @@ func TestDistributionValidation(t *testing.T) {
 
 	bucket1 := collection[:20]
 	bucket2 := collection[20:25]
+	collectibleRef := common.AddressLocation{
+		Name:    "TestCollectibleNFT",
+		Address: common.FlowAddress(flow.HexToAddress("0x2")),
+	}
 
 	d := Distribution{
 		DistID: common.FlowID(1),
 		Issuer: common.FlowAddress(flow.HexToAddress("0x1")),
 		PackTemplate: PackTemplate{
+			PackReference: common.AddressLocation{
+				Name:    "TestPackNFT",
+				Address: common.FlowAddress(flow.HexToAddress("0x2")),
+			},
 			PackCount: 3,
 			Buckets: []Bucket{
 				{
+					CollectibleReference:  collectibleRef,
 					CollectibleCount:      10,
 					CollectibleCollection: bucket1,
 				},
 				{
+					CollectibleReference:  collectibleRef,
 					CollectibleCount:      3,
 					CollectibleCollection: bucket2,
 				},
@@ -53,29 +63,31 @@ func TestDistributionResolution(t *testing.T) {
 
 	bucket1 := collection[:80]
 	bucket2 := collection[80:100]
+	collectibleRef := common.AddressLocation{
+		Name:    "TestCollectibleNFT",
+		Address: common.FlowAddress(flow.HexToAddress("0x2")),
+	}
 
 	d := Distribution{
 		DistID: common.FlowID(1),
 		Issuer: common.FlowAddress(flow.HexToAddress("0x1")),
 		PackTemplate: PackTemplate{
+			PackReference: common.AddressLocation{
+				Name:    "TestPackNFT",
+				Address: common.FlowAddress(flow.HexToAddress("0x2")),
+			},
 			PackCount: uint(packCount),
 			Buckets: []Bucket{
 				{
+					CollectibleReference:  collectibleRef,
 					CollectibleCount:      2,
 					CollectibleCollection: bucket1,
 				},
 				{
+					CollectibleReference:  collectibleRef,
 					CollectibleCount:      3,
 					CollectibleCollection: bucket2,
 				},
-			},
-			PackReference: AddressLocation{
-				Name:    "TestPackNFT",
-				Address: common.FlowAddress(flow.HexToAddress("0x2")),
-			},
-			CollectibleReference: AddressLocation{
-				Name:    "TestCollectibleNFT",
-				Address: common.FlowAddress(flow.HexToAddress("0x2")),
 			},
 		},
 	}
@@ -97,12 +109,12 @@ func TestDistributionResolution(t *testing.T) {
 
 	for _, p := range d.Packs {
 		expected := d.PackSlotCount()
-		if len(p.Slots) != expected {
+		if len(p.Collectibles) != expected {
 			t.Fatalf("expected there to be %d slots", expected)
 		}
 
-		for _, s := range p.Slots {
-			if s == common.FlowID(0) {
+		for _, c := range p.Collectibles {
+			if c.FlowId == common.FlowID(0) {
 				t.Fatalf("did not expect 0 value in a slot")
 			}
 		}

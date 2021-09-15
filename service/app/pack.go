@@ -16,7 +16,7 @@ const HASH_DELIM = ","
 // - validate the pack
 // - decide on a random salt value
 // - calculate the commitment hash for the pack
-func (p *Pack) SetCommitmentHash(dist *Distribution) error {
+func (p *Pack) SetCommitmentHash() error {
 	if !p.Salt.IsEmpty() {
 		return fmt.Errorf("salt is already set")
 	}
@@ -35,16 +35,16 @@ func (p *Pack) SetCommitmentHash(dist *Distribution) error {
 	}
 
 	p.Salt = salt
-	p.CommitmentHash = p.Hash(dist.PackTemplate.CollectibleReference)
+	p.CommitmentHash = p.Hash()
 
 	return nil
 }
 
-func (p *Pack) Hash(collectibleRef AddressLocation) []byte {
-	inputs := make([]string, 1+len(p.Slots))
+func (p *Pack) Hash() []byte {
+	inputs := make([]string, 1+len(p.Collectibles))
 	inputs[0] = hex.EncodeToString(p.Salt)
-	for i, s := range p.Slots {
-		inputs[i+1] = fmt.Sprintf("%s:%d", collectibleRef, s)
+	for i, c := range p.Collectibles {
+		inputs[i+1] = c.String()
 	}
 	h := sha256.Sum256([]byte(strings.Join(inputs, HASH_DELIM)))
 	return h[:]

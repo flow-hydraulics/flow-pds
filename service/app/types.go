@@ -32,10 +32,9 @@ type DistributionMetaData struct {
 }
 
 type PackTemplate struct {
-	PackReference        AddressLocation `gorm:"embedded;embeddedPrefix:packref_"`        // Reference to the pack NFT contract
-	CollectibleReference AddressLocation `gorm:"embedded;embeddedPrefix:collectibleref_"` // Reference to the collectible NFT contract
-	PackCount            uint            `gorm:"column:pack_count"`                       // How many packs to create
-	Buckets              []Bucket        // How to distribute collectibles in a pack
+	PackReference common.AddressLocation `gorm:"embedded;embeddedPrefix:pack_ref_"` // Reference to the pack NFT contract
+	PackCount     uint                   `gorm:"column:pack_count"`                 // How many packs to create
+	Buckets       []Bucket               // How to distribute collectibles in a pack
 }
 
 type Bucket struct {
@@ -43,8 +42,9 @@ type Bucket struct {
 	DistributionID uuid.UUID
 	ID             uuid.UUID `gorm:"column:id;primary_key;type:uuid;"`
 
-	CollectibleCount      uint              `gorm:"column:collectible_count"`      // How many collectibles to pick from this bucket
-	CollectibleCollection common.FlowIDList `gorm:"column:collectible_collection"` // Collection of collectibles to pick from
+	CollectibleReference  common.AddressLocation `gorm:"embedded;embeddedPrefix:collectible_ref_"` // Reference to the collectible NFT contract
+	CollectibleCount      uint                   `gorm:"column:collectible_count"`                 // How many collectibles to pick from this bucket
+	CollectibleCollection common.FlowIDList      `gorm:"column:collectible_collection"`            // Collection of collectibles to pick from
 }
 
 type Pack struct {
@@ -52,17 +52,20 @@ type Pack struct {
 	DistributionID uuid.UUID
 	ID             uuid.UUID `gorm:"column:id;primary_key;type:uuid;"`
 
-	FlowID         common.FlowID      `gorm:"column:flow_id;index"`         // ID of the Pack NFT
+	FlowID         common.FlowID      `gorm:"column:flow_id;index"`         // ID of the pack NFT
 	State          common.PackState   `gorm:"column:state"`                 // public
 	Salt           common.BinaryValue `gorm:"column:salt"`                  // private
 	CommitmentHash common.BinaryValue `gorm:"column:commitment_hash;index"` // public
-	Slots          common.FlowIDList  // private
+	Collectibles   []Collectible      // private
 }
 
-// AddressLocation is a reference to a contract on flow chain
-type AddressLocation struct {
-	Name    string             `gorm:"column:name"`
-	Address common.FlowAddress `gorm:"column:address"`
+type Collectible struct {
+	gorm.Model
+	PackID uuid.UUID
+	ID     uuid.UUID `gorm:"column:id;primary_key;type:uuid;"`
+
+	FlowId            common.FlowID          `gorm:"column:flow_id"`                        // ID of the collectible NFT
+	ContractReference common.AddressLocation `gorm:"embedded;embeddedPrefix:contract_ref_"` // Reference to the collectible NFT contract
 }
 
 func (Distribution) TableName() string {
@@ -92,6 +95,15 @@ func (p *Pack) BeforeCreate(tx *gorm.DB) (err error) {
 	return nil
 }
 
-func (al AddressLocation) String() string {
-	return fmt.Sprintf("A.%s.%s", al.Address, al.Name)
+func (Collectible) TableName() string {
+	return "distribution_collectibles"
+}
+
+func (p *Collectible) BeforeCreate(tx *gorm.DB) (err error) {
+	p.ID = uuid.New()
+	return nil
+}
+
+func (c Collectible) String() string {
+	return fmt.Sprintf("%s.%d", c.ContractReference, c.FlowId)
 }

@@ -29,7 +29,7 @@ type ResDistribution struct {
 	MetaData           DistributionMetaData     `json:"meta"`
 	PackTemplate       PackTemplate             `json:"packTemplate"`
 	Packs              []Pack                   `json:"packs"`
-	ResolvedCollection common.FlowIDList        `json:"resolvedCollection"`
+	ResolvedCollection []string                 `json:"resolvedCollection"`
 	SettlementStatus   SettlementStatus         `json:"settlementStatuts"`
 }
 
@@ -53,15 +53,15 @@ type DistributionMetaData struct {
 }
 
 type PackTemplate struct {
-	PackReference        AddressLocation `json:"packReference"`
-	CollectibleReference AddressLocation `json:"collectibleReference"`
-	PackCount            uint            `json:"packCount"`
-	Buckets              []Bucket        `json:"buckets,omitempty"`
+	PackReference common.AddressLocation `json:"packReference"`
+	PackCount     uint                   `json:"packCount"`
+	Buckets       []Bucket               `json:"buckets,omitempty"`
 }
 
 type Bucket struct {
-	CollectibleCount      uint            `json:"collectibleCount"`
-	CollectibleCollection []common.FlowID `json:"collectibleCollection"`
+	CollectibleReference  common.AddressLocation `json:"collectibleReference"`
+	CollectibleCount      uint                   `json:"collectibleCount"`
+	CollectibleCollection []common.FlowID        `json:"collectibleCollection"`
 }
 
 type Pack struct {
@@ -70,17 +70,16 @@ type Pack struct {
 	CommitmentHash common.BinaryValue `json:"commitmentHash"`
 }
 
-type AddressLocation struct {
-	Name    string             `json:"name"`
-	Address common.FlowAddress `json:"address"`
-}
-
 type SettlementStatus struct {
 	Settled uint `json:"settled"`
 	Total   uint `json:"total"`
 }
 
 func ResDistributionFromApp(d app.Distribution) ResDistribution {
+	resolvedCollection := make([]string, d.SlotCount())
+	for i, c := range d.ResolvedCollection() {
+		resolvedCollection[i] = c.String()
+	}
 	return ResDistribution{
 		ID:                 d.ID,
 		CreatedAt:          d.CreatedAt,
@@ -91,7 +90,7 @@ func ResDistributionFromApp(d app.Distribution) ResDistribution {
 		MetaData:           DistributionMetaData(d.MetaData),
 		PackTemplate:       PackTemplateFromApp(d.PackTemplate),
 		Packs:              PacksFromApp(d),
-		ResolvedCollection: d.ResolvedCollection(),
+		ResolvedCollection: resolvedCollection,
 	}
 }
 
@@ -110,10 +109,9 @@ func ResDistributionListItemFromApp(d app.Distribution) ResDistributionListItem 
 
 func PackTemplateFromApp(pt app.PackTemplate) PackTemplate {
 	return PackTemplate{
-		PackReference:        AddressLocation(pt.PackReference),
-		CollectibleReference: AddressLocation(pt.CollectibleReference),
-		PackCount:            pt.PackCount,
-		Buckets:              BucketsFromApp(pt),
+		PackReference: pt.PackReference,
+		PackCount:     pt.PackCount,
+		Buckets:       BucketsFromApp(pt),
 	}
 }
 
@@ -121,6 +119,7 @@ func BucketsFromApp(pt app.PackTemplate) []Bucket {
 	buckets := make([]Bucket, len(pt.Buckets))
 	for i, b := range pt.Buckets {
 		buckets[i] = Bucket{
+			CollectibleReference:  b.CollectibleReference,
 			CollectibleCount:      b.CollectibleCount,
 			CollectibleCollection: b.CollectibleCollection,
 		}
@@ -153,14 +152,14 @@ func (pt PackTemplate) ToApp() app.PackTemplate {
 	buckets := make([]app.Bucket, len(pt.Buckets))
 	for i, b := range pt.Buckets {
 		buckets[i] = app.Bucket{
+			CollectibleReference:  b.CollectibleReference,
 			CollectibleCount:      b.CollectibleCount,
 			CollectibleCollection: b.CollectibleCollection,
 		}
 	}
 	return app.PackTemplate{
-		PackReference:        app.AddressLocation(pt.PackReference),
-		CollectibleReference: app.AddressLocation(pt.CollectibleReference),
-		PackCount:            pt.PackCount,
-		Buckets:              buckets,
+		PackReference: pt.PackReference,
+		PackCount:     pt.PackCount,
+		Buckets:       buckets,
 	}
 }
