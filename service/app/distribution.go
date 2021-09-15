@@ -3,6 +3,7 @@ package app
 import (
 	"fmt"
 	"math/rand"
+	"sort"
 	"time"
 
 	"github.com/flow-hydraulics/flow-pds/service/common"
@@ -52,7 +53,7 @@ func (dist *Distribution) Resolve() error {
 
 			collectible := Collectible{
 				ContractReference: bucket.CollectibleReference,
-				FlowId:            bucket.CollectibleCollection[randomIndex],
+				FlowID:            bucket.CollectibleCollection[randomIndex],
 			}
 
 			packs[packIndex].Collectibles[slotIndex] = collectible
@@ -119,8 +120,8 @@ func (dist Distribution) ResolvedCollection() []Collectible {
 	for _, pack := range dist.Packs {
 		res = append(res, pack.Collectibles...)
 	}
-	r := rand.New(rand.NewSource(time.Now().UnixNano()))
-	r.Shuffle(len(res), func(i, j int) { res[i], res[j] = res[j], res[i] })
+	// Sort collection by flowID
+	sort.Sort(CollectibleByFlowID(res))
 	return res
 }
 

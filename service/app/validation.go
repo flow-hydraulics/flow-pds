@@ -107,7 +107,7 @@ func (c Collectible) Validate() error {
 		return fmt.Errorf("error while validating ContractReference: %w", err)
 	}
 
-	if c.FlowId == common.FlowID(0) {
+	if c.FlowID == common.FlowID(0) {
 		return fmt.Errorf("uninitialized flowID")
 	}
 

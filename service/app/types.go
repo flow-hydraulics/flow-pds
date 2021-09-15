@@ -64,9 +64,16 @@ type Collectible struct {
 	PackID uuid.UUID
 	ID     uuid.UUID `gorm:"column:id;primary_key;type:uuid;"`
 
-	FlowId            common.FlowID          `gorm:"column:flow_id"`                        // ID of the collectible NFT
+	FlowID            common.FlowID          `gorm:"column:flow_id"`                        // ID of the collectible NFT
 	ContractReference common.AddressLocation `gorm:"embedded;embeddedPrefix:contract_ref_"` // Reference to the collectible NFT contract
 }
+
+// Implement sort.Interface by FlowID for Collectible slice
+type CollectibleByFlowID []Collectible
+
+func (c CollectibleByFlowID) Len() int           { return len(c) }
+func (c CollectibleByFlowID) Less(i, j int) bool { return c[i].FlowID < c[j].FlowID }
+func (c CollectibleByFlowID) Swap(i, j int)      { c[i], c[j] = c[j], c[i] }
 
 func (Distribution) TableName() string {
 	return "distributions"
@@ -105,5 +112,5 @@ func (p *Collectible) BeforeCreate(tx *gorm.DB) (err error) {
 }
 
 func (c Collectible) String() string {
-	return fmt.Sprintf("%s.%d", c.ContractReference, c.FlowId)
+	return fmt.Sprintf("%s.%d", c.ContractReference, c.FlowID)
 }

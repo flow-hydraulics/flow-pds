@@ -99,8 +99,14 @@ func TestDistributionResolution(t *testing.T) {
 	r1 := d.ResolvedCollection()
 	r2 := d.ResolvedCollection()
 
-	if reflect.DeepEqual(r1, r2) {
-		t.Fatalf("resolved collections should not match")
+	if !reflect.DeepEqual(r1, r2) {
+		t.Fatalf("resolved collections should match")
+	}
+
+	for i := range r1 {
+		if i > 0 && r1[i-1].FlowID > r1[i].FlowID {
+			t.Fatal("resolved collection should be sorted ascending by flow id")
+		}
 	}
 
 	if len(d.Packs) != packCount {
@@ -114,7 +120,7 @@ func TestDistributionResolution(t *testing.T) {
 		}
 
 		for _, c := range p.Collectibles {
-			if c.FlowId == common.FlowID(0) {
+			if c.FlowID == common.FlowID(0) {
 				t.Fatalf("did not expect 0 value in a slot")
 			}
 		}
