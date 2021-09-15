@@ -106,8 +106,8 @@ func (Collectible) TableName() string {
 	return "distribution_collectibles"
 }
 
-func (p *Collectible) BeforeCreate(tx *gorm.DB) (err error) {
-	p.ID = uuid.New()
+func (c *Collectible) BeforeCreate(tx *gorm.DB) (err error) {
+	c.ID = uuid.New()
 	return nil
 }
 
