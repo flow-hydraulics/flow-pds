@@ -2,7 +2,7 @@ module github.com/flow-hydraulics/flow-pds
 
 go 1.17
 
-replace github.com/bjartek/go-with-the-flow/v2 => ../gwtf-usdc-fork
+replace github.com/bjartek/go-with-the-flow/v2 => github.com/flow-hydraulics/go-with-the-flow/v2 v2.0.0-20210916131243-1b2f9db5a593
 
 require (
 	github.com/bjartek/go-with-the-flow/v2 v2.1.6
