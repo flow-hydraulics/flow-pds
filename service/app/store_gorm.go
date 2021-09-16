@@ -17,7 +17,45 @@ func NewGormStore(db *gorm.DB) *GormStore {
 
 // Insert distribution
 func (s *GormStore) InsertDistribution(d *Distribution) error {
-	return s.db.Create(d).Error
+	return s.db.Transaction(func(tx *gorm.DB) error {
+		// Store distribution
+		if err := tx.Omit(clause.Associations).Create(d).Error; err != nil {
+			return err
+		}
+
+		// Update distribution IDs
+		for i := range d.PackTemplate.Buckets {
+			d.PackTemplate.Buckets[i].DistributionID = d.ID
+		}
+
+		for i := range d.Packs {
+			d.Packs[i].DistributionID = d.ID
+		}
+
+		// Store buckets, assuming we won't have too many buckets per distribution
+		if err := tx.Create(d.PackTemplate.Buckets).Error; err != nil {
+			return err
+		}
+
+		// Store packs in batches
+		if err := tx.Omit(clause.Associations).CreateInBatches(d.Packs, 1000).Error; err != nil {
+			return err
+		}
+
+		// Store pack collectibles, assuming we won't have too many collectibles per pack
+		for _, p := range d.Packs {
+			for i := range p.Collectibles {
+				// Update pack ID
+				p.Collectibles[i].PackID = p.ID
+			}
+			if err := tx.Create(p.Collectibles).Error; err != nil {
+				return err
+			}
+		}
+
+		// Commit
+		return nil
+	})
 }
 
 // Update distribution
