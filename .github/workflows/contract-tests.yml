@@ -26,4 +26,4 @@ jobs:
           NON_FUNGIBLE_TOKEN_ADDRESS: f8d6e0586b0a20c7
           EXAMPLE_NFT_ADDRESS: 01cf0e2f2f715450
           PDS_ADDRESS: f3fcd2c1a78f5eee
-        run: ./contracts-tests.sh
+        run: ./contracts-test.sh
