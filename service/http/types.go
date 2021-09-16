@@ -34,14 +34,13 @@ type ResDistribution struct {
 }
 
 type ResDistributionListItem struct {
-	ID           uuid.UUID                `json:"id"`
-	CreatedAt    time.Time                `json:"createdAt"`
-	UpdatedAt    time.Time                `json:"updatedAt"`
-	DistID       common.FlowID            `json:"distId"`
-	Issuer       common.FlowAddress       `json:"issuer"`
-	State        common.DistributionState `json:"state"`
-	MetaData     DistributionMetaData     `json:"meta"`
-	PackTemplate PackTemplate             `json:"packTemplate"`
+	ID        uuid.UUID                `json:"id"`
+	CreatedAt time.Time                `json:"createdAt"`
+	UpdatedAt time.Time                `json:"updatedAt"`
+	DistID    common.FlowID            `json:"distId"`
+	Issuer    common.FlowAddress       `json:"issuer"`
+	State     common.DistributionState `json:"state"`
+	MetaData  DistributionMetaData     `json:"meta"`
 }
 
 type DistributionMetaData struct {
@@ -55,7 +54,7 @@ type DistributionMetaData struct {
 type PackTemplate struct {
 	PackReference common.AddressLocation `json:"packReference"`
 	PackCount     uint                   `json:"packCount"`
-	Buckets       []Bucket               `json:"buckets,omitempty"`
+	Buckets       []Bucket               `json:"buckets"`
 }
 
 type Bucket struct {
@@ -96,14 +95,13 @@ func ResDistributionFromApp(d app.Distribution) ResDistribution {
 
 func ResDistributionListItemFromApp(d app.Distribution) ResDistributionListItem {
 	return ResDistributionListItem{
-		ID:           d.ID,
-		CreatedAt:    d.CreatedAt,
-		UpdatedAt:    d.UpdatedAt,
-		DistID:       d.DistID,
-		Issuer:       d.Issuer,
-		State:        d.State,
-		MetaData:     DistributionMetaData(d.MetaData),
-		PackTemplate: PackTemplateFromApp(d.PackTemplate),
+		ID:        d.ID,
+		CreatedAt: d.CreatedAt,
+		UpdatedAt: d.UpdatedAt,
+		DistID:    d.DistID,
+		Issuer:    d.Issuer,
+		State:     d.State,
+		MetaData:  DistributionMetaData(d.MetaData),
 	}
 }
 

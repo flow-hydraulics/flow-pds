@@ -26,5 +26,3 @@ properties:
       - complete
   meta:
     $ref: ./Distribution-Meta.yaml
-  packTemplate:
-    $ref: ./Pack-Template.yaml

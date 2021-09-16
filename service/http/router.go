@@ -3,7 +3,6 @@ package http
 import (
 	"log"
 	"net/http"
-	"os"
 
 	"github.com/flow-hydraulics/flow-pds/service/app"
 	"github.com/gorilla/mux"
@@ -22,7 +21,7 @@ func NewRouter(logger *log.Logger, app *app.App) http.Handler {
 
 	// Use middleware
 	h := UseCors(r)
-	h = UseLogging(os.Stdout, h)
+	h = UseLogging(logger.Writer(), h)
 	h = UseCompress(h)
 	h = UseJson(h)
 
