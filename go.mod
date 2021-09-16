@@ -2,17 +2,17 @@ module github.com/flow-hydraulics/flow-pds
 
 go 1.17
 
-replace github.com/bjartek/go-with-the-flow/v2 => github.com/flow-hydraulics/go-with-the-flow/v2 v2.0.0-20210828075816-542f0f58e499
+replace github.com/bjartek/go-with-the-flow/v2 => ../gwtf-usdc-fork
 
 require (
-	github.com/bjartek/go-with-the-flow/v2 v2.1.4
+	github.com/bjartek/go-with-the-flow/v2 v2.1.6
 	github.com/caarlos0/env/v6 v6.7.1
 	github.com/google/uuid v1.3.0
 	github.com/gorilla/handlers v1.5.1
 	github.com/gorilla/mux v1.8.0
 	github.com/joho/godotenv v1.3.0
 	github.com/onflow/cadence v0.18.1-0.20210621144040-64e6b6fb2337
-	github.com/onflow/flow-go-sdk v0.21.0
+	github.com/onflow/flow-go-sdk v0.20.1-0.20210623043139-533a95abf071
 	github.com/stretchr/testify v1.7.0
 	google.golang.org/grpc v1.38.0
 	gorm.io/driver/mysql v1.1.2
@@ -71,7 +71,7 @@ require (
 	github.com/mattn/go-isatty v0.0.12 // indirect
 	github.com/mattn/go-sqlite3 v1.14.5 // indirect
 	github.com/matttproud/golang_protobuf_extensions v1.0.1 // indirect
-	github.com/onflow/flow-cli v0.27.0 // indirect
+	github.com/onflow/flow-cli v0.28.0 // indirect
 	github.com/onflow/flow-core-contracts/lib/go/contracts v0.7.3 // indirect
 	github.com/onflow/flow-core-contracts/lib/go/templates v0.6.0 // indirect
 	github.com/onflow/flow-emulator v0.22.0 // indirect

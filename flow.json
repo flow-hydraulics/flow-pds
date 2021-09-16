@@ -27,11 +27,11 @@
 			"address": "f8d6e0586b0a20c7",
 			"key": "27f93302f5851077d63ece5b693094c0e5fc0a169369069fa8fb6a134ffc0eab"
 		},
-        "emulator-owner": {
+        "emulator-issuer": {
            "address": "01cf0e2f2f715450",
            "key" : "9c687961e7a1abe1e445830e7ec118ffd1e2a0449cf705f5476b3f100e94dc29"
          },
-         "emulator-issuer" : {
+         "emulator-owner" : {
            "address": "179b6b1cb6755e31",
            "key" : "9c687961e7a1abe1e445830e7ec118ffd1e2a0449cf705f5476b3f100e94dc29"
          },

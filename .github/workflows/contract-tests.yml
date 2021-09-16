@@ -1,0 +1,29 @@
+---
+name: ContractTests
+
+on:
+  pull_request:
+
+jobs:
+
+  emulator:
+    runs-on: ${{ matrix.os }}
+    strategy:
+      matrix:
+        os: [ubuntu-latest]
+    steps:
+      - uses: actions/checkout@v2
+
+      - name: Set up Go
+        uses: actions/setup-go@v2
+        with:
+          go-version: 1.17
+
+      - name: Test
+        env:
+          NETWORK: emulator
+          RPC_ADDRESS: localhost:3569
+          NON_FUNGIBLE_TOKEN_ADDRESS: f8d6e0586b0a20c7
+          EXAMPLE_NFT_ADDRESS: 01cf0e2f2f715450
+          PDS_ADDRESS: f3fcd2c1a78f5eee
+        run: ./contract-tests.yml 

@@ -1,42 +1,53 @@
 package main
 
 import (
+	"fmt"
 	"encoding/hex"
-    "fmt"
+	"github.com/flow-hydraulics/flow-pds/go-contracts/util"
 	"github.com/bjartek/go-with-the-flow/v2/gwtf"
-    util "github.com/flow-hydraulics/flow-pds"
+	"github.com/onflow/cadence"
 )
 
 func main() {
-	// This relative path to flow.json is different in tests as it is the main package
-	g := gwtf.NewGoWithTheFlow("../../flow.json")
+	// This relative path to flow.json is  different in tests as it is the main package
 
-	contractCode := util.ReadCadenceCode("../../cadence-contracts/PackNFT.cdc")
-	txFilename := "../../cadence-transactions/deploy-with-auth.cdc"
-	code := util.ReadCadenceCode(txFilename)
+    jsonPath := "../flow.json"
+	var flowJSON []string = []string{jsonPath}
+
+    // g := gwtf.NewGoWithTheFlow(flowJSON, os.Getenv("NETWORK"), false, 3)
+	g := gwtf.NewGoWithTheFlow(flowJSON, "emulator", false, 3)
+
+	contractCode := util.ParseCadenceTemplate("../cadence-contracts/PackNFT.cdc")
+	txFilename := "../cadence-transactions/deploy/deploy-with-auth.cdc"
+	code := util.ParseCadenceTemplate(txFilename)
 	encodedStr := hex.EncodeToString(contractCode)
-	g.CreateAccountPrintEvents(
-		"vaulted-account",
-		"w-1000",
-		"w-500-1",
-		"w-500-2",
-		"w-250-1",
-		"w-250-2",
-		"non-registered-account",
-	)
-	// The "owner" defined in flow.json is the owner of the contracts:
-	// - `MultSigFlowToken`
-	// - `OnChainMultiSig`
-	e, err := g.TransactionFromFile(txFilename, code).
-		SignProposeAndPayAs("owner").
-		StringArgument("MultiSigFlowToken").
-		StringArgument(encodedStr).
-		Run()
 
-	if err != nil {
-        fmt.Errorf("Cannot deploy contract: %s", err)
+	if g.Network == "emulator" {
+		g.CreateAccounts("emulator-account")
 	}
 
+	e, err := g.TransactionFromFile(txFilename, code).
+		SignProposeAndPayAs("issuer").
+		StringArgument("PackNFT").
+		StringArgument(encodedStr).
+		Argument(cadence.Path{Domain: "storage", Identifier: "ExamplePackNFTCollection"}).
+		Argument(cadence.Path{Domain: "public", Identifier: "ExamplePackNFTCollectionPub"}).
+		Argument(cadence.Path{Domain: "storage", Identifier: "ExamplePackNFTMinter"}).
+		Argument(cadence.Path{Domain: "private", Identifier: "ExamplePackNFTMinterPriv"}).
+		Argument(cadence.Path{Domain: "storage", Identifier: "ExamplePackNFTMinterProxy"}).
+		Argument(cadence.Path{Domain: "public", Identifier: "ExamplePackNFTMinterProxyPub"}).
+		StringArgument("0.1.0").
+		RunE()
+
+    if err!=nil {
+        fmt.Errorf("deploy error: %s", err)
+        return
+    } else {
+        fmt.Print("deployed")
+        fmt.Print(e)
+    }
+
 	gwtf.PrintEvents(e, map[string][]string{})
+	return
 }
 

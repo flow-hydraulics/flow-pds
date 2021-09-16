@@ -31,6 +31,7 @@ if [ "${NETWORK}" == "emulator" ]; then
   }
 
   trap tearDown EXIT
+  sleep 1
   SIGNER=emulator-account
 
   # Create owner, issuer, pds, account, note all accounts have the same keys in this setup
@@ -52,3 +53,6 @@ if [ "${NETWORK}" == "emulator" ]; then
 fi
 
 flow project deploy --network="$NETWORK" --update=true
+cd go-contracts/
+go run deploy/main.go
+go test ./packnft -v 

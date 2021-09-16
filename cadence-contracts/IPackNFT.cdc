@@ -27,7 +27,7 @@ pub contract interface IPackNFT{
     pub event Mint(id: UInt64, commitHash: String) 
 
     /// Public function to get status
-    pub fun getStatus(id: UInt64): String
+    pub fun getStatus(id: UInt64): String?
 
     access(contract) fun reveal(id: UInt64) {
         pre {
