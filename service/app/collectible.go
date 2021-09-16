@@ -9,6 +9,13 @@ import (
 	"github.com/onflow/flow-go-sdk"
 )
 
+type Collectible struct {
+	FlowID            common.FlowID   // ID of the collectible NFT
+	ContractReference AddressLocation // Reference to the collectible NFT contract
+}
+
+type Collectibles []Collectible
+
 func CollectibleFromString(s string) (Collectible, error) {
 	split := strings.Split(string(s), ".")
 	address := common.FlowAddress(flow.HexToAddress(split[1]))
