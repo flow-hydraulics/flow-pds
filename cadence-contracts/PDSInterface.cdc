@@ -1,5 +1,4 @@
 import Crypto
-import FungibleToken from "./FungibleToken.cdc"
 import NonFungibleToken from "./NonFungibleToken.cdc"
 
 
