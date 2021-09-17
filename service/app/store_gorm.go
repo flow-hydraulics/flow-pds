@@ -12,6 +12,7 @@ type GormStore struct {
 
 func NewGormStore(db *gorm.DB) *GormStore {
 	db.AutoMigrate(&Distribution{}, &Bucket{}, &Pack{})
+	db.AutoMigrate(&Settlement{})
 	return &GormStore{db}
 }
 
@@ -77,4 +78,23 @@ func (s *GormStore) GetDistribution(id uuid.UUID) (*Distribution, error) {
 		return nil, err
 	}
 	return &distribution, nil
+}
+
+// Insert settlement
+func (s *GormStore) InsertSettlement(d *Settlement) error {
+	return s.db.Omit(clause.Associations).Create(d).Error
+}
+
+// Update settlement
+func (s *GormStore) UpdateSettlement(d *Settlement) error {
+	return s.db.Omit(clause.Associations).Save(d).Error
+}
+
+// Get settlement
+func (s *GormStore) GetSettlement(distributionID uuid.UUID) (*Settlement, error) {
+	settlement := Settlement{DistributionID: distributionID}
+	if err := s.db.First(&settlement).Error; err != nil {
+		return nil, err
+	}
+	return &settlement, nil
 }

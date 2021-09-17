@@ -5,14 +5,13 @@ import (
 	"testing"
 
 	"github.com/flow-hydraulics/flow-pds/service/common"
-	"github.com/onflow/cadence"
 	"github.com/onflow/flow-go-sdk"
 )
 
 func makeCollection(size int) []common.FlowID {
 	collection := make([]common.FlowID, size)
 	for i := range collection {
-		collection[i] = common.FlowID(cadence.NewUInt64(uint64(i + 1)))
+		collection[i] = common.FlowID(i + 1)
 	}
 	return collection
 }

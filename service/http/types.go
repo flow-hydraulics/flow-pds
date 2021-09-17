@@ -79,11 +79,18 @@ type AddressLocation struct {
 	Address common.FlowAddress `json:"address"`
 }
 
-func ResDistributionFromApp(d app.Distribution) ResDistribution {
+func ResDistributionFromApp(d *app.Distribution, s *app.Settlement) ResDistribution {
 	resolvedCollection := make([]string, d.SlotCount())
 	for i, c := range d.ResolvedCollection() {
 		resolvedCollection[i] = c.String()
 	}
+
+	settlement := SettlementStatus{}
+	if s != nil {
+		settlement.Settled = s.Settled
+		settlement.Total = s.Total
+	}
+
 	return ResDistribution{
 		ID:                 d.ID,
 		CreatedAt:          d.CreatedAt,
@@ -95,19 +102,24 @@ func ResDistributionFromApp(d app.Distribution) ResDistribution {
 		PackTemplate:       PackTemplateFromApp(d.PackTemplate),
 		Packs:              PacksFromApp(d),
 		ResolvedCollection: resolvedCollection,
+		SettlementStatus:   settlement,
 	}
 }
 
-func ResDistributionListItemFromApp(d app.Distribution) ResDistributionListItem {
-	return ResDistributionListItem{
-		ID:        d.ID,
-		CreatedAt: d.CreatedAt,
-		UpdatedAt: d.UpdatedAt,
-		DistID:    d.DistID,
-		Issuer:    d.Issuer,
-		State:     d.State,
-		MetaData:  DistributionMetaData(d.MetaData),
+func ResDistributionListFromApp(dd []app.Distribution) []ResDistributionListItem {
+	res := make([]ResDistributionListItem, len(dd))
+	for i, d := range dd {
+		res[i] = ResDistributionListItem{
+			ID:        d.ID,
+			CreatedAt: d.CreatedAt,
+			UpdatedAt: d.UpdatedAt,
+			DistID:    d.DistID,
+			Issuer:    d.Issuer,
+			State:     d.State,
+			MetaData:  DistributionMetaData(d.MetaData),
+		}
 	}
+	return res
 }
 
 func PackTemplateFromApp(pt app.PackTemplate) PackTemplate {
@@ -130,7 +142,7 @@ func BucketsFromApp(pt app.PackTemplate) []Bucket {
 	return buckets
 }
 
-func PacksFromApp(d app.Distribution) []Pack {
+func PacksFromApp(d *app.Distribution) []Pack {
 	packs := make([]Pack, len(d.Packs))
 	for i, p := range d.Packs {
 		packs[i] = Pack{

@@ -17,6 +17,15 @@ type Store interface {
 
 	// Get distribution
 	GetDistribution(id uuid.UUID) (*Distribution, error)
+
+	// Insert settlement
+	InsertSettlement(*Settlement) error
+
+	// Update settlement
+	UpdateSettlement(*Settlement) error
+
+	// Get settlement
+	GetSettlement(distributionID uuid.UUID) (*Settlement, error)
 }
 
 type ListOptions struct {

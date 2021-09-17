@@ -20,7 +20,7 @@ func benchmarkCreate(packs, slots uint, b *testing.B) {
 	}()
 
 	addr := common.FlowAddress(flow.HexToAddress("0x1"))
-	collection := makeCollection(int(packs * slots))
+	collection := makeTestCollection(int(packs * slots))
 
 	dReq := pds_http.ReqCreateDistribution{
 		DistID: 1,
