@@ -16,11 +16,14 @@ reset: down dev
 
 .PHONY: test
 test:
-	go test ./...
+	@go test $$(go list ./... | grep -v /go-contracts/)
 
 .PHONY: test-clean
-test-clean:
-	go clean -testcache && go test ./...
+test-clean: clean-testcache test
+
+.PHONY: clean-testcache
+clean-testcache:
+	@go clean -testcache
 
 .PHONY: deploy
 deploy:
