@@ -3,7 +3,6 @@ package app
 import (
 	"context"
 	"strings"
-	"time"
 
 	"github.com/flow-hydraulics/flow-pds/service/config"
 	"github.com/google/uuid"
@@ -22,32 +21,13 @@ type App struct {
 func New(cfg *config.Config, db *gorm.DB, flowClient *client.Client, poll bool) *App {
 	contract := NewContract(cfg, flowClient)
 	quit := make(chan bool)
-
-	// Poller
-	poller := func() {
-		ctx := context.Background()
-		ctx, cancel := context.WithCancel(ctx)
-		ticker := time.NewTicker(time.Second * 5)
-		for {
-			select {
-			case <-ticker.C:
-				handlePollerError(handleResolved(ctx, db, contract))
-				handlePollerError(handleSettled(ctx, db, contract))
-				handlePollerError(handleSettling(ctx, db, contract))
-				handlePollerError(handleMinting(ctx, db, contract))
-			case <-quit:
-				cancel()
-				ticker.Stop()
-				return
-			}
-		}
-	}
+	app := &App{cfg, db, flowClient, contract, quit}
 
 	if poll {
-		go poller()
+		go poller(app)
 	}
 
-	return &App{cfg, db, flowClient, contract, quit}
+	return app
 }
 
 func (app *App) Close() {

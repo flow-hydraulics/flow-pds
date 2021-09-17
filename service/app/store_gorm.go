@@ -9,6 +9,7 @@ import (
 func Migrate(db *gorm.DB) error {
 	db.AutoMigrate(&Distribution{}, &Bucket{}, &Pack{})
 	db.AutoMigrate(&Settlement{})
+	db.AutoMigrate(&CirculatingPackContract{})
 	return nil
 }
 
@@ -78,12 +79,12 @@ func GetDistribution(db *gorm.DB, id uuid.UUID) (*Distribution, error) {
 
 // Insert settlement
 func InsertSettlement(db *gorm.DB, d *Settlement) error {
-	return db.Omit(clause.Associations).Create(d).Error
+	return db.Create(d).Error
 }
 
 // Update settlement
 func UpdateSettlement(db *gorm.DB, d *Settlement) error {
-	return db.Omit(clause.Associations).Save(d).Error
+	return db.Save(d).Error
 }
 
 // Get settlement
@@ -93,4 +94,14 @@ func GetSettlement(db *gorm.DB, distributionID uuid.UUID) (*Settlement, error) {
 		return nil, err
 	}
 	return &settlement, nil
+}
+
+// Insert CirculatingPackContract
+func InsertCirculatingPackContract(db *gorm.DB, d *CirculatingPackContract) error {
+	return db.Create(d).Error
+}
+
+// Update CirculatingPackContracts
+func UpdateCirculatingPackContracts(db *gorm.DB, d []CirculatingPackContract) error {
+	return db.Save(d).Error
 }

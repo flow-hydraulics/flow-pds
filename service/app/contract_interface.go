@@ -2,6 +2,7 @@ package app
 
 import (
 	"context"
+	"fmt"
 
 	"github.com/flow-hydraulics/flow-pds/service/config"
 	"github.com/onflow/flow-go-sdk/client"
@@ -59,6 +60,25 @@ func (c *Contract) StartMinting(ctx context.Context, db *gorm.DB, dist *Distribu
 
 	if err := UpdateDistribution(db, dist); err != nil {
 		return err
+	}
+
+	latestBlock, err := c.flowClient.GetLatestBlock(ctx, true)
+	if err != nil {
+		return err
+	}
+
+	// Add CirculatingPackContracts to database
+	for _, b := range dist.PackTemplate.Buckets {
+		cpc := CirculatingPackContract{
+			Name:             b.CollectibleReference.Name,
+			Address:          b.CollectibleReference.Address,
+			LastCheckedBlock: latestBlock.Height,
+		}
+		// TODO (latenssi): get from db instead of failing on duplicate index?
+		if err := InsertCirculatingPackContract(db, &cpc); err != nil {
+			// TODO (latenssi): once duplicate key error handling is done, return error from here
+			fmt.Printf("error while inserting CirculatingPackContract: %s\n", err)
+		}
 	}
 
 	// TODO (latenssi)
