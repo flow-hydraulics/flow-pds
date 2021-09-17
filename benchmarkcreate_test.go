@@ -49,17 +49,18 @@ func benchmarkCreate(packs, slots uint, b *testing.B) {
 		b.Fatal(err)
 	}
 
-	req, err := http.NewRequest("POST", "/v1/distributions", bytes.NewBuffer(jReq))
-	if err != nil {
-		b.Fatal(err)
-	}
-
-	req.Header.Set("Content-Type", "application/json")
-
-	rr := httptest.NewRecorder()
-
 	for n := 0; n < b.N; n++ {
+		req, err := http.NewRequest("POST", "/v1/distributions", bytes.NewBuffer(jReq))
+		if err != nil {
+			b.Fatal(err)
+		}
+
+		req.Header.Set("Content-Type", "application/json")
+
+		rr := httptest.NewRecorder()
+
 		server.Server.Handler.ServeHTTP(rr, req)
+
 		// Check the status code is what we expect.
 		if status := rr.Code; status != http.StatusCreated {
 			b.Errorf("handler returned wrong status code: got %v want %v", status, http.StatusCreated)
