@@ -1,7 +1,6 @@
 package app
 
 import (
-	"context"
 	"crypto/sha256"
 	"encoding/hex"
 	"fmt"
@@ -159,14 +158,10 @@ func (dist *Distribution) Resolve() error {
 	return nil
 }
 
-// Settle starts the transferring of collectible NFTs to escrow
-func (dist *Distribution) Settle(ctx context.Context, c IPDSContract) error {
+// SetSettling sets the status to settling if preceding state was valid
+func (dist *Distribution) SetSettling() error {
 	if dist.State != common.DistributionStateResolved {
 		return fmt.Errorf("distribution can not be settled at this state")
-	}
-
-	if err := c.StartSettlement(ctx, dist); err != nil {
-		return err
 	}
 
 	dist.State = common.DistributionStateSettling
@@ -174,14 +169,10 @@ func (dist *Distribution) Settle(ctx context.Context, c IPDSContract) error {
 	return nil
 }
 
-// Mint starts the minting of Pack NFTs
-func (dist *Distribution) Mint(ctx context.Context, c IPDSContract) error {
+// SetMinting sets the status to minting if preceding state was valid
+func (dist *Distribution) SetMinting() error {
 	if dist.State != common.DistributionStateSettled {
 		return fmt.Errorf("distribution can not start minting at this state")
-	}
-
-	if err := c.StartMinting(ctx, dist); err != nil {
-		return err
 	}
 
 	dist.State = common.DistributionStateMinting
@@ -189,13 +180,10 @@ func (dist *Distribution) Mint(ctx context.Context, c IPDSContract) error {
 	return nil
 }
 
-func (dist *Distribution) Cancel(ctx context.Context, c IPDSContract) error {
+// SetCancelled sets the status to cancelled if preceding state was valid
+func (dist *Distribution) SetCancelled() error {
 	if dist.State == common.DistributionStateComplete {
 		return fmt.Errorf("distribution can not be cancelled at this state")
-	}
-
-	if err := c.Cancel(ctx, dist); err != nil {
-		return err
 	}
 
 	dist.State = common.DistributionStateCancelled

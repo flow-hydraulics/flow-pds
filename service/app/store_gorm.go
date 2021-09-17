@@ -6,19 +6,15 @@ import (
 	"gorm.io/gorm/clause"
 )
 
-type GormStore struct {
-	db *gorm.DB
-}
-
-func NewGormStore(db *gorm.DB) *GormStore {
+func Migrate(db *gorm.DB) error {
 	db.AutoMigrate(&Distribution{}, &Bucket{}, &Pack{})
 	db.AutoMigrate(&Settlement{})
-	return &GormStore{db}
+	return nil
 }
 
 // Insert distribution
-func (s *GormStore) InsertDistribution(d *Distribution) error {
-	return s.db.Transaction(func(tx *gorm.DB) error {
+func InsertDistribution(db *gorm.DB, d *Distribution) error {
+	return db.Transaction(func(tx *gorm.DB) error {
 		// Store distribution
 		if err := tx.Omit(clause.Associations).Create(d).Error; err != nil {
 			return err
@@ -50,50 +46,50 @@ func (s *GormStore) InsertDistribution(d *Distribution) error {
 
 // Update distribution
 // Note: this will not update nested objects (Buckets, Packs)
-func (s *GormStore) UpdateDistribution(d *Distribution) error {
+func UpdateDistribution(db *gorm.DB, d *Distribution) error {
 	// Omit associations as saving associations (nested objects) was causing
 	// duplicates of them to be created on each update.
-	return s.db.Omit(clause.Associations).Save(d).Error
+	return db.Omit(clause.Associations).Save(d).Error
 }
 
 // Remove distribution
-func (s *GormStore) RemoveDistribution(*Distribution) error {
+func RemoveDistribution(*gorm.DB, *Distribution) error {
 	// TODO (latenssi)
 	return nil
 }
 
 // List distributions
-func (s *GormStore) ListDistributions(opt ListOptions) ([]Distribution, error) {
+func ListDistributions(db *gorm.DB, opt ListOptions) ([]Distribution, error) {
 	list := []Distribution{}
-	if err := s.db.Order("created_at desc").Limit(opt.Limit).Offset(opt.Offset).Find(&list).Error; err != nil {
+	if err := db.Order("created_at desc").Limit(opt.Limit).Offset(opt.Offset).Find(&list).Error; err != nil {
 		return nil, err
 	}
 	return list, nil
 }
 
 // Get distribution
-func (s *GormStore) GetDistribution(id uuid.UUID) (*Distribution, error) {
+func GetDistribution(db *gorm.DB, id uuid.UUID) (*Distribution, error) {
 	distribution := Distribution{}
-	if err := s.db.Preload(clause.Associations).First(&distribution, id).Error; err != nil {
+	if err := db.Preload(clause.Associations).First(&distribution, id).Error; err != nil {
 		return nil, err
 	}
 	return &distribution, nil
 }
 
 // Insert settlement
-func (s *GormStore) InsertSettlement(d *Settlement) error {
-	return s.db.Omit(clause.Associations).Create(d).Error
+func InsertSettlement(db *gorm.DB, d *Settlement) error {
+	return db.Omit(clause.Associations).Create(d).Error
 }
 
 // Update settlement
-func (s *GormStore) UpdateSettlement(d *Settlement) error {
-	return s.db.Omit(clause.Associations).Save(d).Error
+func UpdateSettlement(db *gorm.DB, d *Settlement) error {
+	return db.Omit(clause.Associations).Save(d).Error
 }
 
 // Get settlement
-func (s *GormStore) GetSettlement(distributionID uuid.UUID) (*Settlement, error) {
+func GetSettlement(db *gorm.DB, distributionID uuid.UUID) (*Settlement, error) {
 	settlement := Settlement{DistributionID: distributionID}
-	if err := s.db.First(&settlement).Error; err != nil {
+	if err := db.First(&settlement).Error; err != nil {
 		return nil, err
 	}
 	return &settlement, nil

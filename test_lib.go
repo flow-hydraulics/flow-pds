@@ -31,12 +31,15 @@ func getTestApp(cfg *config.Config) (*app.App, func()) {
 		panic(err)
 	}
 
-	db, err := app.NewGormDB(cfg)
+	db, err := common.NewGormDB(cfg)
 	if err != nil {
 		panic(err)
 	}
 
-	store := app.NewGormStore(db)
+	// Migrate app database
+	if err := app.Migrate(db); err != nil {
+		panic(err)
+	}
 
 	clean := func() {
 		if cfg.DatabaseType == "sqlite" {
@@ -45,7 +48,7 @@ func getTestApp(cfg *config.Config) (*app.App, func()) {
 		flowClient.Close()
 	}
 
-	return app.New(cfg, store, flowClient), clean
+	return app.New(cfg, db, flowClient, false), clean
 }
 
 func getTestServer(cfg *config.Config) (*http.Server, func()) {
