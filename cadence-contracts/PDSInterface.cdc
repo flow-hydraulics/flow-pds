@@ -1,6 +1,4 @@
-import Crypto
 import NonFungibleToken from "./NonFungibleToken.cdc"
-
 
 pub contract interface PDSInterface{
     access(contract) let Distributions: {UInt64: CapabilityPath}
