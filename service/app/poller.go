@@ -91,6 +91,22 @@ func handleResolved(ctx context.Context, db *gorm.DB, contract IContract) error 
 	})
 }
 
+func handleSettling(ctx context.Context, db *gorm.DB, contract IContract) error {
+	return db.Transaction(func(tx *gorm.DB) error {
+		settling, err := listDistributionsByState(tx, common.DistributionStateSettling)
+		if err != nil {
+			return err
+		}
+
+		for _, dist := range settling {
+			if err := contract.CheckSettlementStatus(ctx, tx, &dist); err != nil {
+				return err
+			}
+		}
+		return nil
+	})
+}
+
 func handleSettled(ctx context.Context, db *gorm.DB, contract IContract) error {
 	return db.Transaction(func(tx *gorm.DB) error {
 		settled, err := listDistributionsByState(tx, common.DistributionStateSettled)
@@ -104,22 +120,6 @@ func handleSettled(ctx context.Context, db *gorm.DB, contract IContract) error {
 			}
 		}
 
-		return nil
-	})
-}
-
-func handleSettling(ctx context.Context, db *gorm.DB, contract IContract) error {
-	return db.Transaction(func(tx *gorm.DB) error {
-		settling, err := listDistributionsByState(tx, common.DistributionStateSettling)
-		if err != nil {
-			return err
-		}
-
-		for _, dist := range settling {
-			if err := contract.CheckSettlementStatus(ctx, tx, &dist); err != nil {
-				return err
-			}
-		}
 		return nil
 	})
 }
