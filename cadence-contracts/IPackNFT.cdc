@@ -5,7 +5,7 @@ import NonFungibleToken from "./NonFungibleToken.cdc"
 pub contract interface IPackNFT{
     /// Status of the PackNFTs
     /// 
-    /// map of NFT id : Status {"Created", "Revealed", "Opened"}
+    /// map of NFT id : Status {"Sealed", "Revealed", "Opened"}
     access(contract) let status: {UInt64: String}
     /// StoragePath for Collection Resource
     /// 

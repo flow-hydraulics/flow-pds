@@ -2,7 +2,7 @@
 
 # Check to see if it's running in the right directory
 if [ ! -f "./flow.json" ]; then
-  echo "IMPORTANT: This script must be run from the 'flow-usdc' root folder, not a subdirectory"
+  echo "IMPORTANT: This script must be run from the 'flow-pds' root folder, not a subdirectory"
   exit 1
 fi
 
