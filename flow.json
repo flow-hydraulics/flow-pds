@@ -1,52 +1,58 @@
 {
-	"emulators": {
-		"default": {
-			"port": 3569,
-			"serviceAccount": "emulator-account"
-		}
-	},
-	"contracts": {
+  "emulators": {
+    "default": {
+      "port": 3569,
+      "serviceAccount": "emulator-account"
+    }
+  },
+  "contracts": {
     "NonFungibleToken": {
       "source": "./cadence-contracts/NonFungibleToken.cdc",
       "aliases": {
         "testnet": "0x631e88ae7f1d7c20"
       }
     },
-    "ExampleNFT": "./cadence-contracts/ExampleNFT.cdc", 
-    "IPackNFT": "./cadence-contracts/IPackNFT.cdc", 
+    "ExampleNFT": "./cadence-contracts/ExampleNFT.cdc",
+    "IPackNFT": "./cadence-contracts/IPackNFT.cdc",
     "PackNFT": "./cadence-contracts/PackNFT.cdc",
     "PDSInterface": "./cadence-contracts/PDSInterface.cdc"
   },
-	"networks": {
-		"emulator": "127.0.0.1:3569",
-		"mainnet": "access.mainnet.nodes.onflow.org:9000",
-		"testnet": "access.devnet.nodes.onflow.org:9000"
-	},
-	"accounts": {
-		"emulator-account": {
-			"address": "f8d6e0586b0a20c7",
-			"key": "27f93302f5851077d63ece5b693094c0e5fc0a169369069fa8fb6a134ffc0eab"
-		},
-        "emulator-issuer": {
-           "address": "01cf0e2f2f715450",
-           "key" : "9c687961e7a1abe1e445830e7ec118ffd1e2a0449cf705f5476b3f100e94dc29"
-         },
-         "emulator-owner" : {
-           "address": "179b6b1cb6755e31",
-           "key" : "9c687961e7a1abe1e445830e7ec118ffd1e2a0449cf705f5476b3f100e94dc29"
-         },
-         "emulator-pds" : {
-           "address": "f3fcd2c1a78f5eee",
-           "key" : "9c687961e7a1abe1e445830e7ec118ffd1e2a0449cf705f5476b3f100e94dc29"
-         }
-	},
-	"deployments": {
+  "networks": {
+    "emulator": "127.0.0.1:3569",
+    "mainnet": "access.mainnet.nodes.onflow.org:9000",
+    "testnet": "access.devnet.nodes.onflow.org:9000"
+  },
+  "accounts": {
+    "emulator-account": {
+      "address": "f8d6e0586b0a20c7",
+      "key": "27f93302f5851077d63ece5b693094c0e5fc0a169369069fa8fb6a134ffc0eab"
+    },
+    "emulator-issuer": {
+      "address": "01cf0e2f2f715450",
+      "key": "9c687961e7a1abe1e445830e7ec118ffd1e2a0449cf705f5476b3f100e94dc29"
+    },
+    "emulator-owner": {
+      "address": "179b6b1cb6755e31",
+      "key": "9c687961e7a1abe1e445830e7ec118ffd1e2a0449cf705f5476b3f100e94dc29"
+    },
+    "emulator-pds": {
+      "address": "f3fcd2c1a78f5eee",
+      "key": "9c687961e7a1abe1e445830e7ec118ffd1e2a0449cf705f5476b3f100e94dc29"
+    }
+  },
+  "deployments": {
     "emulator": {
-      "emulator-account": [ "NonFungibleToken"],
-      "emulator-issuer": ["ExampleNFT"],
+      "emulator-account": [
+        "NonFungibleToken"
+      ],
+      "emulator-issuer": [
+        "ExampleNFT"
+      ],
       "emulator-owner": [],
-      "emulator-pds": ["IPackNFT", "PDSInterface"]
+      "emulator-pds": [
+        "IPackNFT",
+        "PDSInterface"
+      ]
     }
   }
 }
- 

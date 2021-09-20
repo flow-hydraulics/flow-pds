@@ -25,7 +25,7 @@ func getTestCfg() *config.Config {
 	return cfg
 }
 
-func getTestApp(cfg *config.Config) (*app.App, func()) {
+func getTestApp(cfg *config.Config, poll bool) (*app.App, func()) {
 	flowClient, err := client.New(cfg.AccessAPIHost, grpc.WithInsecure())
 	if err != nil {
 		panic(err)
@@ -48,11 +48,11 @@ func getTestApp(cfg *config.Config) (*app.App, func()) {
 		flowClient.Close()
 	}
 
-	return app.New(cfg, db, flowClient, false), clean
+	return app.New(cfg, db, flowClient, poll), clean
 }
 
 func getTestServer(cfg *config.Config) (*http.Server, func()) {
-	app, cleanupApp := getTestApp(cfg)
+	app, cleanupApp := getTestApp(cfg, false)
 	clean := func() {
 		cleanupApp()
 	}

@@ -4,7 +4,9 @@ import (
 	"context"
 	"fmt"
 
+	"github.com/flow-hydraulics/flow-pds/service/common"
 	"github.com/flow-hydraulics/flow-pds/service/config"
+	"github.com/onflow/flow-go-sdk"
 	"github.com/onflow/flow-go-sdk/client"
 	"gorm.io/gorm"
 )
@@ -35,9 +37,28 @@ func (c *Contract) StartSettlement(ctx context.Context, db *gorm.DB, dist *Distr
 		return err
 	}
 
+	latestBlock, err := c.flowClient.GetLatestBlock(ctx, true)
+	if err != nil {
+		return err
+	}
+
+	collectibles := dist.ResolvedCollection()
+	settlementCollectibles := make([]SettlementCollectible, len(collectibles))
+	for i, c := range collectibles {
+		settlementCollectibles[i] = SettlementCollectible{
+			FlowID:            c.FlowID,
+			ContractReference: c.ContractReference,
+			Settled:           false,
+		}
+	}
+
 	settlement := Settlement{
-		DistributionID: dist.ID,
-		Total:          uint(dist.ResolvedCollection().Len()),
+		DistributionID:   dist.ID,
+		Distribution:     *dist,
+		Total:            uint(len(collectibles)),
+		EscrowAddress:    common.FlowAddress(flow.HexToAddress("f3fcd2c1a78f5eee")), // TODO (latenssi): proper escrow address
+		LastCheckedBlock: latestBlock.Height,
+		Collectibles:     settlementCollectibles,
 	}
 
 	if err := InsertSettlement(db, &settlement); err != nil {
@@ -46,9 +67,7 @@ func (c *Contract) StartSettlement(ctx context.Context, db *gorm.DB, dist *Distr
 
 	// TODO (latenssi)
 	// - Send a request to PDS Contract to start withdrawing of collectible NFTs to Contract account
-	// - Listen for deposit events of collectible NFTs to Contract account
 	// - Timeout? Cancel?
-	// - Once all have been deposited set state to Settled
 
 	return nil
 }
@@ -101,7 +120,78 @@ func (c *Contract) Cancel(ctx context.Context, db *gorm.DB, dist *Distribution) 
 }
 
 func (c *Contract) CheckSettlementStatus(ctx context.Context, db *gorm.DB, dist *Distribution) error {
-	// TODO (latenssi): poll for settlement status of distribution => set "settled" when done
+	settlement, err := GetSettlementByDistId(db, dist.ID)
+	if err != nil {
+		return err
+	}
+
+	groupedMissing, err := MissingCollectibles(db, settlement.ID)
+	if err != nil {
+		return err
+	}
+
+	latestBlock, err := c.flowClient.GetLatestBlock(ctx, true)
+	if err != nil {
+		return err
+	}
+
+	start := settlement.LastCheckedBlock + 1
+	end := min(latestBlock.Height, start+100)
+
+	if start > end {
+		// Nothing to update
+		return nil
+	}
+
+	for reference, missing := range groupedMissing {
+		arr, err := c.flowClient.GetEventsForHeightRange(ctx, client.EventRangeQuery{
+			Type:        fmt.Sprintf("%s.Deposit", reference),
+			StartHeight: start,
+			EndHeight:   end,
+		})
+		if err != nil {
+			return err
+		}
+
+		for _, be := range arr {
+			for _, e := range be.Events {
+				id, err := common.FlowIDFromStr(e.Value.Fields[0].String())
+				if err != nil {
+					return err
+				}
+				address := common.FlowAddress(flow.HexToAddress(e.Value.Fields[1].String()))
+				if address == settlement.EscrowAddress {
+					if i, ok := missing.ContainsID(id); ok {
+						missing[i].Settled = true
+						if err := UpdateSettlementCollectible(db, &missing[i]); err != nil {
+							return err
+						}
+						settlement.Settled++
+					}
+				}
+			}
+		}
+	}
+
+	settlement.LastCheckedBlock = end
+
+	if settlement.Settled >= settlement.Total {
+		// Update settlement state
+		settlement.State = common.SettlementStateDone
+	}
+
+	if err := UpdateSettlement(db, settlement); err != nil {
+		return err
+	}
+
+	if settlement.State == common.SettlementStateDone && dist.State == common.DistributionStateSettling {
+		// Update distribution state
+		dist.State = common.DistributionStateSettled
+		if err := UpdateDistribution(db, dist); err != nil {
+			return err
+		}
+	}
+
 	return nil
 }
 

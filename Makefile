@@ -27,4 +27,4 @@ clean-testcache:
 
 .PHONY: deploy
 deploy:
-	flow project deploy --update
+	bash ./deploy.sh

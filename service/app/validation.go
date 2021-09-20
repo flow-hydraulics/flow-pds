@@ -3,7 +3,6 @@ package app
 import (
 	"fmt"
 
-	"github.com/flow-hydraulics/flow-pds/service/common"
 	"github.com/onflow/flow-go-sdk"
 )
 
@@ -105,10 +104,6 @@ func (al AddressLocation) Validate() error {
 func (c Collectible) Validate() error {
 	if err := c.ContractReference.Validate(); err != nil {
 		return fmt.Errorf("error while validating ContractReference: %w", err)
-	}
-
-	if c.FlowID == common.FlowID(0) {
-		return fmt.Errorf("uninitialized flowID")
 	}
 
 	return nil

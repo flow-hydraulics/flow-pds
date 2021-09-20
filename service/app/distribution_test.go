@@ -117,11 +117,5 @@ func TestDistributionResolution(t *testing.T) {
 		if len(p.Collectibles) != expected {
 			t.Fatalf("expected there to be %d slots", expected)
 		}
-
-		for _, c := range p.Collectibles {
-			if c.FlowID == common.FlowID(0) {
-				t.Fatalf("did not expect 0 value in a slot")
-			}
-		}
 	}
 }

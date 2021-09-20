@@ -16,7 +16,7 @@ import (
 func poller(app *App) {
 	ctx := context.Background()
 	ctx, cancel := context.WithCancel(ctx)
-	ticker := time.NewTicker(time.Second * 10)
+	ticker := time.NewTicker(time.Second) // TODO (latenssi): proper duration
 	for {
 		select {
 		case <-ticker.C:
@@ -161,6 +161,10 @@ func pollCirculatingPackContractEvents(ctx context.Context, db *gorm.DB, flowCli
 		for i, c := range cc {
 			start := c.LastCheckedBlock + 1
 			end := min(latestBlock.Height, start+100)
+			if start > end {
+				continue
+			}
+
 			for _, eventName := range eventNames {
 				arr, err := flowClient.GetEventsForHeightRange(ctx, client.EventRangeQuery{
 					Type:        c.EventName(eventName),

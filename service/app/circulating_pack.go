@@ -14,9 +14,10 @@ type CirculatingPackContract struct {
 	gorm.Model
 	ID uuid.UUID `gorm:"column:id;primary_key;type:uuid;"`
 
-	Name             string             `gorm:"column:name;uniqueIndex:name_address"`
-	Address          common.FlowAddress `gorm:"column:address;uniqueIndex:name_address"`
-	LastCheckedBlock uint64             `gorm:"column:last_checked_block"`
+	Name    string             `gorm:"column:name;uniqueIndex:name_address"`
+	Address common.FlowAddress `gorm:"column:address;uniqueIndex:name_address"`
+
+	LastCheckedBlock uint64 `gorm:"column:last_checked_block"`
 }
 
 func (CirculatingPackContract) TableName() string {
