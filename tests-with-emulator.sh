@@ -57,4 +57,8 @@ flow project deploy --network="$NETWORK" --update=true
 
 (cd go-contracts/; go run deploy/main.go)
 
-go test ./...
+go clean -testcache
+
+go test ./go-contracts/...
+go test ./service/...
+go test
