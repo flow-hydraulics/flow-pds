@@ -27,7 +27,7 @@ pub contract PDS{
         pub fun mintPackNFT(commitHashes: [String], issuer: Address){
             var i = 0
             let c = self.mintCap.borrow() ?? panic("no such cap")
-            while i < commitHashes.len{
+            while i < commitHashes.length{
                 c.mint(commitHash: commitHashes[i], issuer: issuer)
                 i = i + 1
             }
@@ -93,8 +93,8 @@ pub contract PDS{
             let d <- PDS.Distributions.remove(key: distId)!
             let pdsCollection = PDS.getManagerCollectionCap().borrow()!
             var i = 0
-            while i < nftID.length {
-                let nft <- d.withdrawFromIssuer(withdrawID: nftID[i])
+            while i < nftIDs.length {
+                let nft <- d.withdrawFromIssuer(withdrawID: nftIDs[i])
                 pdsCollection.deposit(token:<-nft)
             } 
             PDS.Distributions[distId] <-! d

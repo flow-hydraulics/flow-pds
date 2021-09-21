@@ -61,6 +61,10 @@ pub contract interface IPackNFT{
     }
     
     pub resource interface IPackNFTToken {
+        pub let id: UInt64
+        pub let commitHash: String
+        pub let issuer: Address
+
         pub fun reveal()
         pub fun open() 
     }
