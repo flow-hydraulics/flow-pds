@@ -1,7 +1,6 @@
 package app
 
 import (
-	"fmt"
 	"time"
 
 	"github.com/flow-hydraulics/flow-pds/service/common"
@@ -32,9 +31,9 @@ type DistributionMetaData struct {
 }
 
 type PackTemplate struct {
-	PackReference common.AddressLocation `gorm:"embedded;embeddedPrefix:pack_ref_"` // Reference to the pack NFT contract
-	PackCount     uint                   `gorm:"column:pack_count"`                 // How many packs to create
-	Buckets       []Bucket               // How to distribute collectibles in a pack
+	PackReference AddressLocation `gorm:"embedded;embeddedPrefix:pack_ref_"` // Reference to the pack NFT contract
+	PackCount     uint            `gorm:"column:pack_count"`                 // How many packs to create
+	Buckets       []Bucket        // How to distribute collectibles in a pack
 }
 
 type Bucket struct {
@@ -42,9 +41,9 @@ type Bucket struct {
 	DistributionID uuid.UUID
 	ID             uuid.UUID `gorm:"column:id;primary_key;type:uuid;"`
 
-	CollectibleReference  common.AddressLocation `gorm:"embedded;embeddedPrefix:collectible_ref_"` // Reference to the collectible NFT contract
-	CollectibleCount      uint                   `gorm:"column:collectible_count"`                 // How many collectibles to pick from this bucket
-	CollectibleCollection common.FlowIDList      `gorm:"column:collectible_collection"`            // Collection of collectibles to pick from
+	CollectibleReference  AddressLocation   `gorm:"embedded;embeddedPrefix:collectible_ref_"` // Reference to the collectible NFT contract
+	CollectibleCount      uint              `gorm:"column:collectible_count"`                 // How many collectibles to pick from this bucket
+	CollectibleCollection common.FlowIDList `gorm:"column:collectible_collection"`            // Collection of collectibles to pick from
 }
 
 type Pack struct {
@@ -56,24 +55,8 @@ type Pack struct {
 	State          common.PackState   `gorm:"column:state"`                 // public
 	Salt           common.BinaryValue `gorm:"column:salt"`                  // private
 	CommitmentHash common.BinaryValue `gorm:"column:commitment_hash;index"` // public
-	Collectibles   []Collectible      // private
+	Collectibles   Collectibles       `gorm:"column:collectibles"`          // private
 }
-
-type Collectible struct {
-	gorm.Model
-	PackID uuid.UUID
-	ID     uuid.UUID `gorm:"column:id;primary_key;type:uuid;"`
-
-	FlowID            common.FlowID          `gorm:"column:flow_id"`                        // ID of the collectible NFT
-	ContractReference common.AddressLocation `gorm:"embedded;embeddedPrefix:contract_ref_"` // Reference to the collectible NFT contract
-}
-
-// Implement sort.Interface by FlowID for Collectible slice
-type CollectibleByFlowID []Collectible
-
-func (c CollectibleByFlowID) Len() int           { return len(c) }
-func (c CollectibleByFlowID) Less(i, j int) bool { return c[i].FlowID < c[j].FlowID }
-func (c CollectibleByFlowID) Swap(i, j int)      { c[i], c[j] = c[j], c[i] }
 
 func (Distribution) TableName() string {
 	return "distributions"
@@ -100,17 +83,4 @@ func (Pack) TableName() string {
 func (p *Pack) BeforeCreate(tx *gorm.DB) (err error) {
 	p.ID = uuid.New()
 	return nil
-}
-
-func (Collectible) TableName() string {
-	return "distribution_collectibles"
-}
-
-func (c *Collectible) BeforeCreate(tx *gorm.DB) (err error) {
-	c.ID = uuid.New()
-	return nil
-}
-
-func (c Collectible) String() string {
-	return fmt.Sprintf("%s.%d", c.ContractReference, c.FlowID)
 }

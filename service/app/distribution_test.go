@@ -22,7 +22,7 @@ func TestDistributionValidation(t *testing.T) {
 
 	bucket1 := collection[:20]
 	bucket2 := collection[20:25]
-	collectibleRef := common.AddressLocation{
+	collectibleRef := AddressLocation{
 		Name:    "TestCollectibleNFT",
 		Address: common.FlowAddress(flow.HexToAddress("0x2")),
 	}
@@ -31,7 +31,7 @@ func TestDistributionValidation(t *testing.T) {
 		DistID: common.FlowID(1),
 		Issuer: common.FlowAddress(flow.HexToAddress("0x1")),
 		PackTemplate: PackTemplate{
-			PackReference: common.AddressLocation{
+			PackReference: AddressLocation{
 				Name:    "TestPackNFT",
 				Address: common.FlowAddress(flow.HexToAddress("0x2")),
 			},
@@ -63,7 +63,7 @@ func TestDistributionResolution(t *testing.T) {
 
 	bucket1 := collection[:80]
 	bucket2 := collection[80:100]
-	collectibleRef := common.AddressLocation{
+	collectibleRef := AddressLocation{
 		Name:    "TestCollectibleNFT",
 		Address: common.FlowAddress(flow.HexToAddress("0x2")),
 	}
@@ -72,7 +72,7 @@ func TestDistributionResolution(t *testing.T) {
 		DistID: common.FlowID(1),
 		Issuer: common.FlowAddress(flow.HexToAddress("0x1")),
 		PackTemplate: PackTemplate{
-			PackReference: common.AddressLocation{
+			PackReference: AddressLocation{
 				Name:    "TestPackNFT",
 				Address: common.FlowAddress(flow.HexToAddress("0x2")),
 			},

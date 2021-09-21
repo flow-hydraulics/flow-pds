@@ -26,14 +26,14 @@ func benchmarkCreate(packs, slots uint, b *testing.B) {
 		DistID: 1,
 		Issuer: addr,
 		PackTemplate: pds_http.PackTemplate{
-			PackReference: common.AddressLocation{
+			PackReference: pds_http.AddressLocation{
 				Name:    "TestPackNFT",
 				Address: addr,
 			},
 			PackCount: packs,
 			Buckets: []pds_http.Bucket{
 				{
-					CollectibleReference: common.AddressLocation{
+					CollectibleReference: pds_http.AddressLocation{
 						Name:    "TestCollectibleNFT",
 						Address: addr,
 					},

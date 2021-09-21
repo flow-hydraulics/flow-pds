@@ -115,13 +115,12 @@ func (dist *Distribution) Cancel() error {
 
 // ResolvedCollection should publicly present what collectibles got in the distribution
 // without revealing in which pack each one resides
-func (dist Distribution) ResolvedCollection() []Collectible {
-	res := make([]Collectible, 0, dist.SlotCount())
+func (dist Distribution) ResolvedCollection() Collectibles {
+	res := make(Collectibles, 0, dist.SlotCount())
 	for _, pack := range dist.Packs {
 		res = append(res, pack.Collectibles...)
 	}
-	// Sort collection by flowID
-	sort.Sort(CollectibleByFlowID(res))
+	sort.Sort(res)
 	return res
 }
 

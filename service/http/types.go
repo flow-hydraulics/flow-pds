@@ -52,15 +52,15 @@ type DistributionMetaData struct {
 }
 
 type PackTemplate struct {
-	PackReference common.AddressLocation `json:"packReference"`
-	PackCount     uint                   `json:"packCount"`
-	Buckets       []Bucket               `json:"buckets"`
+	PackReference AddressLocation `json:"packReference"`
+	PackCount     uint            `json:"packCount"`
+	Buckets       []Bucket        `json:"buckets"`
 }
 
 type Bucket struct {
-	CollectibleReference  common.AddressLocation `json:"collectibleReference"`
-	CollectibleCount      uint                   `json:"collectibleCount"`
-	CollectibleCollection []common.FlowID        `json:"collectibleCollection"`
+	CollectibleReference  AddressLocation   `json:"collectibleReference"`
+	CollectibleCount      uint              `json:"collectibleCount"`
+	CollectibleCollection common.FlowIDList `json:"collectibleCollection"`
 }
 
 type Pack struct {
@@ -72,6 +72,11 @@ type Pack struct {
 type SettlementStatus struct {
 	Settled uint `json:"settled"`
 	Total   uint `json:"total"`
+}
+
+type AddressLocation struct {
+	Name    string             `json:"name"`
+	Address common.FlowAddress `json:"address"`
 }
 
 func ResDistributionFromApp(d app.Distribution) ResDistribution {
@@ -107,7 +112,7 @@ func ResDistributionListItemFromApp(d app.Distribution) ResDistributionListItem 
 
 func PackTemplateFromApp(pt app.PackTemplate) PackTemplate {
 	return PackTemplate{
-		PackReference: pt.PackReference,
+		PackReference: AddressLocation(pt.PackReference),
 		PackCount:     pt.PackCount,
 		Buckets:       BucketsFromApp(pt),
 	}
@@ -117,7 +122,7 @@ func BucketsFromApp(pt app.PackTemplate) []Bucket {
 	buckets := make([]Bucket, len(pt.Buckets))
 	for i, b := range pt.Buckets {
 		buckets[i] = Bucket{
-			CollectibleReference:  b.CollectibleReference,
+			CollectibleReference:  AddressLocation(b.CollectibleReference),
 			CollectibleCount:      b.CollectibleCount,
 			CollectibleCollection: b.CollectibleCollection,
 		}
@@ -150,13 +155,13 @@ func (pt PackTemplate) ToApp() app.PackTemplate {
 	buckets := make([]app.Bucket, len(pt.Buckets))
 	for i, b := range pt.Buckets {
 		buckets[i] = app.Bucket{
-			CollectibleReference:  b.CollectibleReference,
+			CollectibleReference:  app.AddressLocation(b.CollectibleReference),
 			CollectibleCount:      b.CollectibleCount,
 			CollectibleCollection: b.CollectibleCollection,
 		}
 	}
 	return app.PackTemplate{
-		PackReference: pt.PackReference,
+		PackReference: app.AddressLocation(pt.PackReference),
 		PackCount:     pt.PackCount,
 		Buckets:       buckets,
 	}
