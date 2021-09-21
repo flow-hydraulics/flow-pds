@@ -2,6 +2,7 @@ package main
 
 import (
 	"context"
+	"fmt"
 	"sync"
 	"testing"
 	"time"
@@ -36,6 +37,17 @@ func TestE2E(t *testing.T) {
 	createPackIssuer := "./cadence-transactions/pds/create_new_pack_issuer.cdc"
 	code0 := util.ParseCadenceTemplate(createPackIssuer)
 	_, err := g.TransactionFromFile(createPackIssuer, code0).
+		SignProposeAndPayAs("issuer").
+		RunE()
+	if err != nil {
+		t.Fatal(err)
+	}
+
+	// Issuer create PackNFT collection resource to store minted PackNFT
+
+	createPackNFTCollection := "./cadence-transactions/packNFT/create_new_packNFT_collection.cdc"
+	createPackNFTCollectionCode := util.ParseCadenceTemplate(createPackNFTCollection)
+	_, err = g.TransactionFromFile(createPackNFTCollection, createPackNFTCollectionCode).
 		SignProposeAndPayAs("issuer").
 		RunE()
 	if err != nil {
@@ -206,7 +218,41 @@ func TestE2E(t *testing.T) {
 
 	// -- Mint --
 
-	// Start minting pack NFTs as pds using mint proxy from issuer (should store nfts righ into issuers collection)
+	// Start minting pack NFTs as pds using mint cap shared by the issuer (should store nfts righ into issuers collection)
+
+	var commitHashes []cadence.Value
+	ch1 := "abcde1234"
+	ch2 := "cdefg9876"
+	nextNFTId := "./cadence-scripts/packNFT/packNFT_total_supply.cdc"
+	nextNFTIdCode := util.ParseCadenceTemplate(nextNFTId)
+	nextId, err := g.ScriptFromFile(nextNFTId, nextNFTIdCode).RunReturns()
+	if err != nil {
+		t.Fatal(err)
+	}
+	subId := fmt.Sprintf("%d", nextId.ToGoValue().(uint64)+1)
+
+	commitHashes = append(commitHashes, cadence.NewString(ch1))
+	commitHashes = append(commitHashes, cadence.NewString(ch2))
+
+	commitHashesArr := cadence.NewArray(commitHashes)
+
+	mintPackNFT := "./cadence-transactions/pds/mint_packNFT.cdc"
+	mintPackNFTCode := util.ParseCadenceTemplate(mintPackNFT)
+	e, err = g.TransactionFromFile(mintPackNFT, mintPackNFTCode).
+		SignProposeAndPayAs("pds").
+		UInt64Argument(currentDistId.ToGoValue().(uint64)).
+		Argument(commitHashesArr).
+		AccountArgument("issuer").
+		RunE()
+	if err != nil {
+		t.Fatal(err)
+	}
+	events = util.ParseTestEvents(e)
+	issuerAddr := util.GetAccountAddr(g, "issuer")
+	util.NewExpectedPackNFTEvent("Deposit").AddField("id", nextId.String()).AddField("to", issuerAddr).AssertEqual(t, events[0])
+	util.NewExpectedPackNFTEvent("Mint").AddField("id", nextId.String()).AddField("commitHash", ch1).AssertEqual(t, events[1])
+	util.NewExpectedPackNFTEvent("Deposit").AddField("id", subId).AddField("to", issuerAddr).AssertEqual(t, events[2])
+	util.NewExpectedPackNFTEvent("Mint").AddField("id", subId).AddField("commitHash", ch2).AssertEqual(t, events[3])
 
 	// Wait for minting to finish
 
