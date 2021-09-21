@@ -31,6 +31,17 @@ func TestE2E(t *testing.T) {
 	// pds := common.FlowAddress(flow.HexToAddress(util.GetAccountAddr(g, "pds")))
 	// owner := common.FlowAddress(flow.HexToAddress(util.GetAccountAddr(g, "owner")))
 
+	// Issuer create PackIssuer resource to store DistCap
+
+	createPackIssuer := "./cadence-transactions/pds/create_new_pack_issuer.cdc"
+	code0 := util.ParseCadenceTemplate(createPackIssuer)
+	_, err := g.TransactionFromFile(createPackIssuer, code0).
+		SignProposeAndPayAs("issuer").
+		RunE()
+	if err != nil {
+		t.Fatal(err)
+	}
+
 	// -- Mint example NFTs as issuer --
 
 	mintExampleNFT := "./cadence-transactions/exampleNFT/mint_exampleNFT.cdc"
@@ -65,6 +76,41 @@ func TestE2E(t *testing.T) {
 		}
 		collection[i] = common.FlowID(v)
 	}
+
+	// PDS share DistCap to PackIssuer (owned by Issuer)
+
+	setDistCap := "./cadence-transactions/pds/set_pack_issuer_cap.cdc"
+	setDistCapCode := util.ParseCadenceTemplate(setDistCap)
+	_, err = g.TransactionFromFile(setDistCap, setDistCapCode).
+		SignProposeAndPayAs("pds").
+		AccountArgument("issuer").
+		RunE()
+	if err != nil {
+		t.Fatal(err)
+	}
+
+	// Issuer now creates distribution
+
+	pdsDistId := "./cadence-scripts/pds/get_current_dist_id.cdc"
+	pdsDistIdCode := util.ParseCadenceTemplate(pdsDistId)
+	currentDistId, err := g.ScriptFromFile(pdsDistId, pdsDistIdCode).RunReturns()
+	if err != nil {
+		t.Fatal(err)
+	}
+
+	createDist := "./cadence-transactions/pds/create_distribution.cdc"
+	createDistCode := util.ParseCadenceTemplate(createDist)
+	// Private path must match the PackNFT contract
+	e, err := g.TransactionFromFile(createDist, createDistCode).
+		SignProposeAndPayAs("issuer").
+		Argument(cadence.Path{Domain: "private", Identifier: "exampleNFTCollectionProvider"}).
+		RunE()
+	if err != nil {
+		t.Fatal(err)
+	}
+	events := util.ParseTestEvents(e)
+
+	util.NewExpectedPDSEvent("DistributionCreated").AddField("DistId", currentDistId.String()).AssertEqual(t, events[0])
 
 	// -- Use newly minted NFTs to create a distribution as issuer --
 	d := app.Distribution{

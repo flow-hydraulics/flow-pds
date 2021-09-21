@@ -15,8 +15,8 @@ pub contract PDS{
     pub let distManagerStoragePath: StoragePath
 
     pub resource SharedCapabilities {
-        access(self) let withdrawCap: Capability<&NonFungibleToken.Collection{NonFungibleToken.Provider}>
-        access(self) let mintCap: Capability<&IPackNFT.PackNFTMinter{IPackNFT.IMinter}>
+        access(self) let withdrawCap: Capability<&{NonFungibleToken.Provider}>
+        access(self) let mintCap: Capability<&{IPackNFT.IMinter}>
 
         pub fun withdrawFromIssuer(withdrawID: UInt64): @NonFungibleToken.NFT {
             let c = self.withdrawCap.borrow() ?? panic("no such cap")
@@ -30,8 +30,8 @@ pub contract PDS{
         }
 
         init(
-            withdrawCap: Capability<&NonFungibleToken.Collection{NonFungibleToken.Provider}>
-            mintCap: Capability<&IPackNFT.PackNFTMinter{IPackNFT.IMinter}>
+            withdrawCap: Capability<&{NonFungibleToken.Provider}>
+            mintCap: Capability<&{IPackNFT.IMinter}>
 
         ){
             self.withdrawCap = withdrawCap
@@ -119,8 +119,8 @@ pub contract PDS{
     }
 
     pub fun createSharedCapabilities (
-            withdrawCap: Capability<&NonFungibleToken.Collection{NonFungibleToken.Provider}>
-            mintCap: Capability<&IPackNFT.PackNFTMinter{IPackNFT.IMinter}>
+            withdrawCap: Capability<&{NonFungibleToken.Provider}>
+            mintCap: Capability<&{IPackNFT.IMinter}>
     ): @SharedCapabilities{
         return <- create SharedCapabilities(
             withdrawCap: withdrawCap,

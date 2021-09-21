@@ -27,7 +27,7 @@ type Addresses struct {
 	PackNFT          string
 	IPackNFT         string
 	PDSInterface     string
-	PDSstring        string
+	PDS string
 }
 
 type TestEvent struct {
