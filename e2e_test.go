@@ -15,7 +15,7 @@ import (
 )
 
 func TestE2E(t *testing.T) {
-	t.Skip("skipping for now as this requires a flow emulator")
+	// t.Skip("skipping for now as this requires a flow emulator")
 
 	cfg := getTestCfg()
 	a, cleanup := getTestApp(cfg, true)
@@ -105,11 +105,23 @@ func TestE2E(t *testing.T) {
 		t.Fatal(err)
 	}
 
-	// Wait for settlement
+	// Wait for the distribution to go into "settling" state
+	for {
+		// TODO (latenssi): timeout
+		dist, _, err := a.GetDistribution(context.Background(), d.ID)
+		if err != nil {
+			t.Fatal(err)
+		}
+		if dist.State == common.DistributionStateSettling {
+			break
+		}
+		time.Sleep(time.Second)
+	}
 
+	// Wait for settlement
 	wg := &sync.WaitGroup{}
-	wg.Add(1)
 	var waitError error
+	wg.Add(1)
 	go func() {
 		// TODO (latenssi): timeout
 		for {
@@ -121,14 +133,10 @@ func TestE2E(t *testing.T) {
 			if dist.State == common.DistributionStateMinting {
 				break
 			}
-			time.Sleep(time.Second * 1)
+			time.Sleep(time.Second)
 		}
 		wg.Done()
 	}()
-
-	if err := a.SettleDistribution(context.Background(), d.ID); err != nil {
-		t.Fatal(err)
-	}
 
 	// transfer
 	// TODO: use PDS contract interface instead of manually transfering
@@ -146,7 +154,6 @@ func TestE2E(t *testing.T) {
 	}
 
 	wg.Wait()
-
 	if waitError != nil {
 		t.Fatal(waitError)
 	}

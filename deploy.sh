@@ -43,5 +43,5 @@ if [ "${NETWORK}" == "emulator" ]; then
 fi
 
 flow project deploy --network="$NETWORK" --update=true
-cd go-contracts/
-go run deploy/main.go
+
+(cd go-contracts/; go run deploy/main.go)

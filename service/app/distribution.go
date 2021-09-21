@@ -161,7 +161,7 @@ func (dist *Distribution) Resolve() error {
 // SetSettling sets the status to settling if preceding state was valid
 func (dist *Distribution) SetSettling() error {
 	if dist.State != common.DistributionStateResolved {
-		return fmt.Errorf("distribution can not be settled at this state")
+		return fmt.Errorf("distribution can not start settling at this state: %d", dist.State)
 	}
 
 	dist.State = common.DistributionStateSettling
@@ -172,7 +172,7 @@ func (dist *Distribution) SetSettling() error {
 // SetMinting sets the status to minting if preceding state was valid
 func (dist *Distribution) SetMinting() error {
 	if dist.State != common.DistributionStateSettled {
-		return fmt.Errorf("distribution can not start minting at this state")
+		return fmt.Errorf("distribution can not start minting at this state: %d", dist.State)
 	}
 
 	dist.State = common.DistributionStateMinting
@@ -183,7 +183,7 @@ func (dist *Distribution) SetMinting() error {
 // SetCancelled sets the status to cancelled if preceding state was valid
 func (dist *Distribution) SetCancelled() error {
 	if dist.State == common.DistributionStateComplete {
-		return fmt.Errorf("distribution can not be cancelled at this state")
+		return fmt.Errorf("distribution can not be cancelled at this state: %d", dist.State)
 	}
 
 	dist.State = common.DistributionStateCancelled
