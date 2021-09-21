@@ -20,4 +20,5 @@ jobs:
         NETWORK: emulator
         FLOW_PDS_ADMIN_ADDRESS: placholder
         FLOW_PDS_ADMIN_PRIVATE_KEY: placholder
+        FLOW_PDS_ACCESS_API_HOST: placholder
       run: go test $(go list ./... | grep -v /go-contracts/)
