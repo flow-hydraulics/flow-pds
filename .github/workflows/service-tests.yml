@@ -1,11 +1,11 @@
-name: Tests
+name: ServiceTests
 
 on:
   pull_request:
 
 jobs:
 
-  service:
+  emulator:
     runs-on: ubuntu-latest
     steps:
     - uses: actions/checkout@v2
