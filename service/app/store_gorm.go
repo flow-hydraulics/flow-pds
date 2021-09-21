@@ -6,18 +6,16 @@ import (
 	"gorm.io/gorm/clause"
 )
 
-type GormStore struct {
-	db *gorm.DB
-}
-
-func NewGormStore(db *gorm.DB) *GormStore {
+func Migrate(db *gorm.DB) error {
 	db.AutoMigrate(&Distribution{}, &Bucket{}, &Pack{})
-	return &GormStore{db}
+	db.AutoMigrate(&Settlement{}, &SettlementCollectible{})
+	db.AutoMigrate(&CirculatingPackContract{})
+	return nil
 }
 
 // Insert distribution
-func (s *GormStore) InsertDistribution(d *Distribution) error {
-	return s.db.Transaction(func(tx *gorm.DB) error {
+func InsertDistribution(db *gorm.DB, d *Distribution) error {
+	return db.Transaction(func(tx *gorm.DB) error {
 		// Store distribution
 		if err := tx.Omit(clause.Associations).Create(d).Error; err != nil {
 			return err
@@ -49,32 +47,104 @@ func (s *GormStore) InsertDistribution(d *Distribution) error {
 
 // Update distribution
 // Note: this will not update nested objects (Buckets, Packs)
-func (s *GormStore) UpdateDistribution(d *Distribution) error {
+func UpdateDistribution(db *gorm.DB, d *Distribution) error {
 	// Omit associations as saving associations (nested objects) was causing
 	// duplicates of them to be created on each update.
-	return s.db.Omit(clause.Associations).Save(d).Error
+	return db.Omit(clause.Associations).Save(d).Error
 }
 
 // Remove distribution
-func (s *GormStore) RemoveDistribution(*Distribution) error {
+func RemoveDistribution(*gorm.DB, *Distribution) error {
 	// TODO (latenssi)
 	return nil
 }
 
 // List distributions
-func (s *GormStore) ListDistributions(opt ListOptions) ([]Distribution, error) {
+func ListDistributions(db *gorm.DB, opt ListOptions) ([]Distribution, error) {
 	list := []Distribution{}
-	if err := s.db.Order("created_at desc").Limit(opt.Limit).Offset(opt.Offset).Find(&list).Error; err != nil {
+	if err := db.Order("created_at desc").Limit(opt.Limit).Offset(opt.Offset).Find(&list).Error; err != nil {
 		return nil, err
 	}
 	return list, nil
 }
 
 // Get distribution
-func (s *GormStore) GetDistribution(id uuid.UUID) (*Distribution, error) {
+func GetDistribution(db *gorm.DB, id uuid.UUID) (*Distribution, error) {
 	distribution := Distribution{}
-	if err := s.db.Preload(clause.Associations).First(&distribution, id).Error; err != nil {
+	if err := db.Preload(clause.Associations).First(&distribution, id).Error; err != nil {
 		return nil, err
 	}
 	return &distribution, nil
+}
+
+// Insert settlement
+func InsertSettlement(db *gorm.DB, d *Settlement) error {
+	return db.Transaction(func(tx *gorm.DB) error {
+		// Store settlement
+		if err := tx.Omit(clause.Associations).Create(d).Error; err != nil {
+			return err
+		}
+
+		// Update IDs
+		for i := range d.Collectibles {
+			d.Collectibles[i].SettlementID = d.ID
+		}
+
+		// Store collectibles in batches
+		if err := tx.CreateInBatches(d.Collectibles, 1000).Error; err != nil {
+			return err
+		}
+
+		// Commit
+		return nil
+	})
+}
+
+// Update settlement
+func UpdateSettlement(db *gorm.DB, d *Settlement) error {
+	return db.Omit(clause.Associations).Save(d).Error
+}
+
+// Update settlement collectible
+func UpdateSettlementCollectible(db *gorm.DB, d *SettlementCollectible) error {
+	return db.Omit(clause.Associations).Save(d).Error
+}
+
+// Get settlement
+func GetSettlementByDistId(db *gorm.DB, distributionID uuid.UUID) (*Settlement, error) {
+	settlement := Settlement{DistributionID: distributionID}
+	if err := db.Omit(clause.Associations).First(&settlement).Error; err != nil {
+		return nil, err
+	}
+	return &settlement, nil
+}
+
+// Get missing collectibles for a settlement, grouped by collectible contract reference
+func MissingCollectibles(db *gorm.DB, settlementId uuid.UUID) (map[string]SettlementCollectibles, error) {
+	missing := []SettlementCollectible{}
+	err := db.Omit(clause.Associations).Where(SettlementCollectible{SettlementID: settlementId, Settled: false}).Find(&missing).Error
+	if err != nil {
+		return nil, err
+	}
+
+	res := make(map[string]SettlementCollectibles)
+	for _, c := range missing {
+		key := c.ContractReference.String()
+		if _, ok := res[key]; !ok {
+			res[key] = SettlementCollectibles{}
+		}
+		res[key] = append(res[key], c)
+	}
+
+	return res, nil
+}
+
+// Insert CirculatingPackContract
+func InsertCirculatingPackContract(db *gorm.DB, d *CirculatingPackContract) error {
+	return db.Create(d).Error
+}
+
+// Update CirculatingPackContracts
+func UpdateCirculatingPackContracts(db *gorm.DB, d []CirculatingPackContract) error {
+	return db.Save(d).Error
 }

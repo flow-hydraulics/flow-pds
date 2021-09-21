@@ -7,6 +7,7 @@ import (
 	"os"
 
 	"github.com/flow-hydraulics/flow-pds/service/app"
+	"github.com/flow-hydraulics/flow-pds/service/common"
 	"github.com/flow-hydraulics/flow-pds/service/config"
 	"github.com/flow-hydraulics/flow-pds/service/errors"
 	"github.com/flow-hydraulics/flow-pds/service/http"
@@ -77,17 +78,20 @@ func runServer(cfg *config.Config) error {
 	}()
 
 	// Database
-	db, err := app.NewGormDB(cfg)
+	db, err := common.NewGormDB(cfg)
 	if err != nil {
 		return err
 	}
-	defer app.CloseGormDB(db)
+	defer common.CloseGormDB(db)
 
-	// Datastore
-	store := app.NewGormStore(db)
+	// Migrate app database
+	if err := app.Migrate(db); err != nil {
+		return err
+	}
 
 	// Application
-	app := app.New(cfg, store, flowClient)
+	app := app.New(cfg, db, flowClient, true)
+	defer app.Close()
 
 	// HTTP server
 	server := http.NewServer(cfg, logServer, app)

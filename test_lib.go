@@ -2,44 +2,81 @@ package main
 
 import (
 	"os"
+	"reflect"
+	"testing"
 
 	"github.com/flow-hydraulics/flow-pds/service/app"
 	"github.com/flow-hydraulics/flow-pds/service/common"
 	"github.com/flow-hydraulics/flow-pds/service/config"
 	"github.com/flow-hydraulics/flow-pds/service/http"
+	"github.com/onflow/flow-go-sdk/client"
+	"google.golang.org/grpc"
 )
 
 func getTestCfg() *config.Config {
-	return &config.Config{
-		DatabaseDSN:  "test.db",
-		DatabaseType: "sqlite",
-	}
-}
-
-func getTestApp(cfg *config.Config) (*app.App, func()) {
-	db, err := app.NewGormDB(cfg)
+	cfg, err := config.ParseConfig(&config.ConfigOptions{EnvFilePath: ".env.test"})
 	if err != nil {
 		panic(err)
 	}
-	store := app.NewGormStore(db)
-	clean := func() {
-		os.Remove(cfg.DatabaseDSN)
+
+	cfg.DatabaseDSN = "test.db"
+	cfg.DatabaseType = "sqlite"
+
+	return cfg
+}
+
+func getTestApp(cfg *config.Config, poll bool) (*app.App, func()) {
+	flowClient, err := client.New(cfg.AccessAPIHost, grpc.WithInsecure())
+	if err != nil {
+		panic(err)
 	}
-	return app.New(cfg, store, nil), clean
+
+	db, err := common.NewGormDB(cfg)
+	if err != nil {
+		panic(err)
+	}
+
+	// Migrate app database
+	if err := app.Migrate(db); err != nil {
+		panic(err)
+	}
+
+	clean := func() {
+		if cfg.DatabaseType == "sqlite" {
+			os.Remove(cfg.DatabaseDSN)
+		}
+		flowClient.Close()
+	}
+
+	return app.New(cfg, db, flowClient, poll), clean
 }
 
 func getTestServer(cfg *config.Config) (*http.Server, func()) {
-	app, cleanupApp := getTestApp(cfg)
+	app, cleanupApp := getTestApp(cfg, false)
 	clean := func() {
 		cleanupApp()
 	}
 	return http.NewServer(cfg, nil, app), clean
 }
 
-func makeCollection(size int) []common.FlowID {
+func makeTestCollection(size int) []common.FlowID {
 	collection := make([]common.FlowID, size)
 	for i := range collection {
 		collection[i] = common.FlowID(i + 1)
 	}
 	return collection
+}
+
+func AssertEqual(t *testing.T, a interface{}, b interface{}) {
+	if a == b {
+		return
+	}
+	t.Errorf("Received %v (type %v), expected %v (type %v)", a, reflect.TypeOf(a), b, reflect.TypeOf(b))
+}
+
+func AssertNotEqual(t *testing.T, a interface{}, b interface{}) {
+	if a != b {
+		return
+	}
+	t.Error("Did not expect to equal")
 }

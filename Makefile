@@ -16,7 +16,9 @@ reset: down dev
 
 .PHONY: test
 test:
-	@go test $$(go list ./... | grep -v /go-contracts/)
+	@go test ./go-contracts/...
+	@go test ./service/...
+	@go test
 
 .PHONY: test-clean
 test-clean: clean-testcache test
@@ -27,4 +29,4 @@ clean-testcache:
 
 .PHONY: deploy
 deploy:
-	flow project deploy --update
+	bash ./deploy.sh

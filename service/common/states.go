@@ -2,6 +2,7 @@ package common
 
 type DistributionState uint
 type PackState uint
+type SettlementState uint
 
 const (
 	DistributionStateInit DistributionState = iota
@@ -18,4 +19,10 @@ const (
 	PackStateSealed
 	PackStateRevealed
 	PackStateEmpty
+)
+
+const (
+	SettlementStateStarted SettlementState = iota
+	SettlementStateStopped
+	SettlementStateDone
 )

@@ -20,23 +20,23 @@ func HandleCreateDistribution(logger *log.Logger, app *app.App) http.HandlerFunc
 			return
 		}
 
-		var dist ReqCreateDistribution
+		var reqDist ReqCreateDistribution
 
 		// Decode JSON
-		if err := json.NewDecoder(r.Body).Decode(&dist); err != nil {
+		if err := json.NewDecoder(r.Body).Decode(&reqDist); err != nil {
 			handleError(rw, logger, err)
 			return
 		}
 
 		// Create new distribution
-		id, err := app.CreateDistribution(dist.ToApp())
-		if err != nil {
+		appDist := reqDist.ToApp()
+		if err := app.CreateDistribution(r.Context(), &appDist); err != nil {
 			handleError(rw, logger, err)
 			return
 		}
 
 		// TODO (latenssi): respond with the distribution instead of ID
-		res := ResCreateDistribution{DistributionId: id}
+		res := ResCreateDistribution{DistributionId: appDist.ID}
 
 		handleJsonResponse(rw, http.StatusCreated, res)
 	}
@@ -55,16 +55,13 @@ func HandleListDistributions(logger *log.Logger, app *app.App) http.HandlerFunc 
 			offset = 0
 		}
 
-		list, err := app.ListDistributions(limit, offset)
+		list, err := app.ListDistributions(r.Context(), limit, offset)
 		if err != nil {
 			handleError(rw, logger, err)
 			return
 		}
 
-		res := make([]ResDistributionListItem, len(list))
-		for i := range res {
-			res[i] = ResDistributionListItemFromApp(list[i])
-		}
+		res := ResDistributionListFromApp(list)
 
 		handleJsonResponse(rw, http.StatusOK, res)
 	}
@@ -81,13 +78,13 @@ func HandleGetDistribution(logger *log.Logger, app *app.App) http.HandlerFunc {
 			return
 		}
 
-		dist, err := app.GetDistribution(id)
+		dist, settlement, err := app.GetDistribution(r.Context(), id)
 		if err != nil {
 			handleError(rw, logger, err)
 			return
 		}
 
-		res := ResDistributionFromApp(*dist)
+		res := ResDistributionFromApp(dist, settlement)
 
 		handleJsonResponse(rw, http.StatusOK, res)
 	}
@@ -104,8 +101,7 @@ func HandleCancelDistribution(logger *log.Logger, app *app.App) http.HandlerFunc
 			return
 		}
 
-		err = app.CancelDistribution(id)
-		if err != nil {
+		if err := app.CancelDistribution(r.Context(), id); err != nil {
 			handleError(rw, logger, err)
 			return
 		}

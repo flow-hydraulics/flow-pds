@@ -1,24 +1,5 @@
 package app
 
-import "github.com/google/uuid"
-
-type Store interface {
-	// Insert distribution
-	InsertDistribution(*Distribution) error
-
-	// Update distribution
-	UpdateDistribution(*Distribution) error
-
-	// Remove distribution
-	RemoveDistribution(*Distribution) error
-
-	// List distributions
-	ListDistributions(ListOptions) ([]Distribution, error)
-
-	// Get distribution
-	GetDistribution(id uuid.UUID) (*Distribution, error)
-}
-
 type ListOptions struct {
 	Limit  int
 	Offset int

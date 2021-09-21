@@ -5,14 +5,13 @@ import (
 	"testing"
 
 	"github.com/flow-hydraulics/flow-pds/service/common"
-	"github.com/onflow/cadence"
 	"github.com/onflow/flow-go-sdk"
 )
 
 func makeCollection(size int) []common.FlowID {
 	collection := make([]common.FlowID, size)
 	for i := range collection {
-		collection[i] = common.FlowID(cadence.NewUInt64(uint64(i + 1)))
+		collection[i] = common.FlowID(i + 1)
 	}
 	return collection
 }
@@ -117,12 +116,6 @@ func TestDistributionResolution(t *testing.T) {
 		expected := d.PackSlotCount()
 		if len(p.Collectibles) != expected {
 			t.Fatalf("expected there to be %d slots", expected)
-		}
-
-		for _, c := range p.Collectibles {
-			if c.FlowID == common.FlowID(0) {
-				t.Fatalf("did not expect 0 value in a slot")
-			}
 		}
 	}
 }
