@@ -1,0 +1,23 @@
+name: Tests
+
+on:
+  pull_request:
+
+jobs:
+
+  service:
+    runs-on: ubuntu-latest
+    steps:
+    - uses: actions/checkout@v2
+
+    - name: Set up Go
+      uses: actions/setup-go@v2
+      with:
+        go-version: 1.17
+
+    - name: Test services
+      env:
+        NETWORK: emulator
+        FLOW_PDS_ADMIN_ADDRESS: placholder
+        FLOW_PDS_ADMIN_PRIVATE_KEY: placholder
+      run: go test $(go list ./... | grep -v /go-contracts/)
