@@ -24,9 +24,13 @@ pub contract PDS{
         }
         
         // TODO: maybe we do not need to specify the issuer here, should be the creator of the SharedCapabilities
-        pub fun mintPackNFT(commitHash: String, issuer: Address){
+        pub fun mintPackNFT(commitHashes: [String], issuer: Address){
+            var i = 0
             let c = self.mintCap.borrow() ?? panic("no such cap")
-            c.mint(commitHash: commitHash, issuer: issuer)
+            while i < commitHashes.len{
+                c.mint(commitHash: commitHashes[i], issuer: issuer)
+                i = i + 1
+            }
         }
 
         init(
@@ -84,7 +88,7 @@ pub contract PDS{
     
     pub resource DistributionManager {
         // TODO: set state on PackNFT
-        pub fun withdraw(distId: UInt64, nftID: [UInt64]) {
+        pub fun withdraw(distId: UInt64, nftIDs: [UInt64]) {
             assert(PDS.Distributions.containsKey(distId), message: "No such distribution")
             let d <- PDS.Distributions.remove(key: distId)!
             let pdsCollection = PDS.getManagerCollectionCap().borrow()!
@@ -97,10 +101,10 @@ pub contract PDS{
         }
         
         // TODO: set state on PackNFT, maybe remove issuer (need backend discussion)
-        pub fun mintPackNFT(distId: UInt64, commitHash: String, issuer: Address){
+        pub fun mintPackNFT(distId: UInt64, commitHashes: [String], issuer: Address){
             assert(PDS.Distributions.containsKey(distId), message: "No such distribution")
             let d <- PDS.Distributions.remove(key: distId)!
-            d.mintPackNFT(commitHash: commitHash, issuer: issuer)
+            d.mintPackNFT(commitHashes: commitHashes, issuer: issuer)
             PDS.Distributions[distId] <-! d
         }
 
