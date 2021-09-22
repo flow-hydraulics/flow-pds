@@ -81,7 +81,7 @@ func (c *Contract) StartSettlement(ctx context.Context, db *gorm.DB, dist *Distr
 	}
 
 	// TODO (latenssi)
-	// - Send a request to PDS Contract to start withdrawing of collectible NFTs to Contract account
+	// - Clean up the transaction code
 	// - Timeout? Cancel?
 	g := gwtf.NewGoWithTheFlow([]string{"./flow.json"}, "emulator", false, 3)
 
@@ -156,7 +156,7 @@ func (c *Contract) StartMinting(ctx context.Context, db *gorm.DB, dist *Distribu
 	}
 
 	// TODO (latenssi)
-	// - call pds contract to start minting (provide commitmentHashes)
+	// - Clean up the transaction code
 	// - Timeout? Cancel?
 
 	g := gwtf.NewGoWithTheFlow([]string{"./flow.json"}, "emulator", false, 3)
