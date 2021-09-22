@@ -7,6 +7,8 @@ import (
 	"fmt"
 	"strconv"
 	"strings"
+
+	"github.com/onflow/cadence"
 )
 
 // Note (latenssi): flow IDs are actually uint64s so we are not supporting as many IDs as flow,
@@ -22,7 +24,7 @@ func (i FlowID) LessThan(j FlowID) bool {
 }
 
 func (i FlowID) EqualTo(j FlowID) bool {
-	return i.Valid == j.Valid && i.Int64 == j.Int64
+	return (!i.Valid && !j.Valid) || i.Valid && j.Valid && i.Int64 == j.Int64
 }
 
 func (i FlowID) Value() (driver.Value, error) {
@@ -51,7 +53,7 @@ func (i FlowID) MarshalJSON() ([]byte, error) {
 }
 
 func (i *FlowID) UnmarshalJSON(data []byte) error {
-	temp, err := FlowIDFromStr(string(data))
+	temp, err := FlowIDFromString(string(data))
 	if err != nil {
 		return err
 	}
@@ -63,7 +65,7 @@ func (i FlowID) String() string {
 	return fmt.Sprint(i.Int64)
 }
 
-func FlowIDFromStr(s string) (FlowID, error) {
+func FlowIDFromString(s string) (FlowID, error) {
 	if s == "" || s == "null" {
 		return FlowID{Int64: 0, Valid: false}, nil
 	}
@@ -72,6 +74,14 @@ func FlowIDFromStr(s string) (FlowID, error) {
 		return FlowID{Int64: 0, Valid: false}, err
 	}
 	return FlowID{Int64: i, Valid: true}, nil
+}
+
+func FlowIDFromCadence(v cadence.Value) (FlowID, error) {
+	uintID, ok := v.ToGoValue().(uint64)
+	if !ok {
+		return FlowID{}, fmt.Errorf("unable to parse FlowID from cadence value: %v", v)
+	}
+	return FlowID{Int64: int64(uintID), Valid: true}, nil
 }
 
 func (FlowIDList) GormDataType() string {
@@ -86,7 +96,7 @@ func (l *FlowIDList) Scan(value interface{}) error {
 	strSplit := strings.Split(string(str), ",")
 	list := make([]FlowID, len(strSplit))
 	for i, s := range strSplit {
-		id, err := FlowIDFromStr(s)
+		id, err := FlowIDFromString(s)
 		if err != nil {
 			return err
 		}

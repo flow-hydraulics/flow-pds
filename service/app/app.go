@@ -62,7 +62,7 @@ func (app *App) GetDistribution(ctx context.Context, id uuid.UUID) (*Distributio
 		return nil, nil, err
 	}
 
-	settlement, err := GetSettlementByDistId(app.db, id)
+	settlement, err := GetDistributionSettlement(app.db, id)
 	if err != nil && !strings.Contains(err.Error(), "record not found") {
 		return nil, nil, err
 	}

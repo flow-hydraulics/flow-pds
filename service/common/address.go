@@ -4,6 +4,7 @@ import (
 	"database/sql/driver"
 	"fmt"
 
+	"github.com/onflow/cadence"
 	"github.com/onflow/flow-go-sdk"
 )
 
@@ -35,4 +36,16 @@ func (a *FlowAddress) Scan(value interface{}) error {
 	}
 	*a = FlowAddress(flow.BytesToAddress(bytes))
 	return nil
+}
+
+func FlowAddressFromString(s string) FlowAddress {
+	return FlowAddress(flow.HexToAddress(s))
+}
+
+func FlowAddressFromCadence(v cadence.Value) (FlowAddress, error) {
+	slice, ok := v.ToGoValue().([8]uint8)
+	if !ok {
+		return FlowAddress{}, fmt.Errorf("unable to parse FlowAddress from cadence value: %v", v)
+	}
+	return FlowAddress(flow.BytesToAddress(slice[:])), nil
 }

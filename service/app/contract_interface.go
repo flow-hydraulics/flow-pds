@@ -5,9 +5,11 @@ import (
 	"fmt"
 	"sort"
 
+	"github.com/bjartek/go-with-the-flow/v2/gwtf"
+	"github.com/flow-hydraulics/flow-pds/go-contracts/util"
 	"github.com/flow-hydraulics/flow-pds/service/common"
 	"github.com/flow-hydraulics/flow-pds/service/config"
-	"github.com/onflow/flow-go-sdk"
+	"github.com/onflow/cadence"
 	"github.com/onflow/flow-go-sdk/client"
 	"gorm.io/gorm"
 )
@@ -16,8 +18,8 @@ type IContract interface {
 	StartSettlement(context.Context, *gorm.DB, *Distribution) error
 	StartMinting(context.Context, *gorm.DB, *Distribution) error
 	Cancel(context.Context, *gorm.DB, *Distribution) error
-	CheckSettlementStatus(ctx context.Context, db *gorm.DB, dist *Distribution) error
-	CheckMintingStatus(ctx context.Context, db *gorm.DB, dist *Distribution) error
+	UpdateSettlementStatus(ctx context.Context, db *gorm.DB, dist *Distribution) error
+	UpdateMintingStatus(ctx context.Context, db *gorm.DB, dist *Distribution) error
 }
 
 type Contract struct {
@@ -66,8 +68,8 @@ func (c *Contract) StartSettlement(ctx context.Context, db *gorm.DB, dist *Distr
 	settlement := Settlement{
 		DistributionID:   dist.ID,
 		Total:            uint(len(collectibles)),
-		EscrowAddress:    common.FlowAddress(flow.HexToAddress("f3fcd2c1a78f5eee")), // TODO (latenssi): proper escrow address
-		LastCheckedBlock: latestBlock.Height,
+		EscrowAddress:    common.FlowAddressFromString("f3fcd2c1a78f5eee"), // TODO (latenssi): proper escrow address
+		LastCheckedBlock: latestBlock.Height - 1,
 		Collectibles:     settlementCollectibles,
 	}
 
@@ -101,7 +103,7 @@ func (c *Contract) StartMinting(ctx context.Context, db *gorm.DB, dist *Distribu
 		cpc := CirculatingPackContract{
 			Name:             b.CollectibleReference.Name,
 			Address:          b.CollectibleReference.Address,
-			LastCheckedBlock: latestBlock.Height,
+			LastCheckedBlock: latestBlock.Height - 1,
 		}
 		// TODO (latenssi): get from db instead of failing on duplicate index?
 		if err := InsertCirculatingPackContract(db, &cpc); err != nil {
@@ -123,23 +125,37 @@ func (c *Contract) StartMinting(ctx context.Context, db *gorm.DB, dist *Distribu
 		Minted: 0,
 		Total:  uint(len(packs)),
 
-		LastCheckedBlock: latestBlock.Height,
+		LastCheckedBlock: latestBlock.Height - 1,
 	}
 
 	if err := InsertMinting(db, &minting); err != nil {
 		return err
 	}
 
-	commitmentHashes := make([]string, len(packs))
+	commitmentHashes := make([]cadence.Value, len(packs))
 	for i, p := range packs {
-		commitmentHashes[i] = p.CommitmentHash.String()
+		commitmentHashes[i] = cadence.NewString(p.CommitmentHash.String())
 	}
 
-	fmt.Printf("TODO: mint these %s\n", commitmentHashes)
+	commitmentHashesArray := cadence.NewArray(commitmentHashes)
 
 	// TODO (latenssi)
 	// - call pds contract to start minting (provide commitmentHashes)
 	// - Timeout? Cancel?
+
+	g := gwtf.NewGoWithTheFlow([]string{"./flow.json"}, "emulator", false, 3)
+
+	mintPackNFT := "./cadence-transactions/pds/mint_packNFT.cdc"
+	mintPackNFTCode := util.ParseCadenceTemplate(mintPackNFT)
+	_, err = g.TransactionFromFile(mintPackNFT, mintPackNFTCode).
+		SignProposeAndPayAs("pds").
+		UInt64Argument(uint64(dist.DistID.Int64)).
+		Argument(commitmentHashesArray).
+		AccountArgument("issuer").
+		RunE()
+	if err != nil {
+		return err
+	}
 
 	return nil
 }
@@ -158,8 +174,8 @@ func (c *Contract) Cancel(ctx context.Context, db *gorm.DB, dist *Distribution) 
 	return nil
 }
 
-func (c *Contract) CheckSettlementStatus(ctx context.Context, db *gorm.DB, dist *Distribution) error {
-	settlement, err := GetSettlementByDistId(db, dist.ID)
+func (c *Contract) UpdateSettlementStatus(ctx context.Context, db *gorm.DB, dist *Distribution) error {
+	settlement, err := GetDistributionSettlement(db, dist.ID)
 	if err != nil {
 		return err
 	}
@@ -194,13 +210,20 @@ func (c *Contract) CheckSettlementStatus(ctx context.Context, db *gorm.DB, dist 
 
 		for _, be := range arr {
 			for _, e := range be.Events {
-				id, err := common.FlowIDFromStr(e.Value.Fields[0].String())
+				flowID, err := common.FlowIDFromCadence(e.Value.Fields[0])
 				if err != nil {
-					return err
+					fmt.Println(err)
+					continue
 				}
-				address := common.FlowAddress(flow.HexToAddress(e.Value.Fields[1].String()))
+
+				address, err := common.FlowAddressFromCadence(e.Value.Fields[1])
+				if err != nil {
+					fmt.Println(err)
+					continue
+				}
+
 				if address == settlement.EscrowAddress {
-					if i, ok := missing.ContainsID(id); ok {
+					if i, ok := missing.ContainsID(flowID); ok {
 						missing[i].Settled = true
 						if err := UpdateSettlementCollectible(db, &missing[i]); err != nil {
 							return err
@@ -215,7 +238,6 @@ func (c *Contract) CheckSettlementStatus(ctx context.Context, db *gorm.DB, dist 
 	settlement.LastCheckedBlock = end
 
 	if settlement.Settled >= settlement.Total {
-		// Update settlement state
 		settlement.State = common.SettlementStateDone
 	}
 
@@ -224,7 +246,6 @@ func (c *Contract) CheckSettlementStatus(ctx context.Context, db *gorm.DB, dist 
 	}
 
 	if settlement.State == common.SettlementStateDone && dist.State == common.DistributionStateSettling {
-		// Update distribution state
 		dist.State = common.DistributionStateSettled
 		if err := UpdateDistribution(db, dist); err != nil {
 			return err
@@ -234,9 +255,8 @@ func (c *Contract) CheckSettlementStatus(ctx context.Context, db *gorm.DB, dist 
 	return nil
 }
 
-func (c *Contract) CheckMintingStatus(ctx context.Context, db *gorm.DB, dist *Distribution) error {
-	// TODO (latenssi): poll for minting status of distribution => set "complete" when done
-	minting, err := GetMintingByDistId(db, dist.ID)
+func (c *Contract) UpdateMintingStatus(ctx context.Context, db *gorm.DB, dist *Distribution) error {
+	minting, err := GetDistributionMinting(db, dist.ID)
 	if err != nil {
 		return err
 	}
@@ -267,24 +287,31 @@ func (c *Contract) CheckMintingStatus(ctx context.Context, db *gorm.DB, dist *Di
 
 	for _, be := range arr {
 		for _, e := range be.Events {
-			id, err := common.FlowIDFromStr(e.Value.Fields[0].String())
+			flowID, err := common.FlowIDFromCadence(e.Value.Fields[0])
 			if err != nil {
-				fmt.Printf("unable to convert flow id '%s' to common.FlowID\n", e.Value.Fields[0])
+				fmt.Println(err)
 				continue
 			}
-			commitmentHash, err := common.BinaryValueFromHexString(e.Value.Fields[1].String())
+
+			commitmentHash, err := common.BinaryValueFromCadence(e.Value.Fields[1])
 			if err != nil {
-				fmt.Printf("unable to convert commitmentHash '%s' to binary value\n", e.Value.Fields[1])
+				fmt.Println(err)
 				continue
 			}
-			pack, err := GetPackByCommitmentHash(db, commitmentHash)
+
+			pack, err := GetDistributionPackByCommitmentHash(db, dist.ID, commitmentHash)
 			if err != nil {
-				fmt.Printf("unable find pack with commitmentHash '%s'\n", commitmentHash.String())
+				fmt.Printf("unable find pack with commitmentHash %v\n", commitmentHash.String())
 				continue
 			}
-			pack.FlowID = id
-			if err := UpdatePack(db, pack); err != nil {
-				return err
+
+			if !pack.FlowID.Valid {
+				// FlowID was previously null, so this is a new pack NFT
+				pack.FlowID = flowID
+				if err := UpdatePack(db, pack); err != nil {
+					return err
+				}
+				minting.Minted++
 			}
 		}
 	}
@@ -292,7 +319,6 @@ func (c *Contract) CheckMintingStatus(ctx context.Context, db *gorm.DB, dist *Di
 	minting.LastCheckedBlock = end
 
 	if minting.Minted >= minting.Total {
-		// Update minting state
 		minting.State = common.MintingStateDone
 	}
 
@@ -301,7 +327,6 @@ func (c *Contract) CheckMintingStatus(ctx context.Context, db *gorm.DB, dist *Di
 	}
 
 	if minting.State == common.MintingStateDone && dist.State == common.DistributionStateMinting {
-		// Update distribution state
 		dist.State = common.DistributionStateComplete
 		if err := UpdateDistribution(db, dist); err != nil {
 			return err

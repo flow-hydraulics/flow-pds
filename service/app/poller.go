@@ -99,7 +99,7 @@ func handleSettling(ctx context.Context, db *gorm.DB, contract IContract) error 
 		}
 
 		for _, dist := range settling {
-			if err := contract.CheckSettlementStatus(ctx, tx, &dist); err != nil {
+			if err := contract.UpdateSettlementStatus(ctx, tx, &dist); err != nil {
 				return err
 			}
 		}
@@ -132,7 +132,7 @@ func handleMinting(ctx context.Context, db *gorm.DB, contract IContract) error {
 		}
 
 		for _, dist := range minting {
-			if err := contract.CheckMintingStatus(ctx, tx, &dist); err != nil {
+			if err := contract.UpdateMintingStatus(ctx, tx, &dist); err != nil {
 				return err
 			}
 		}

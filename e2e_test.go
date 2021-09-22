@@ -24,9 +24,7 @@ func TestE2E(t *testing.T) {
 		cleanup()
 	}()
 
-	jsonPath := "./flow.json"
-	var flowJSON []string = []string{jsonPath}
-	g := gwtf.NewGoWithTheFlow(flowJSON, "emulator", false, 3)
+	g := gwtf.NewGoWithTheFlow([]string{"./flow.json"}, "emulator", false, 3)
 
 	issuer := common.FlowAddress(flow.HexToAddress(util.GetAccountAddr(g, "issuer")))
 	// pds := common.FlowAddress(flow.HexToAddress(util.GetAccountAddr(g, "pds")))
@@ -134,7 +132,7 @@ func TestE2E(t *testing.T) {
 	util.NewExpectedPDSEvent("DistributionCreated").AddField("DistId", currentDistId.String()).AssertEqual(t, events[0])
 
 	// -- Use newly minted NFTs to create a distribution as issuer --
-	distId, err := common.FlowIDFromStr(e[0].Value.Fields[0].String())
+	distId, err := common.FlowIDFromCadence(e[0].Value.Fields[0])
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -201,7 +199,7 @@ func TestE2E(t *testing.T) {
 				waitError = err
 				break
 			}
-			if dist.State == common.DistributionStateMinting {
+			if dist.State == common.DistributionStateMinting || dist.State == common.DistributionStateComplete {
 				break
 			}
 			time.Sleep(time.Second)

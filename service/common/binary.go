@@ -4,6 +4,8 @@ import (
 	"database/sql/driver"
 	"encoding/hex"
 	"fmt"
+
+	"github.com/onflow/cadence"
 )
 
 type BinaryValue []byte
@@ -26,4 +28,12 @@ func (b BinaryValue) String() string {
 
 func BinaryValueFromHexString(s string) (BinaryValue, error) {
 	return hex.DecodeString(s)
+}
+
+func BinaryValueFromCadence(v cadence.Value) (BinaryValue, error) {
+	hexString, ok := v.ToGoValue().(string)
+	if !ok {
+		return nil, fmt.Errorf("unable to parse BinaryValue from cadence value: %v", v)
+	}
+	return BinaryValueFromHexString(hexString)
 }

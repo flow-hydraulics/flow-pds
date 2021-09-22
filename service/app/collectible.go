@@ -20,7 +20,7 @@ func CollectibleFromString(s string) (Collectible, error) {
 	split := strings.Split(string(s), ".")
 	address := common.FlowAddress(flow.HexToAddress(split[1]))
 	name := split[2]
-	id, err := common.FlowIDFromStr(split[3])
+	id, err := common.FlowIDFromString(split[3])
 	if err != nil {
 		return Collectible{}, err
 	}
