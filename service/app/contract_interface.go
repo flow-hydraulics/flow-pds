@@ -68,6 +68,7 @@ func (c *Contract) StartSettlement(ctx context.Context, db *gorm.DB, dist *Distr
 
 	settlement := Settlement{
 		DistributionID: dist.ID,
+		Settled:        0,
 		Total:          uint(len(collectibles)),
 		// TODO (latenssi): Can we assume the admin is always the escrow?
 		EscrowAddress:    common.FlowAddressFromString(c.cfg.AdminAddress),
@@ -138,13 +139,10 @@ func (c *Contract) StartMinting(ctx context.Context, db *gorm.DB, dist *Distribu
 	}
 
 	minting := Minting{
-		DistributionID: dist.ID,
-		Distribution:   *dist,
-
-		State:  common.MintingStateStarted,
-		Minted: 0,
-		Total:  uint(len(packs)),
-
+		DistributionID:   dist.ID,
+		Distribution:     *dist,
+		Minted:           0,
+		Total:            uint(len(packs)),
 		LastCheckedBlock: latestBlock.Height - 1,
 	}
 
@@ -198,11 +196,6 @@ func (c *Contract) UpdateSettlementStatus(ctx context.Context, db *gorm.DB, dist
 		return err
 	}
 
-	groupedMissing, err := MissingCollectibles(db, settlement.ID)
-	if err != nil {
-		return err
-	}
-
 	latestBlock, err := c.flowClient.GetLatestBlock(ctx, true)
 	if err != nil {
 		return err
@@ -214,6 +207,11 @@ func (c *Contract) UpdateSettlementStatus(ctx context.Context, db *gorm.DB, dist
 	if start > end {
 		// Nothing to update
 		return nil
+	}
+
+	groupedMissing, err := MissingCollectibles(db, settlement.ID)
+	if err != nil {
+		return err
 	}
 
 	for reference, missing := range groupedMissing {
@@ -230,44 +228,42 @@ func (c *Contract) UpdateSettlementStatus(ctx context.Context, db *gorm.DB, dist
 			for _, e := range be.Events {
 				flowID, err := common.FlowIDFromCadence(e.Value.Fields[0])
 				if err != nil {
-					fmt.Println(err)
-					continue
+					return err
 				}
 
 				address, err := common.FlowAddressFromCadence(e.Value.Fields[1])
 				if err != nil {
-					fmt.Println(err)
-					continue
+					return err
 				}
 
 				if address == settlement.EscrowAddress {
 					if i, ok := missing.ContainsID(flowID); ok {
-						missing[i].Settled = true
+						if err := missing[i].SetSettled(); err != nil {
+							return err
+						}
 						if err := UpdateSettlementCollectible(db, &missing[i]); err != nil {
 							return err
 						}
-						settlement.Settled++
+						settlement.IncrementSettled()
 					}
 				}
 			}
 		}
 	}
 
-	settlement.LastCheckedBlock = end
-
-	if settlement.Settled >= settlement.Total {
-		settlement.State = common.SettlementStateDone
-	}
-
-	if err := UpdateSettlement(db, settlement); err != nil {
-		return err
-	}
-
-	if settlement.State == common.SettlementStateDone && dist.State == common.DistributionStateSettling {
-		dist.State = common.DistributionStateSettled
+	if settlement.IsComplete() {
+		if err := dist.SetSettled(); err != nil {
+			return err
+		}
 		if err := UpdateDistribution(db, dist); err != nil {
 			return err
 		}
+	}
+
+	settlement.LastCheckedBlock = end
+
+	if err := UpdateSettlement(db, settlement); err != nil {
+		return err
 	}
 
 	return nil
@@ -307,48 +303,44 @@ func (c *Contract) UpdateMintingStatus(ctx context.Context, db *gorm.DB, dist *D
 		for _, e := range be.Events {
 			flowID, err := common.FlowIDFromCadence(e.Value.Fields[0])
 			if err != nil {
-				fmt.Println(err)
-				continue
+				return err
 			}
 
 			commitmentHash, err := common.BinaryValueFromCadence(e.Value.Fields[1])
 			if err != nil {
-				fmt.Println(err)
-				continue
+				return err
 			}
 
-			pack, err := GetDistributionPackByCommitmentHash(db, dist.ID, commitmentHash)
+			pack, err := GetMintingPack(db, dist.ID, commitmentHash)
 			if err != nil {
-				fmt.Printf("unable find pack with commitmentHash %v\n", commitmentHash.String())
-				continue
+				return fmt.Errorf("unable find a minting pack with commitmentHash %v", commitmentHash.String())
 			}
 
-			if !pack.FlowID.Valid {
-				// FlowID was previously null, so this is a new pack NFT
-				pack.FlowID = flowID
-				if err := UpdatePack(db, pack); err != nil {
-					return err
-				}
-				minting.Minted++
+			if err := pack.Seal(flowID); err != nil {
+				return err
 			}
+
+			if err := UpdatePack(db, pack); err != nil {
+				return err
+			}
+
+			minting.IncrementMinted()
+		}
+	}
+
+	if minting.IsComplete() {
+		if err := dist.SetComplete(); err != nil {
+			return err
+		}
+		if err := UpdateDistribution(db, dist); err != nil {
+			return err
 		}
 	}
 
 	minting.LastCheckedBlock = end
 
-	if minting.Minted >= minting.Total {
-		minting.State = common.MintingStateDone
-	}
-
 	if err := UpdateMinting(db, minting); err != nil {
 		return err
-	}
-
-	if minting.State == common.MintingStateDone && dist.State == common.DistributionStateMinting {
-		dist.State = common.DistributionStateComplete
-		if err := UpdateDistribution(db, dist); err != nil {
-			return err
-		}
 	}
 
 	return nil
@@ -386,14 +378,12 @@ func (c *Contract) UpdateCirculatingPack(ctx context.Context, db *gorm.DB, cpc *
 			for _, e := range be.Events {
 				flowID, err := common.FlowIDFromCadence(e.Value.Fields[0])
 				if err != nil {
-					fmt.Println(err)
-					continue
+					return err
 				}
 
 				pack, err := GetPackByContractAndFlowID(db, AddressLocation{Name: cpc.Name, Address: cpc.Address}, flowID)
 				if err != nil {
-					fmt.Println(err)
-					continue
+					return err
 				}
 
 				switch eventName {

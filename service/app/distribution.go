@@ -171,6 +171,17 @@ func (dist *Distribution) SetSettling() error {
 	return nil
 }
 
+// SetSettled sets the status to settled if preceding state was valid
+func (dist *Distribution) SetSettled() error {
+	if dist.State != common.DistributionStateSettling {
+		return fmt.Errorf("distribution can not be set as settled at this state: %d", dist.State)
+	}
+
+	dist.State = common.DistributionStateSettled
+
+	return nil
+}
+
 // SetMinting sets the status to minting if preceding state was valid
 func (dist *Distribution) SetMinting() error {
 	if dist.State != common.DistributionStateSettled {
@@ -178,6 +189,17 @@ func (dist *Distribution) SetMinting() error {
 	}
 
 	dist.State = common.DistributionStateMinting
+
+	return nil
+}
+
+// SetComplete sets the status to complete if preceding state was valid
+func (dist *Distribution) SetComplete() error {
+	if dist.State != common.DistributionStateMinting {
+		return fmt.Errorf("distribution can not be set as complete at this state: %d", dist.State)
+	}
+
+	dist.State = common.DistributionStateComplete
 
 	return nil
 }
@@ -232,10 +254,6 @@ func (p *Pack) SetCommitmentHash() error {
 		return fmt.Errorf("pack validation error: %w", err)
 	}
 
-	if err := p.Seal(); err != nil {
-		return err
-	}
-
 	if !p.Salt.IsEmpty() {
 		return fmt.Errorf("salt is already set")
 	}
@@ -265,12 +283,17 @@ func (p *Pack) Hash() []byte {
 	return h[:]
 }
 
-// Seal should set the pack as sealed
-func (p *Pack) Seal() error {
+// Seal should set the FlowID of the pack and set it as sealed
+func (p *Pack) Seal(id common.FlowID) error {
 	if p.State != common.PackStateInit {
 		return fmt.Errorf("pack in unexpected state: %d", p.State)
 	}
 
+	if p.FlowID.Valid {
+		return fmt.Errorf("pack FlowID already set: %v", id)
+	}
+
+	p.FlowID = id
 	p.State = common.PackStateSealed
 
 	return nil

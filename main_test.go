@@ -2,14 +2,12 @@ package main
 
 import (
 	"bytes"
-	"context"
 	"encoding/json"
 	"fmt"
 	"net/http"
 	"net/http/httptest"
 	"testing"
 
-	"github.com/flow-hydraulics/flow-pds/service/app"
 	"github.com/flow-hydraulics/flow-pds/service/common"
 	pds_http "github.com/flow-hydraulics/flow-pds/service/http"
 	"github.com/google/uuid"
@@ -107,65 +105,4 @@ func TestCreate(t *testing.T) {
 	AssertEqual(t, len(getRes.ResolvedCollection), len(collection))
 	AssertEqual(t, len(getRes.Packs), packs)
 	AssertEqual(t, getRes.Packs[0].CommitmentHash.IsEmpty(), false)
-}
-
-func TestStartSettlement(t *testing.T) {
-	t.Skip("test requires distribution to exist on chain, skipping for now")
-
-	cfg := getTestCfg()
-	a, cleanup := getTestApp(cfg, false)
-	defer func() {
-		cleanup()
-	}()
-
-	addr := common.FlowAddress(flow.HexToAddress("0x1"))
-	collection := makeTestCollection(10)
-
-	d := app.Distribution{
-		DistID: common.FlowID{Int64: int64(1), Valid: true},
-		Issuer: addr,
-		PackTemplate: app.PackTemplate{
-			PackReference: app.AddressLocation{
-				Name:    "TestPackNFT",
-				Address: addr,
-			},
-			PackCount: 2,
-			Buckets: []app.Bucket{
-				{
-					CollectibleReference: app.AddressLocation{
-						Name:    "TestCollectibleNFT",
-						Address: addr,
-					},
-					CollectibleCount:      5,
-					CollectibleCollection: collection,
-				},
-			},
-		},
-	}
-
-	if err := a.CreateDistribution(context.Background(), &d); err != nil {
-		t.Fatal(err)
-	}
-
-	if err := a.SettleDistribution(context.Background(), d.ID); err != nil {
-		t.Fatal(err)
-	}
-
-	_, settlement, err := a.GetDistribution(context.Background(), d.ID)
-	if err != nil {
-		t.Fatal(err)
-	}
-
-	if settlement == nil {
-		t.Fatal("expected settlement to exist")
-	}
-
-	AssertNotEqual(t, settlement.ID, uuid.Nil)
-	AssertEqual(t, settlement.Settled, uint(0))
-	AssertEqual(t, settlement.Total, uint(len(collection)))
-
-	// Try to start settlement again
-	if err := a.SettleDistribution(context.Background(), d.ID); err == nil {
-		t.Fatal("expected an error")
-	}
 }

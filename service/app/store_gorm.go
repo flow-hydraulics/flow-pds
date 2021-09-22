@@ -87,9 +87,9 @@ func GetDistributionPacks(db *gorm.DB, distributionID uuid.UUID) ([]Pack, error)
 	return list, nil
 }
 
-func GetDistributionPackByCommitmentHash(db *gorm.DB, distributionID uuid.UUID, h common.BinaryValue) (*Pack, error) {
+func GetMintingPack(db *gorm.DB, distributionID uuid.UUID, h common.BinaryValue) (*Pack, error) {
 	pack := Pack{}
-	if err := db.Where(&Pack{DistributionID: distributionID, CommitmentHash: h}).First(&pack).Error; err != nil {
+	if err := db.Where(&Pack{DistributionID: distributionID, CommitmentHash: h, FlowID: common.FlowID{Valid: false}}).First(&pack).Error; err != nil {
 		return nil, err
 	}
 	return &pack, nil

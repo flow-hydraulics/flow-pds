@@ -1,7 +1,6 @@
 package app
 
 import (
-	"github.com/flow-hydraulics/flow-pds/service/common"
 	"github.com/google/uuid"
 	"gorm.io/gorm"
 )
@@ -12,9 +11,8 @@ type Minting struct {
 	DistributionID uuid.UUID `gorm:"unique"`
 	Distribution   Distribution
 
-	State  common.MintingState `gorm:"column:state"`
-	Minted uint                `gorm:"column:minted"`
-	Total  uint                `gorm:"column:total"`
+	Minted uint `gorm:"column:minted"`
+	Total  uint `gorm:"column:total"`
 
 	LastCheckedBlock uint64 `gorm:"column:last_checked_block"`
 }
@@ -26,4 +24,12 @@ func (Minting) TableName() string {
 func (s *Minting) BeforeCreate(tx *gorm.DB) (err error) {
 	s.ID = uuid.New()
 	return nil
+}
+
+func (m *Minting) IsComplete() bool {
+	return m.Minted >= m.Total
+}
+
+func (m *Minting) IncrementMinted() {
+	m.Minted++
 }

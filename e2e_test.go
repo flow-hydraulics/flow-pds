@@ -182,7 +182,8 @@ func TestE2E(t *testing.T) {
 		t.Fatal(err)
 	}
 
-	randomPackID := cadence.UInt64(dist.Packs[0].FlowID.Int64)
+	randomPack := dist.Packs[0]
+	randomPackID := cadence.UInt64(randomPack.FlowID.Int64)
 
 	// -- Transfer --
 	// Issuer transfer PackNFT to owner

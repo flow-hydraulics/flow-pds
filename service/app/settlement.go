@@ -1,6 +1,8 @@
 package app
 
 import (
+	"fmt"
+
 	"github.com/flow-hydraulics/flow-pds/service/common"
 	"github.com/google/uuid"
 	"gorm.io/gorm"
@@ -12,9 +14,8 @@ type Settlement struct {
 	DistributionID uuid.UUID `gorm:"unique"`
 	Distribution   Distribution
 
-	State   common.SettlementState `gorm:"column:state"`
-	Settled uint                   `gorm:"column:settled"`
-	Total   uint                   `gorm:"column:total"`
+	Settled uint `gorm:"column:settled"`
+	Total   uint `gorm:"column:total"`
 
 	EscrowAddress    common.FlowAddress `gorm:"column:escrow_address"`
 	LastCheckedBlock uint64             `gorm:"column:last_checked_block"`
@@ -42,12 +43,30 @@ func (s *Settlement) BeforeCreate(tx *gorm.DB) (err error) {
 	return nil
 }
 
+func (s *Settlement) IsComplete() bool {
+	return s.Settled >= s.Total
+}
+
+func (s *Settlement) IncrementSettled() {
+	s.Settled++
+}
+
 func (SettlementCollectible) TableName() string {
 	return "settlement_collectibles"
 }
 
 func (s *SettlementCollectible) BeforeCreate(tx *gorm.DB) (err error) {
 	s.ID = uuid.New()
+	return nil
+}
+
+func (s *SettlementCollectible) SetSettled() (err error) {
+	if s.Settled {
+		return fmt.Errorf("settlement collectible already settled")
+	}
+
+	s.Settled = true
+
 	return nil
 }
 

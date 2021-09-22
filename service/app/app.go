@@ -70,36 +70,6 @@ func (app *App) GetDistribution(ctx context.Context, id uuid.UUID) (*Distributio
 	return distribution, settlement, nil
 }
 
-func (app *App) SettleDistribution(ctx context.Context, id uuid.UUID) error {
-	return app.db.Transaction(func(tx *gorm.DB) error {
-		distribution, err := GetDistribution(tx, id)
-		if err != nil {
-			return err
-		}
-
-		if err := app.contract.StartSettlement(ctx, tx, distribution); err != nil {
-			return err
-		}
-
-		return nil
-	})
-}
-
-func (app *App) MintDistribution(ctx context.Context, id uuid.UUID) error {
-	return app.db.Transaction(func(tx *gorm.DB) error {
-		distribution, err := GetDistribution(tx, id)
-		if err != nil {
-			return err
-		}
-
-		if err := app.contract.StartMinting(ctx, tx, distribution); err != nil {
-			return err
-		}
-
-		return nil
-	})
-}
-
 func (app *App) CancelDistribution(ctx context.Context, id uuid.UUID) error {
 	return app.db.Transaction(func(tx *gorm.DB) error {
 		distribution, err := GetDistribution(tx, id)
