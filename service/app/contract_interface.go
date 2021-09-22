@@ -66,9 +66,10 @@ func (c *Contract) StartSettlement(ctx context.Context, db *gorm.DB, dist *Distr
 	}
 
 	settlement := Settlement{
-		DistributionID:   dist.ID,
-		Total:            uint(len(collectibles)),
-		EscrowAddress:    common.FlowAddressFromString("f3fcd2c1a78f5eee"), // TODO (latenssi): proper escrow address
+		DistributionID: dist.ID,
+		Total:          uint(len(collectibles)),
+		// TODO (latenssi): Can we assume the admin is always the escrow?
+		EscrowAddress:    common.FlowAddressFromString(c.cfg.AdminAddress),
 		LastCheckedBlock: latestBlock.Height - 1,
 		Collectibles:     settlementCollectibles,
 	}
@@ -80,6 +81,23 @@ func (c *Contract) StartSettlement(ctx context.Context, db *gorm.DB, dist *Distr
 	// TODO (latenssi)
 	// - Send a request to PDS Contract to start withdrawing of collectible NFTs to Contract account
 	// - Timeout? Cancel?
+	g := gwtf.NewGoWithTheFlow([]string{"./flow.json"}, "emulator", false, 3)
+
+	transferExampleNFT := "./cadence-transactions/pds/settle_exampleNFT.cdc"
+	transferExampleNFTCode := util.ParseCadenceTemplate(transferExampleNFT)
+
+	flowIDs := make([]cadence.Value, len(collectibles))
+	for i, c := range collectibles {
+		flowIDs[i] = cadence.UInt64(c.FlowID.Int64)
+	}
+
+	if _, err := g.TransactionFromFile(transferExampleNFT, transferExampleNFTCode).
+		SignProposeAndPayAs("pds").
+		UInt64Argument(uint64(dist.DistID.Int64)).
+		Argument(cadence.NewArray(flowIDs)).
+		RunE(); err != nil {
+		return err
+	}
 
 	return nil
 }
@@ -145,13 +163,13 @@ func (c *Contract) StartMinting(ctx context.Context, db *gorm.DB, dist *Distribu
 
 	mintPackNFT := "./cadence-transactions/pds/mint_packNFT.cdc"
 	mintPackNFTCode := util.ParseCadenceTemplate(mintPackNFT)
-	_, err = g.TransactionFromFile(mintPackNFT, mintPackNFTCode).
+
+	if _, err := g.TransactionFromFile(mintPackNFT, mintPackNFTCode).
 		SignProposeAndPayAs("pds").
 		UInt64Argument(uint64(dist.DistID.Int64)).
 		Argument(cadence.NewArray(commitmentHashes)).
 		AccountArgument("issuer").
-		RunE()
-	if err != nil {
+		RunE(); err != nil {
 		return err
 	}
 
