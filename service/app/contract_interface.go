@@ -20,6 +20,7 @@ type IContract interface {
 	Cancel(context.Context, *gorm.DB, *Distribution) error
 	UpdateSettlementStatus(ctx context.Context, db *gorm.DB, dist *Distribution) error
 	UpdateMintingStatus(ctx context.Context, db *gorm.DB, dist *Distribution) error
+	UpdateCirculatingPack(ctx context.Context, db *gorm.DB, cpc *CirculatingPackContract) error
 }
 
 type Contract struct {
@@ -116,17 +117,18 @@ func (c *Contract) StartMinting(ctx context.Context, db *gorm.DB, dist *Distribu
 		return err
 	}
 
-	// Add CirculatingPackContracts to database
-	for _, b := range dist.PackTemplate.Buckets {
-		cpc := CirculatingPackContract{
-			Name:             b.CollectibleReference.Name,
-			Address:          b.CollectibleReference.Address,
-			LastCheckedBlock: latestBlock.Height - 1,
-		}
-		// TODO (latenssi): get from db instead of failing on duplicate index?
+	// Add CirculatingPackContract to database
+	cpc := CirculatingPackContract{
+		Name:             dist.PackTemplate.PackReference.Name,
+		Address:          dist.PackTemplate.PackReference.Address,
+		LastCheckedBlock: latestBlock.Height - 1,
+	}
+
+	// Try to find one
+	if _, err := GetCirculatingPackContract(db, cpc.Name, cpc.Address); err != nil {
+		// Insert new if not found
 		if err := InsertCirculatingPackContract(db, &cpc); err != nil {
-			// TODO (latenssi): once duplicate key error handling is done, return error from here
-			fmt.Printf("error while inserting CirculatingPackContract: %s\n", err)
+			return err
 		}
 	}
 
@@ -347,6 +349,55 @@ func (c *Contract) UpdateMintingStatus(ctx context.Context, db *gorm.DB, dist *D
 		if err := UpdateDistribution(db, dist); err != nil {
 			return err
 		}
+	}
+
+	return nil
+}
+
+func (c *Contract) UpdateCirculatingPack(ctx context.Context, db *gorm.DB, cpc *CirculatingPackContract) error {
+	eventNames := []string{
+		"RevealRequest",
+		"OpenPackRequest",
+	}
+
+	latestBlock, err := c.flowClient.GetLatestBlock(ctx, true)
+	if err != nil {
+		return err
+	}
+
+	start := cpc.LastCheckedBlock + 1
+	end := min(latestBlock.Height, start+100)
+
+	if start > end {
+		return nil
+	}
+
+	for _, eventName := range eventNames {
+		arr, err := c.flowClient.GetEventsForHeightRange(ctx, client.EventRangeQuery{
+			Type:        cpc.EventName(eventName),
+			StartHeight: start,
+			EndHeight:   end,
+		})
+		if err != nil {
+			return err
+		}
+
+		for _, be := range arr {
+			for _, e := range be.Events {
+				switch eventName {
+				case "RevealRequest":
+					fmt.Println("Reveal", cpc.Address, cpc.Name, e.Value.Fields[0])
+				case "OpenPackRequest":
+					fmt.Println("Open", cpc.Address, cpc.Name, e.Value.Fields[0])
+				}
+			}
+		}
+	}
+
+	cpc.LastCheckedBlock = end
+
+	if err := UpdateCirculatingPackContract(db, cpc); err != nil {
+		return err
 	}
 
 	return nil

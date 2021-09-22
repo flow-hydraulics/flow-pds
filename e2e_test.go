@@ -216,5 +216,8 @@ func TestE2E(t *testing.T) {
 	util.NewExpectedPackNFTEvent("RevealRequest").AddField("id", randomPackID.String()).AssertEqual(t, events[1])
 	util.NewExpectedPackNFTEvent("Deposit").AddField("id", randomPackID.String()).AddField("to", ownerAddr).AssertEqual(t, events[2])
 
+	// Wait a moment to let reveal to be noticed
+	time.Sleep(time.Second * 1)
+
 	// -- Retrieve --
 }

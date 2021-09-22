@@ -161,13 +161,22 @@ func MissingCollectibles(db *gorm.DB, settlementId uuid.UUID) (map[string]Settle
 	return res, nil
 }
 
+// Get settlement
+func GetCirculatingPackContract(db *gorm.DB, name string, address common.FlowAddress) (*CirculatingPackContract, error) {
+	circulatingPackContract := CirculatingPackContract{}
+	if err := db.Where(&CirculatingPackContract{Name: name, Address: address}).First(&circulatingPackContract).Error; err != nil {
+		return nil, err
+	}
+	return &circulatingPackContract, nil
+}
+
 // Insert CirculatingPackContract
 func InsertCirculatingPackContract(db *gorm.DB, d *CirculatingPackContract) error {
 	return db.Omit(clause.Associations).Create(d).Error
 }
 
 // Update CirculatingPackContracts
-func UpdateCirculatingPackContracts(db *gorm.DB, d []CirculatingPackContract) error {
+func UpdateCirculatingPackContract(db *gorm.DB, d *CirculatingPackContract) error {
 	return db.Save(d).Error
 }
 
