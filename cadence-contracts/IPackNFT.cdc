@@ -30,11 +30,8 @@ pub contract interface IPackNFT{
     pub fun getStatus(id: UInt64): String?
 
     access(contract) fun reveal(id: UInt64) {
-        // TODO: check states as suggested in PR 
-        // https://github.com/flow-hydraulics/flow-pds/pull/25#discussion_r710814857
-        // https://github.com/flow-hydraulics/flow-pds/pull/25#discussion_r710816294
         pre {
-            self.status[id] != nil : "No such PackNFT"
+            self.status[id] == "Sealed": "PackNFT not sealed"
         }
         post {
             self.status[id] == "Revealed": "PackNFT status must be Revealed"

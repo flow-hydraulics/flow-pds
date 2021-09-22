@@ -57,7 +57,6 @@ func main() {
 		SignProposeAndPayAs("pds").
 		StringArgument("PDS").
 		StringArgument(pdsEncodedStr).
-		Argument(cadence.Path{Domain: "public", Identifier: "PDSPackCollection"}).
 		Argument(cadence.Path{Domain: "storage", Identifier: "PDSPackIssuer"}).
 		Argument(cadence.Path{Domain: "public", Identifier: "PDSPackIssuerCapRecv"}).
 		Argument(cadence.Path{Domain: "storage", Identifier: "PDSDistCreator"}).

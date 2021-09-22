@@ -12,6 +12,7 @@ pub contract PackNFT: NonFungibleToken, IPackNFT {
     pub let minterPrivPath: PrivatePath 
     pub let minterProxyStoragePath: StoragePath 
     pub let minterProxyMintCapRecv: PublicPath 
+
     access(contract) let status: {UInt64: String}
 
     pub event RevealRequest(id: UInt64)
@@ -59,6 +60,7 @@ pub contract PackNFT: NonFungibleToken, IPackNFT {
                 ?? panic("Unable to borrow Collection Public reference for recipient")
 
             recv.deposit(token: <- pack)
+            PackNFT.status.insert(key: id, "Sealed")
             log("Minted")
             log(id)
             emit Mint(id: id, commitHash: commitHash)

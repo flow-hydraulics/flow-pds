@@ -198,17 +198,21 @@ func TestE2E(t *testing.T) {
 
 	// transfer
 	// TODO: use PDS contract interface instead of manually transfering
-	transferExampleNFT := "./cadence-transactions/exampleNFT/transfer_exampleNFT.cdc"
+	transferExampleNFT := "./cadence-transactions/pds/settle_exampleNFT.cdc"
 	code4 := util.ParseCadenceTemplate(transferExampleNFT)
+	var FlowIDs []cadence.Value
 	for _, c := range d.ResolvedCollection() {
-		_, err := g.TransactionFromFile(transferExampleNFT, code4).
-			SignProposeAndPayAs("issuer").
-			AccountArgument("pds").
-			Argument(cadence.UInt64(c.FlowID)).
-			RunE()
-		if err != nil {
-			t.Fatal(err)
-		}
+		FlowIDs = append(FlowIDs, cadence.UInt64(c.FlowID))
+	}
+
+	_, err = g.TransactionFromFile(transferExampleNFT, code4).
+		SignProposeAndPayAs("pds").
+		UInt64Argument(currentDistId.ToGoValue().(uint64)).
+		Argument(cadence.NewArray(FlowIDs)).
+		RunE()
+
+	if err != nil {
+		t.Fatal(err)
 	}
 
 	wg.Wait()
