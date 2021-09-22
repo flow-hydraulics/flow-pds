@@ -61,8 +61,20 @@ pub contract interface IPackNFT{
         pub let id: UInt64
         pub let commitHash: String
         pub let issuer: Address
+    }
 
+    pub resource NFT: NonFungibleToken.INFT, IPackNFTToken {
+        pub let id: UInt64
+        pub let commitHash: String
+        pub let issuer: Address
+    }
+    
+    pub resource interface IPackNFTOperator{
         pub fun reveal()
         pub fun open() 
+    }
+    
+    pub resource interface IPackNFTCollection {
+        pub fun borrowPackNFT(id: UInt64): &NFT
     }
 }
