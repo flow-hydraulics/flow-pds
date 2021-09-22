@@ -42,7 +42,17 @@ func (c *Contract) StartSettlement(ctx context.Context, db *gorm.DB, dist *Distr
 		return err
 	}
 
-	collectibles := dist.ResolvedCollection()
+	packs, err := GetDistributionPacks(db, dist.ID)
+	if err != nil {
+		return err
+	}
+
+	collectibles := make(Collectibles, 0)
+	for _, pack := range packs {
+		collectibles = append(collectibles, pack.Collectibles...)
+	}
+	sort.Sort(collectibles)
+
 	settlementCollectibles := make([]SettlementCollectible, len(collectibles))
 	for i, c := range collectibles {
 		settlementCollectibles[i] = SettlementCollectible{
@@ -54,7 +64,6 @@ func (c *Contract) StartSettlement(ctx context.Context, db *gorm.DB, dist *Distr
 
 	settlement := Settlement{
 		DistributionID:   dist.ID,
-		Distribution:     *dist,
 		Total:            uint(len(collectibles)),
 		EscrowAddress:    common.FlowAddress(flow.HexToAddress("f3fcd2c1a78f5eee")), // TODO (latenssi): proper escrow address
 		LastCheckedBlock: latestBlock.Height,
