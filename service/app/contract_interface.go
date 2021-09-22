@@ -137,8 +137,6 @@ func (c *Contract) StartMinting(ctx context.Context, db *gorm.DB, dist *Distribu
 		commitmentHashes[i] = cadence.NewString(p.CommitmentHash.String())
 	}
 
-	commitmentHashesArray := cadence.NewArray(commitmentHashes)
-
 	// TODO (latenssi)
 	// - call pds contract to start minting (provide commitmentHashes)
 	// - Timeout? Cancel?
@@ -150,7 +148,7 @@ func (c *Contract) StartMinting(ctx context.Context, db *gorm.DB, dist *Distribu
 	_, err = g.TransactionFromFile(mintPackNFT, mintPackNFTCode).
 		SignProposeAndPayAs("pds").
 		UInt64Argument(uint64(dist.DistID.Int64)).
-		Argument(commitmentHashesArray).
+		Argument(cadence.NewArray(commitmentHashes)).
 		AccountArgument("issuer").
 		RunE()
 	if err != nil {
