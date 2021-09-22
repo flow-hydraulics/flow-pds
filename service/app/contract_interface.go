@@ -3,6 +3,7 @@ package app
 import (
 	"context"
 	"fmt"
+	"sort"
 
 	"github.com/flow-hydraulics/flow-pds/service/common"
 	"github.com/flow-hydraulics/flow-pds/service/config"
@@ -109,7 +110,36 @@ func (c *Contract) StartMinting(ctx context.Context, db *gorm.DB, dist *Distribu
 		}
 	}
 
+	packs, err := GetDistributionPacks(db, dist.ID)
+	if err != nil {
+		return err
+	}
+
+	minting := Minting{
+		DistributionID: dist.ID,
+		Distribution:   *dist,
+
+		State:  common.MintingStateStarted,
+		Minted: 0,
+		Total:  uint(len(packs)),
+
+		LastCheckedBlock: latestBlock.Height,
+	}
+
+	if err := InsertMinting(db, &minting); err != nil {
+		return err
+	}
+
+	commitmentHashes := make([]string, len(packs))
+	for i, p := range packs {
+		commitmentHashes[i] = p.CommitmentHash.String()
+	}
+
+	fmt.Printf("TODO: mint these %s\n", commitmentHashes)
+
 	// TODO (latenssi)
+	// - call pds contract to start minting (provide commitmentHashes)
+	// - Timeout? Cancel?
 
 	return nil
 }
@@ -206,5 +236,77 @@ func (c *Contract) CheckSettlementStatus(ctx context.Context, db *gorm.DB, dist 
 
 func (c *Contract) CheckMintingStatus(ctx context.Context, db *gorm.DB, dist *Distribution) error {
 	// TODO (latenssi): poll for minting status of distribution => set "complete" when done
+	minting, err := GetMintingByDistId(db, dist.ID)
+	if err != nil {
+		return err
+	}
+
+	latestBlock, err := c.flowClient.GetLatestBlock(ctx, true)
+	if err != nil {
+		return err
+	}
+
+	start := minting.LastCheckedBlock + 1
+	end := min(latestBlock.Height, start+100)
+
+	if start > end {
+		// Nothing to update
+		return nil
+	}
+
+	reference := dist.PackTemplate.PackReference.String()
+
+	arr, err := c.flowClient.GetEventsForHeightRange(ctx, client.EventRangeQuery{
+		Type:        fmt.Sprintf("%s.Mint", reference),
+		StartHeight: start,
+		EndHeight:   end,
+	})
+	if err != nil {
+		return err
+	}
+
+	for _, be := range arr {
+		for _, e := range be.Events {
+			id, err := common.FlowIDFromStr(e.Value.Fields[0].String())
+			if err != nil {
+				fmt.Printf("unable to convert flow id '%s' to common.FlowID\n", e.Value.Fields[0])
+				continue
+			}
+			commitmentHash, err := common.BinaryValueFromHexString(e.Value.Fields[1].String())
+			if err != nil {
+				fmt.Printf("unable to convert commitmentHash '%s' to binary value\n", e.Value.Fields[1])
+				continue
+			}
+			pack, err := GetPackByCommitmentHash(db, commitmentHash)
+			if err != nil {
+				fmt.Printf("unable find pack with commitmentHash '%s'\n", commitmentHash.String())
+				continue
+			}
+			pack.FlowID = id
+			if err := UpdatePack(db, pack); err != nil {
+				return err
+			}
+		}
+	}
+
+	minting.LastCheckedBlock = end
+
+	if minting.Minted >= minting.Total {
+		// Update minting state
+		minting.State = common.MintingStateDone
+	}
+
+	if err := UpdateMinting(db, minting); err != nil {
+		return err
+	}
+
+	if minting.State == common.MintingStateDone && dist.State == common.DistributionStateMinting {
+		// Update distribution state
+		dist.State = common.DistributionStateComplete
+		if err := UpdateDistribution(db, dist); err != nil {
+			return err
+		}
+	}
+
 	return nil
 }

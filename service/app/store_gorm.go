@@ -1,6 +1,7 @@
 package app
 
 import (
+	"github.com/flow-hydraulics/flow-pds/service/common"
 	"github.com/google/uuid"
 	"gorm.io/gorm"
 	"gorm.io/gorm/clause"
@@ -9,6 +10,7 @@ import (
 func Migrate(db *gorm.DB) error {
 	db.AutoMigrate(&Distribution{}, &Bucket{}, &Pack{})
 	db.AutoMigrate(&Settlement{}, &SettlementCollectible{})
+	db.AutoMigrate(&Minting{})
 	db.AutoMigrate(&CirculatingPackContract{})
 	return nil
 }
@@ -75,6 +77,26 @@ func GetDistribution(db *gorm.DB, id uuid.UUID) (*Distribution, error) {
 		return nil, err
 	}
 	return &distribution, nil
+}
+
+func GetDistributionPacks(db *gorm.DB, distributionID uuid.UUID) ([]Pack, error) {
+	list := []Pack{}
+	if err := db.Where(&Pack{DistributionID: distributionID}).Find(&list).Error; err != nil {
+		return nil, err
+	}
+	return list, nil
+}
+
+func GetPackByCommitmentHash(db *gorm.DB, h common.BinaryValue) (*Pack, error) {
+	pack := Pack{CommitmentHash: h}
+	if err := db.First(&pack).Error; err != nil {
+		return nil, err
+	}
+	return &pack, nil
+}
+
+func UpdatePack(db *gorm.DB, d *Pack) error {
+	return db.Omit(clause.Associations).Save(d).Error
 }
 
 // Insert settlement
@@ -147,4 +169,29 @@ func InsertCirculatingPackContract(db *gorm.DB, d *CirculatingPackContract) erro
 // Update CirculatingPackContracts
 func UpdateCirculatingPackContracts(db *gorm.DB, d []CirculatingPackContract) error {
 	return db.Save(d).Error
+}
+
+// Insert Minting
+func InsertMinting(db *gorm.DB, d *Minting) error {
+	return db.Create(d).Error
+}
+
+// Get minting
+func GetMintingByDistId(db *gorm.DB, distributionID uuid.UUID) (*Minting, error) {
+	minting := Minting{DistributionID: distributionID}
+	if err := db.Omit(clause.Associations).First(&minting).Error; err != nil {
+		return nil, err
+	}
+	return &minting, nil
+}
+
+// Update minting
+func UpdateMinting(db *gorm.DB, d *Minting) error {
+	return db.Omit(clause.Associations).Save(d).Error
+}
+
+func MissingMintedPackCount(db *gorm.DB, distributionId uuid.UUID) (int64, error) {
+	var count int64
+	db.Model(&Pack{}).Where("name = ?", "jinzhu").Or("name = ?", "jinzhu 2").Count(&count)
+	return count, nil
 }
