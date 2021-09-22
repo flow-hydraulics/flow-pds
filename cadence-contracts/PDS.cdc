@@ -95,6 +95,7 @@ pub contract PDS{
             while i < nftIDs.length {
                 let nft <- d.withdrawFromIssuer(withdrawID: nftIDs[i])
                 pdsCollection.deposit(token:<-nft)
+                i = i + 1
             } 
             PDS.Distributions[distId] <-! d
         }
