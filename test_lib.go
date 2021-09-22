@@ -62,7 +62,7 @@ func getTestServer(cfg *config.Config) (*http.Server, func()) {
 func makeTestCollection(size int) []common.FlowID {
 	collection := make([]common.FlowID, size)
 	for i := range collection {
-		collection[i] = common.FlowID(i + 1)
+		collection[i] = common.FlowID{Int64: int64(i + 1), Valid: true}
 	}
 	return collection
 }

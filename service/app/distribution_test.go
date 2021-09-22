@@ -11,7 +11,7 @@ import (
 func makeCollection(size int) []common.FlowID {
 	collection := make([]common.FlowID, size)
 	for i := range collection {
-		collection[i] = common.FlowID(i + 1)
+		collection[i] = common.FlowID{Int64: int64(i + 1), Valid: true}
 	}
 	return collection
 }
@@ -27,7 +27,7 @@ func TestDistributionValidation(t *testing.T) {
 	}
 
 	d := Distribution{
-		DistID: common.FlowID(1),
+		DistID: common.FlowID{Int64: int64(1), Valid: true},
 		Issuer: common.FlowAddress(flow.HexToAddress("0x1")),
 		PackTemplate: PackTemplate{
 			PackReference: AddressLocation{
@@ -68,7 +68,7 @@ func TestDistributionResolution(t *testing.T) {
 	}
 
 	d := Distribution{
-		DistID: common.FlowID(1),
+		DistID: common.FlowID{Int64: int64(1), Valid: true},
 		Issuer: common.FlowAddress(flow.HexToAddress("0x1")),
 		PackTemplate: PackTemplate{
 			PackReference: AddressLocation{
@@ -103,7 +103,7 @@ func TestDistributionResolution(t *testing.T) {
 	}
 
 	for i := range r1 {
-		if i > 0 && r1[i-1].FlowID > r1[i].FlowID {
+		if i > 0 && r1[i].FlowID.LessThan(r1[i-1].FlowID) {
 			t.Fatal("resolved collection should be sorted ascending by flow id")
 		}
 	}

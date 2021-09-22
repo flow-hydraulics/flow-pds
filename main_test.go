@@ -30,7 +30,7 @@ func TestCreate(t *testing.T) {
 	collection := makeTestCollection(packs * slotsPerBucket)
 
 	dReq := pds_http.ReqCreateDistribution{
-		DistID: 1,
+		DistID: common.FlowID{Int64: int64(1), Valid: true},
 		Issuer: addr,
 		PackTemplate: pds_http.PackTemplate{
 			PackReference: pds_http.AddressLocation{
@@ -120,7 +120,7 @@ func TestStartSettlement(t *testing.T) {
 	collection := makeTestCollection(10)
 
 	d := app.Distribution{
-		DistID: 1,
+		DistID: common.FlowID{Int64: int64(1), Valid: true},
 		Issuer: addr,
 		PackTemplate: app.PackTemplate{
 			PackReference: app.AddressLocation{

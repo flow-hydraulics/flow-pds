@@ -95,7 +95,7 @@ func TestE2E(t *testing.T) {
 		if !ok {
 			t.Fatal("can not convert 2")
 		}
-		collection[i] = common.FlowID(v)
+		collection[i] = common.FlowID{Int64: int64(v), Valid: true}
 	}
 
 	// PDS share DistCap to PackIssuer (owned by Issuer)
@@ -135,7 +135,7 @@ func TestE2E(t *testing.T) {
 
 	// -- Use newly minted NFTs to create a distribution as issuer --
 	d := app.Distribution{
-		DistID: 1, // TODO
+		DistID: common.FlowID{Int64: int64(1), Valid: true}, // TODO
 		Issuer: issuer,
 		PackTemplate: app.PackTemplate{
 			PackReference: app.AddressLocation{
@@ -211,7 +211,7 @@ func TestE2E(t *testing.T) {
 	code4 := util.ParseCadenceTemplate(transferExampleNFT)
 	var FlowIDs []cadence.Value
 	for _, c := range d.ResolvedCollection() {
-		FlowIDs = append(FlowIDs, cadence.UInt64(c.FlowID))
+		FlowIDs = append(FlowIDs, cadence.UInt64(c.FlowID.Int64))
 	}
 
 	_, err = g.TransactionFromFile(transferExampleNFT, code4).
