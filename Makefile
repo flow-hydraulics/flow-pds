@@ -20,6 +20,7 @@ reset: down dev
 
 .PHONY: test
 test:
+	@go test ./go-contracts/...
 	@go test ./service/...
 	@go test
 
