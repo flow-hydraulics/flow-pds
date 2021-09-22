@@ -35,8 +35,8 @@ func TestE2E(t *testing.T) {
 	// Issuer create PackIssuer resource to store DistCap
 
 	createPackIssuer := "./cadence-transactions/pds/create_new_pack_issuer.cdc"
-	code0 := util.ParseCadenceTemplate(createPackIssuer)
-	_, err := g.TransactionFromFile(createPackIssuer, code0).
+	createPackIssuerCode := util.ParseCadenceTemplate(createPackIssuer)
+	_, err := g.TransactionFromFile(createPackIssuer, createPackIssuerCode).
 		SignProposeAndPayAs("issuer").
 		RunE()
 	if err != nil {
@@ -66,9 +66,9 @@ func TestE2E(t *testing.T) {
 	// -- Mint example NFTs as issuer --
 
 	mintExampleNFT := "./cadence-transactions/exampleNFT/mint_exampleNFT.cdc"
-	code1 := util.ParseCadenceTemplate(mintExampleNFT)
+	mintExampleNFTCode := util.ParseCadenceTemplate(mintExampleNFT)
 	for i := 0; i < 5; i++ {
-		_, err := g.TransactionFromFile(mintExampleNFT, code1).
+		_, err := g.TransactionFromFile(mintExampleNFT, mintExampleNFTCode).
 			SignProposeAndPayAs("issuer").
 			AccountArgument("issuer").
 			RunE()
@@ -78,8 +78,8 @@ func TestE2E(t *testing.T) {
 	}
 
 	balanceExampleNFT := "./cadence-scripts/exampleNFT/balance_exampleNFT.cdc"
-	code2 := util.ParseCadenceTemplate(balanceExampleNFT)
-	nftIDs, err := g.ScriptFromFile(balanceExampleNFT, code2).
+	balanceExampleNFTCode := util.ParseCadenceTemplate(balanceExampleNFT)
+	nftIDs, err := g.ScriptFromFile(balanceExampleNFT, balanceExampleNFTCode).
 		AccountArgument("issuer").RunReturns()
 	if err != nil {
 		t.Fatal(err)
@@ -164,8 +164,8 @@ func TestE2E(t *testing.T) {
 
 	// setup examplenft collection for pds (placeholder escrow)
 	setupExampleNFT := "./cadence-transactions/exampleNFT/setup_exampleNFT.cdc"
-	code3 := util.ParseCadenceTemplate(setupExampleNFT)
-	_, err = g.TransactionFromFile(setupExampleNFT, code3).
+	setupExampleNFTCode := util.ParseCadenceTemplate(setupExampleNFT)
+	_, err = g.TransactionFromFile(setupExampleNFT, setupExampleNFTCode).
 		SignProposeAndPayAs("pds").
 		RunE()
 	if err != nil {
