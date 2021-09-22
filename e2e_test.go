@@ -54,6 +54,15 @@ func TestE2E(t *testing.T) {
 		t.Fatal(err)
 	}
 
+	// Owner create PackNFT collection resource to store PackNFT after purchase
+
+	_, err = g.TransactionFromFile(createPackNFTCollection, createPackNFTCollectionCode).
+		SignProposeAndPayAs("owner").
+		RunE()
+	if err != nil {
+		t.Fatal(err)
+	}
+
 	// -- Mint example NFTs as issuer --
 
 	mintExampleNFT := "./cadence-transactions/exampleNFT/mint_exampleNFT.cdc"
@@ -198,17 +207,21 @@ func TestE2E(t *testing.T) {
 
 	// transfer
 	// TODO: use PDS contract interface instead of manually transfering
-	transferExampleNFT := "./cadence-transactions/exampleNFT/transfer_exampleNFT.cdc"
+	transferExampleNFT := "./cadence-transactions/pds/settle_exampleNFT.cdc"
 	code4 := util.ParseCadenceTemplate(transferExampleNFT)
+	var FlowIDs []cadence.Value
 	for _, c := range d.ResolvedCollection() {
-		_, err := g.TransactionFromFile(transferExampleNFT, code4).
-			SignProposeAndPayAs("issuer").
-			AccountArgument("pds").
-			Argument(cadence.UInt64(c.FlowID)).
-			RunE()
-		if err != nil {
-			t.Fatal(err)
-		}
+		FlowIDs = append(FlowIDs, cadence.UInt64(c.FlowID))
+	}
+
+	_, err = g.TransactionFromFile(transferExampleNFT, code4).
+		SignProposeAndPayAs("pds").
+		UInt64Argument(currentDistId.ToGoValue().(uint64)).
+		Argument(cadence.NewArray(FlowIDs)).
+		RunE()
+
+	if err != nil {
+		t.Fatal(err)
 	}
 
 	wg.Wait()
@@ -254,9 +267,49 @@ func TestE2E(t *testing.T) {
 	util.NewExpectedPackNFTEvent("Deposit").AddField("id", subId).AddField("to", issuerAddr).AssertEqual(t, events[2])
 	util.NewExpectedPackNFTEvent("Mint").AddField("id", subId).AddField("commitHash", ch2).AssertEqual(t, events[3])
 
+	getCommitHash := "./cadence-scripts/packNFT/packNFT_commitHash.cdc"
+	getCommitHashCode := util.ParseCadenceTemplate(getCommitHash)
+	returnedCommitHash, err := g.ScriptFromFile(getCommitHash, getCommitHashCode).AccountArgument("issuer").Argument(nextId).RunReturns()
+	if err != nil {
+		t.Fatal(err)
+	}
+
+	r := returnedCommitHash.ToGoValue().(string)
+	if r != ch1 {
+		t.Fatal()
+	}
+
 	// Wait for minting to finish
 
+	// Issuer transfer PackNFT to owner
+	transferPackNFT := "./cadence-transactions/packNFT/transfer_packNFT.cdc"
+	transferPackNFTCode := util.ParseCadenceTemplate(transferPackNFT)
+	_, err = g.TransactionFromFile(transferPackNFT, transferPackNFTCode).
+		SignProposeAndPayAs("issuer").
+		AccountArgument("owner").
+		Argument(nextId).
+		RunE()
+	if err != nil {
+		t.Fatal(err)
+	}
+
 	// -- Reveal --
+	// Owner requests to reveal PackNFT
+
+	reveal := "./cadence-transactions/packNFT/reveal.cdc"
+	revealCode := util.ParseCadenceTemplate(reveal)
+	e, err = g.TransactionFromFile(reveal, revealCode).
+		SignProposeAndPayAs("owner").
+		Argument(nextId).
+		RunE()
+	if err != nil {
+		t.Fatal(err)
+	}
+	events = util.ParseTestEvents(e)
+	ownerAddr := util.GetAccountAddr(g, "owner")
+	util.NewExpectedPackNFTEvent("Withdraw").AddField("id", nextId.String()).AddField("from", ownerAddr).AssertEqual(t, events[0])
+	util.NewExpectedPackNFTEvent("RevealRequest").AddField("id", nextId.String()).AssertEqual(t, events[1])
+	util.NewExpectedPackNFTEvent("Deposit").AddField("id", nextId.String()).AddField("to", ownerAddr).AssertEqual(t, events[2])
 
 	// -- Retrieve --
 }

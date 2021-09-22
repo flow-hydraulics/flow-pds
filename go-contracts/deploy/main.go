@@ -33,6 +33,7 @@ func main() {
 		StringArgument(packNFTencodedStr).
 		Argument(cadence.Path{Domain: "storage", Identifier: "ExamplePackNFTCollection"}).
 		Argument(cadence.Path{Domain: "public", Identifier: "ExamplePackNFTCollectionPub"}).
+		Argument(cadence.Path{Domain: "public", Identifier: "ExamplePackNFTIPackNFTCollectionPub"}).
 		Argument(cadence.Path{Domain: "storage", Identifier: "ExamplePackNFTMinter"}).
 		Argument(cadence.Path{Domain: "private", Identifier: "ExamplePackNFTMinterPriv"}).
 		Argument(cadence.Path{Domain: "storage", Identifier: "ExamplePackNFTMinterProxy"}).
@@ -57,7 +58,6 @@ func main() {
 		SignProposeAndPayAs("pds").
 		StringArgument("PDS").
 		StringArgument(pdsEncodedStr).
-		Argument(cadence.Path{Domain: "public", Identifier: "PDSPackCollection"}).
 		Argument(cadence.Path{Domain: "storage", Identifier: "PDSPackIssuer"}).
 		Argument(cadence.Path{Domain: "public", Identifier: "PDSPackIssuerCapRecv"}).
 		Argument(cadence.Path{Domain: "storage", Identifier: "PDSDistCreator"}).

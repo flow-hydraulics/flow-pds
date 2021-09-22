@@ -7,7 +7,6 @@ pub contract PDS{
     /// The collection to hold all escrowed NFT
     /// Original collection created from PackNFT
     pub var version: String
-    pub let packCollectionPubPath: PublicPath
     pub let packIssuerStoragePath: StoragePath 
     pub let packIssuerCapRecv: PublicPath 
     pub let distCreatorStoragePath: StoragePath
@@ -88,14 +87,15 @@ pub contract PDS{
     
     pub resource DistributionManager {
         // TODO: set state on PackNFT
-        pub fun withdraw(distId: UInt64, nftIDs: [UInt64]) {
+        pub fun withdraw(distId: UInt64, nftIDs: [UInt64], escrowCollectionPublic: PublicPath) {
             assert(PDS.Distributions.containsKey(distId), message: "No such distribution")
             let d <- PDS.Distributions.remove(key: distId)!
-            let pdsCollection = PDS.getManagerCollectionCap().borrow()!
+            let pdsCollection = PDS.getManagerCollectionCap(escrowCollectionPublic: escrowCollectionPublic).borrow()!
             var i = 0
             while i < nftIDs.length {
                 let nft <- d.withdrawFromIssuer(withdrawID: nftIDs[i])
                 pdsCollection.deposit(token:<-nft)
+                i = i + 1
             } 
             PDS.Distributions[distId] <-! d
         }
@@ -110,10 +110,10 @@ pub contract PDS{
 
     }
     
-    access(contract) fun getManagerCollectionCap(): Capability<&{NonFungibleToken.CollectionPublic}> {
-        let pdsCollection = self.account.getCapability<&{NonFungibleToken.CollectionPublic}>(self.packCollectionPubPath)
+    access(contract) fun getManagerCollectionCap(escrowCollectionPublic: PublicPath): Capability<&{NonFungibleToken.CollectionPublic}> {
+        let pdsCollection = self.account.getCapability<&{NonFungibleToken.CollectionPublic}>(escrowCollectionPublic)
         if !pdsCollection.check(){
-            panic("Please ensure you create and link a Collection for recieving escrows")
+            panic("Please ensure PDS has created and linked a Collection for recieving escrows")
         }
         return pdsCollection
     }
@@ -134,7 +134,6 @@ pub contract PDS{
     
     init(
         adminAccount: AuthAccount,
-        packCollectionPubPath: PublicPath,
         packIssuerStoragePath: StoragePath,
         packIssuerCapRecv: PublicPath,
         distCreatorStoragePath: StoragePath,
@@ -144,7 +143,6 @@ pub contract PDS{
     ) {
         self.DistId = 0
         self.Distributions <- {}
-        self.packCollectionPubPath = packCollectionPubPath
         self.packIssuerStoragePath = packIssuerStoragePath
         self.packIssuerCapRecv = packIssuerCapRecv
         self.distCreatorStoragePath = distCreatorStoragePath

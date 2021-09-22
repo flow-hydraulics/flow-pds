@@ -3,7 +3,6 @@
 transaction(
     contractName: String, 
     code: String,
-    packCollectionPubPath: PublicPath,
     packIssuerStoragePath: StoragePath,
     packIssuerCapRecv: PublicPath,
     distCreatorStoragePath: StoragePath,
@@ -20,7 +19,6 @@ transaction(
                 name: contractName, 
                 code: code.decodeHex(), 
                 owner,
-                packCollectionPubPath: packCollectionPubPath,
                 packIssuerStoragePath: packIssuerStoragePath,
                 packIssuerCapRecv: packIssuerCapRecv,
                 distCreatorStoragePath: distCreatorStoragePath,
