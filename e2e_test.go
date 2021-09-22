@@ -294,6 +294,22 @@ func TestE2E(t *testing.T) {
 	}
 
 	// -- Reveal --
+	// Owner requests to reveal PackNFT
+
+	reveal := "./cadence-transactions/PackNFT/reveal.cdc"
+	revealCode := util.ParseCadenceTemplate(reveal)
+	e, err = g.TransactionFromFile(reveal, revealCode).
+		SignProposeAndPayAs("owner").
+		Argument(nextId).
+		RunE()
+	if err != nil {
+		t.Fatal(err)
+	}
+	events = util.ParseTestEvents(e)
+	ownerAddr := util.GetAccountAddr(g, "owner")
+	util.NewExpectedPackNFTEvent("Withdraw").AddField("id", nextId.String()).AddField("from", ownerAddr).AssertEqual(t, events[0])
+	util.NewExpectedPackNFTEvent("RevealRequest").AddField("id", nextId.String()).AssertEqual(t, events[1])
+	util.NewExpectedPackNFTEvent("Deposit").AddField("id", nextId.String()).AddField("to", ownerAddr).AssertEqual(t, events[2])
 
 	// -- Retrieve --
 }
