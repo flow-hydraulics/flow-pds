@@ -17,5 +17,13 @@ func (b BinaryValue) Value() (driver.Value, error) {
 }
 
 func (b BinaryValue) MarshalJSON() ([]byte, error) {
-	return []byte(fmt.Sprintf("\"%s\"", hex.EncodeToString(b))), nil
+	return []byte(fmt.Sprintf("\"%s\"", b.String())), nil
+}
+
+func (b BinaryValue) String() string {
+	return hex.EncodeToString(b)
+}
+
+func BinaryValueFromHexString(s string) (BinaryValue, error) {
+	return hex.DecodeString(s)
 }
