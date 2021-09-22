@@ -14,7 +14,7 @@ import (
 
 func benchmarkCreate(packs, slots uint, b *testing.B) {
 	cfg := getTestCfg()
-	server, cleanup := getTestServer(cfg)
+	server, cleanup := getTestServer(cfg, false)
 	defer func() {
 		cleanup()
 	}()
