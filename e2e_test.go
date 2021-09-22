@@ -134,8 +134,12 @@ func TestE2E(t *testing.T) {
 	util.NewExpectedPDSEvent("DistributionCreated").AddField("DistId", currentDistId.String()).AssertEqual(t, events[0])
 
 	// -- Use newly minted NFTs to create a distribution as issuer --
+	distId, err := common.FlowIDFromStr(e[0].Value.Fields[0].String())
+	if err != nil {
+		t.Fatal(err)
+	}
 	d := app.Distribution{
-		DistID: common.FlowID{Int64: int64(1), Valid: true}, // TODO
+		DistID: distId, // TODO
 		Issuer: issuer,
 		PackTemplate: app.PackTemplate{
 			PackReference: app.AddressLocation{
