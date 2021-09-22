@@ -19,6 +19,7 @@ const (
 	PackStateInit PackState = iota
 	PackStateSealed
 	PackStateRevealed
+	PackStateOpened
 	PackStateEmpty
 )
 

@@ -95,6 +95,14 @@ func GetDistributionPackByCommitmentHash(db *gorm.DB, distributionID uuid.UUID, 
 	return &pack, nil
 }
 
+func GetPackByContractAndFlowID(db *gorm.DB, ref AddressLocation, id common.FlowID) (*Pack, error) {
+	pack := Pack{}
+	if err := db.Where(&Pack{ContractReference: ref, FlowID: id}).First(&pack).Error; err != nil {
+		return nil, err
+	}
+	return &pack, nil
+}
+
 func UpdatePack(db *gorm.DB, d *Pack) error {
 	return db.Omit(clause.Associations).Save(d).Error
 }

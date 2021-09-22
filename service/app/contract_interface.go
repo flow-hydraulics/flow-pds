@@ -384,11 +384,35 @@ func (c *Contract) UpdateCirculatingPack(ctx context.Context, db *gorm.DB, cpc *
 
 		for _, be := range arr {
 			for _, e := range be.Events {
+				flowID, err := common.FlowIDFromCadence(e.Value.Fields[0])
+				if err != nil {
+					fmt.Println(err)
+					continue
+				}
+
+				pack, err := GetPackByContractAndFlowID(db, AddressLocation{Name: cpc.Name, Address: cpc.Address}, flowID)
+				if err != nil {
+					fmt.Println(err)
+					continue
+				}
+
 				switch eventName {
 				case "RevealRequest":
-					fmt.Println("Reveal", cpc.Address, cpc.Name, e.Value.Fields[0])
+					fmt.Println("Reveal pack:", pack.ID)
+					if err := pack.Reveal(); err != nil {
+						return err
+					}
+					if err := UpdatePack(db, pack); err != nil {
+						return err
+					}
 				case "OpenPackRequest":
-					fmt.Println("Open", cpc.Address, cpc.Name, e.Value.Fields[0])
+					fmt.Println("Open pack:", pack.ID)
+					if err := pack.Open(); err != nil {
+						return err
+					}
+					if err := UpdatePack(db, pack); err != nil {
+						return err
+					}
 				}
 			}
 		}

@@ -58,11 +58,12 @@ type Pack struct {
 	DistributionID uuid.UUID
 	ID             uuid.UUID `gorm:"column:id;primary_key;type:uuid;"`
 
-	FlowID         common.FlowID      `gorm:"column:flow_id;index"`         // ID of the pack NFT
-	State          common.PackState   `gorm:"column:state"`                 // public
-	Salt           common.BinaryValue `gorm:"column:salt"`                  // private
-	CommitmentHash common.BinaryValue `gorm:"column:commitment_hash;index"` // public
-	Collectibles   Collectibles       `gorm:"column:collectibles"`          // private
+	ContractReference AddressLocation    `gorm:"embedded;embeddedPrefix:contract_ref_"` // Reference to the pack NFT contract
+	FlowID            common.FlowID      `gorm:"column:flow_id;index"`                  // ID of the pack NFT
+	State             common.PackState   `gorm:"column:state"`                          // public
+	Salt              common.BinaryValue `gorm:"column:salt"`                           // private
+	CommitmentHash    common.BinaryValue `gorm:"column:commitment_hash;index"`          // public
+	Collectibles      Collectibles       `gorm:"column:collectibles"`                   // private
 }
 
 func (Distribution) TableName() string {
@@ -112,6 +113,7 @@ func (dist *Distribution) Resolve() error {
 	// Init packs and their slots
 	packs := make([]Pack, packCount)
 	for i := range packs {
+		packs[i].ContractReference = dist.PackTemplate.PackReference
 		packs[i].Collectibles = make([]Collectible, packSlotCount)
 	}
 
@@ -222,19 +224,24 @@ func (dist Distribution) SlotCount() int {
 
 // SetCommitmentHash should
 // - validate the pack
+// - seal the pack
 // - decide on a random salt value
 // - calculate the commitment hash for the pack
 func (p *Pack) SetCommitmentHash() error {
+	if err := p.Validate(); err != nil {
+		return fmt.Errorf("pack validation error: %w", err)
+	}
+
+	if err := p.Seal(); err != nil {
+		return err
+	}
+
 	if !p.Salt.IsEmpty() {
 		return fmt.Errorf("salt is already set")
 	}
 
 	if !p.CommitmentHash.IsEmpty() {
 		return fmt.Errorf("commitmentHash is already set")
-	}
-
-	if err := p.Validate(); err != nil {
-		return fmt.Errorf("pack validation error: %w", err)
 	}
 
 	salt, err := common.GenerateRandomBytes(SALT_LENGTH)
@@ -258,14 +265,35 @@ func (p *Pack) Hash() []byte {
 	return h[:]
 }
 
-// Seal should
-// - set the pack as sealed
+// Seal should set the pack as sealed
 func (p *Pack) Seal() error {
 	if p.State != common.PackStateInit {
 		return fmt.Errorf("pack in unexpected state: %d", p.State)
 	}
 
 	p.State = common.PackStateSealed
+
+	return nil
+}
+
+// Reveal should set the pack as revealed
+func (p *Pack) Reveal() error {
+	if p.State != common.PackStateSealed {
+		return fmt.Errorf("pack in unexpected state: %d", p.State)
+	}
+
+	p.State = common.PackStateRevealed
+
+	return nil
+}
+
+// Open should set the pack as opened
+func (p *Pack) Open() error {
+	if p.State != common.PackStateRevealed {
+		return fmt.Errorf("pack in unexpected state: %d", p.State)
+	}
+
+	p.State = common.PackStateOpened
 
 	return nil
 }
