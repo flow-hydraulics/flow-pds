@@ -282,7 +282,7 @@ func TestE2E(t *testing.T) {
 	// Wait for minting to finish
 
 	// Issuer transfer PackNFT to owner
-	transferPackNFT := "./cadence-transactions/PackNFT/transfer_packNFT.cdc"
+	transferPackNFT := "./cadence-transactions/packNFT/transfer_packNFT.cdc"
 	transferPackNFTCode := util.ParseCadenceTemplate(transferPackNFT)
 	_, err = g.TransactionFromFile(transferPackNFT, transferPackNFTCode).
 		SignProposeAndPayAs("issuer").
@@ -296,7 +296,7 @@ func TestE2E(t *testing.T) {
 	// -- Reveal --
 	// Owner requests to reveal PackNFT
 
-	reveal := "./cadence-transactions/PackNFT/reveal.cdc"
+	reveal := "./cadence-transactions/packNFT/reveal.cdc"
 	revealCode := util.ParseCadenceTemplate(reveal)
 	e, err = g.TransactionFromFile(reveal, revealCode).
 		SignProposeAndPayAs("owner").
