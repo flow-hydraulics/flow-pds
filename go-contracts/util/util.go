@@ -6,7 +6,8 @@ import (
 	"io/ioutil"
 	"testing"
 	"time"
-    // "os"
+
+	// "os"
 
 	"text/template"
 
@@ -17,14 +18,16 @@ import (
 )
 
 const flowPath = "../../flow.json"
+
 var FlowJSON []string = []string{flowPath}
 
 type Addresses struct {
 	NonFungibleToken string
-	ExampleNFT string
-	PackNFT string
-	IPackNFT string
-	PDSInterface string
+	ExampleNFT       string
+	PackNFT          string
+	IPackNFT         string
+	PDSInterface     string
+	PDS              string
 }
 
 type TestEvent struct {
@@ -46,8 +49,8 @@ func ParseCadenceTemplate(templatePath string) []byte {
 	}
 
 	// Addresss for emulator are
-	addresses = Addresses{"f8d6e0586b0a20c7", "01cf0e2f2f715450", "01cf0e2f2f715450", "f3fcd2c1a78f5eee", "f3fcd2c1a78f5eee"}
-    // PDS account deploys IPackNFTInterface, PDSInterface, PDS contracts
+	addresses = Addresses{"f8d6e0586b0a20c7", "01cf0e2f2f715450", "01cf0e2f2f715450", "f3fcd2c1a78f5eee", "f3fcd2c1a78f5eee", "f3fcd2c1a78f5eee"}
+	// PDS account deploys IPackNFTInterface, PDSInterface, PDS contracts
 	// addresses = Addresses{os.Getenv("NON_FUNGIBLE_TOKEN_ADDRESS"), os.Getenv("EXAMPLE_NFT_ADDRESS"), os.Getenv("PackNFT"), os.Getenv("PDS_ADDRESS"), os.Getenv("PDS_ADDRESS")}
 
 	buf := &bytes.Buffer{}

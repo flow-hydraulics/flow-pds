@@ -16,6 +16,7 @@ pub contract ExampleNFT: NonFungibleToken {
     //
     pub let CollectionStoragePath: StoragePath
     pub let CollectionPublicPath: PublicPath
+    pub let CollectionProviderPrivPath: PrivatePath 
     pub let MinterStoragePath: StoragePath
 
     pub resource NFT: NonFungibleToken.INFT {
@@ -106,6 +107,7 @@ pub contract ExampleNFT: NonFungibleToken {
         // Set our named paths
         self.CollectionStoragePath = /storage/exampleNFTCollection
         self.CollectionPublicPath = /public/exampleNFTCollection
+        self.CollectionProviderPrivPath = /private/exampleNFTCollectionProvider
         self.MinterStoragePath = /storage/exampleNFTMinter
 
         // Initialize the total supply
@@ -120,6 +122,16 @@ pub contract ExampleNFT: NonFungibleToken {
             self.CollectionPublicPath,
             target: self.CollectionStoragePath
         )
+
+        // This needs to be used to allowed for PDS to withdraw 
+        self.account.link<&{NonFungibleToken.Provider}>(
+            self.CollectionProviderPrivPath,
+            target: self.CollectionStoragePath
+        )
+        
+        if !self.account.getCapability<&{NonFungibleToken.Provider}>(self.CollectionProviderPrivPath).check() {
+            panic("not linked")
+        }
 
         // Create a Minter resource and save it to storage
         let minter <- create NFTMinter()

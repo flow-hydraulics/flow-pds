@@ -1,8 +1,8 @@
-package packnft 
+package packnft
 
 import (
+	"fmt"
 	"testing"
-    "fmt"
 
 	"github.com/bjartek/go-with-the-flow/v2/gwtf"
 	"github.com/flow-hydraulics/flow-pds/go-contracts/util"
@@ -37,15 +37,13 @@ func TestMintWithProxyWithCap(t *testing.T) {
 	events, err := MinterProxyMint(g, "pds", "issuer", "commitHash123")
 	assert.NoError(t, err)
 
-    // TODO get id from contract 
+	// TODO get id from contract
 
 	// Test event
-    
-    fmt.Print(events)
-    // First event is deposit
+
+	fmt.Print(events)
+	// First event is deposit
 	util.NewExpectedPackNFTEvent("Mint").AddField("id", "0").AddField("commitHash", "commitHash123").AssertEqual(t, events[1])
 
-    // TODO get id from contract check incremented
+	// TODO get id from contract check incremented
 }
-
- 

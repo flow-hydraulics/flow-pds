@@ -27,7 +27,8 @@ pub contract PackNFT: NonFungibleToken, IPackNFT {
     pub resource interface MintCapReceiver {
         pub fun setMintCap(mintCap: Capability<&PackNFTMinter{IPackNFT.IMinter}>) 
     }
-
+    
+    // TODO: remove as capabilities directly shared in PDS.SharedCapabilities
     pub resource PDSMinterProxy: MintCapReceiver {
         access(self) var mintCap:  Capability<&PackNFTMinter{IPackNFT.IMinter}>?
         
@@ -38,14 +39,14 @@ pub contract PackNFT: NonFungibleToken, IPackNFT {
             self.mintCap = mintCap
         }
 
-         pub fun mint(commitHash: String, issuer: Address){
-            let cap = self.mintCap!.borrow()!
-            cap.mint(commitHash: commitHash, issuer: issuer)
-         }
+        pub fun mint(commitHash: String, issuer: Address){
+           let cap = self.mintCap!.borrow()!
+           cap.mint(commitHash: commitHash, issuer: issuer)
+        }
 
-         init(){
-             self.mintCap = nil
-         }
+        init(){
+            self.mintCap = nil
+        }
     }
 
     pub resource PackNFTMinter: IPackNFT.IMinter {
@@ -54,7 +55,7 @@ pub contract PackNFT: NonFungibleToken, IPackNFT {
             let pack <- create NFT(initID: id, commitHash: commitHash, issuer: issuer)
             PackNFT.totalSupply = id + 1
             let recvAcct = getAccount(issuer)
-            let recv = recvAcct.getCapability(PackNFT.collectionPublicPath) .borrow<&{NonFungibleToken.CollectionPublic}>()
+            let recv = recvAcct.getCapability(PackNFT.collectionPublicPath).borrow<&{NonFungibleToken.CollectionPublic}>()
                 ?? panic("Unable to borrow Collection Public reference for recipient")
 
             recv.deposit(token: <- pack)

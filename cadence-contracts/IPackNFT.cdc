@@ -30,6 +30,9 @@ pub contract interface IPackNFT{
     pub fun getStatus(id: UInt64): String?
 
     access(contract) fun reveal(id: UInt64) {
+        // TODO: check states as suggested in PR 
+        // https://github.com/flow-hydraulics/flow-pds/pull/25#discussion_r710814857
+        // https://github.com/flow-hydraulics/flow-pds/pull/25#discussion_r710816294
         pre {
             self.status[id] != nil : "No such PackNFT"
         }
@@ -52,8 +55,16 @@ pub contract interface IPackNFT{
     pub resource interface IMinter {
          pub fun mint(commitHash: String, issuer: Address)
     }
+
+    pub resource PackNFTMinter: IMinter {
+         pub fun mint(commitHash: String, issuer: Address)
+    }
     
     pub resource interface IPackNFTToken {
+        pub let id: UInt64
+        pub let commitHash: String
+        pub let issuer: Address
+
         pub fun reveal()
         pub fun open() 
     }
