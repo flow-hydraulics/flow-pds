@@ -12,6 +12,7 @@ import (
 
 var accounts map[flow.Address]*Account
 var accountsLock = &sync.Mutex{} // Making sure our "accounts" var is a singleton
+var keyIndexLock = &sync.Mutex{}
 
 type Account struct {
 	Address           flow.Address
@@ -45,8 +46,13 @@ func GetAccount(address flow.Address, privateKeyInHex string, keyIndexes []int) 
 }
 
 func (a *Account) KeyIndex() int {
+	// NOTE: This won't help if having multiple instances of the PDS service running
+	keyIndexLock.Lock()
+	defer keyIndexLock.Unlock()
+
 	i := a.KeyIndexes[a.nextKeyIndexIndex]
 	a.nextKeyIndexIndex = (a.nextKeyIndexIndex + 1) % len(a.KeyIndexes)
+
 	return i
 }
 
