@@ -23,6 +23,7 @@ pub contract PDS{
         }
         
         // TODO: maybe we do not need to specify the issuer here, should be the creator of the SharedCapabilities
+        // this is also used in storing inside the NFT though
         pub fun mintPackNFT(commitHashes: [String], issuer: Address){
             var i = 0
             let c = self.mintCap.borrow() ?? panic("no such cap")
@@ -31,10 +32,17 @@ pub contract PDS{
                 i = i + 1
             }
         }
+        
+        pub fun revealPackNFT(packNFTId: UInt64) {
+            
+        }
+        
+        
 
         init(
             withdrawCap: Capability<&{NonFungibleToken.Provider}>
             mintCap: Capability<&{IPackNFT.IMinter}>
+            revealPack: Capability<&{IPackNFT.IMinter}>
 
         ){
             self.withdrawCap = withdrawCap
@@ -105,6 +113,13 @@ pub contract PDS{
             assert(PDS.Distributions.containsKey(distId), message: "No such distribution")
             let d <- PDS.Distributions.remove(key: distId)!
             d.mintPackNFT(commitHashes: commitHashes, issuer: issuer)
+            PDS.Distributions[distId] <-! d
+        }
+        
+        pub fun revealPackNFT(distId: UInt64, packNFTId: UInt64){
+            assert(PDS.Distributions.containsKey(distId), message: "No such distribution")
+            let d <- PDS.Distributions.remove(key: distId)!
+            d.revealPackNFT(packNFTId: packNFTID)
             PDS.Distributions[distId] <-! d
         }
 
