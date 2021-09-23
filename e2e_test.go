@@ -247,6 +247,17 @@ func TestE2E(t *testing.T) {
 	}
 	randomPackNftIDsArr := cadence.NewArray(randomPackNftIDs)
 
+	// Parse the collectible "names" in the pack
+	randomPackNftNames := make([]cadence.Value, len(randomPack.Collectibles))
+	for i, c := range randomPack.Collectibles {
+		randomPackNftNames[i] = cadence.String(c.String())
+	}
+	randomPackNftNamesArr := cadence.NewArray(randomPackNftNames)
+
+	fmt.Println("Pack contents:")
+	fmt.Println("IDs", randomPackNftIDsArr)
+	fmt.Println("Names", randomPackNftNamesArr)
+
 	// PDS backend submits revealed information
 	reveal := "./cadence-transactions/pds/reveal_packNFT.cdc"
 	revealCode := util.ParseCadenceTemplate(reveal)
