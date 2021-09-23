@@ -11,9 +11,8 @@ type Minting struct {
 	DistributionID uuid.UUID `gorm:"unique"`
 	Distribution   Distribution
 
-	Minted uint `gorm:"column:minted"`
-	Total  uint `gorm:"column:total"`
-
+	CurrentCount     uint   `gorm:"column:current_count"`
+	TotalCount       uint   `gorm:"column:total_count"`
 	LastCheckedBlock uint64 `gorm:"column:last_checked_block"`
 }
 
@@ -21,15 +20,15 @@ func (Minting) TableName() string {
 	return "mintings"
 }
 
-func (s *Minting) BeforeCreate(tx *gorm.DB) (err error) {
-	s.ID = uuid.New()
+func (m *Minting) BeforeCreate(tx *gorm.DB) (err error) {
+	m.ID = uuid.New()
 	return nil
 }
 
 func (m *Minting) IsComplete() bool {
-	return m.Minted >= m.Total
+	return m.CurrentCount >= m.TotalCount
 }
 
-func (m *Minting) IncrementMinted() {
-	m.Minted++
+func (m *Minting) IncrementCount() {
+	m.CurrentCount++
 }

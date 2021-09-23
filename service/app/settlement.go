@@ -14,12 +14,12 @@ type Settlement struct {
 	DistributionID uuid.UUID `gorm:"unique"`
 	Distribution   Distribution
 
-	Settled uint `gorm:"column:settled"`
-	Total   uint `gorm:"column:total"`
+	CurrentCount     uint   `gorm:"column:current_count"`
+	TotalCount       uint   `gorm:"column:total_count"`
+	LastCheckedBlock uint64 `gorm:"column:last_checked_block"`
 
-	EscrowAddress    common.FlowAddress `gorm:"column:escrow_address"`
-	LastCheckedBlock uint64             `gorm:"column:last_checked_block"`
-	Collectibles     []SettlementCollectible
+	EscrowAddress common.FlowAddress `gorm:"column:escrow_address"`
+	Collectibles  []SettlementCollectible
 }
 
 type SettlementCollectible struct {
@@ -29,7 +29,7 @@ type SettlementCollectible struct {
 
 	FlowID            common.FlowID   `gorm:"column:flow_id;"`                       // ID of the collectible NFT
 	ContractReference AddressLocation `gorm:"embedded;embeddedPrefix:contract_ref_"` // Reference to the collectible NFT contract
-	Settled           bool            `gorm:"column:settled"`
+	IsSettled         bool            `gorm:"column:is_settled"`
 }
 
 type SettlementCollectibles []SettlementCollectible
@@ -44,11 +44,11 @@ func (s *Settlement) BeforeCreate(tx *gorm.DB) (err error) {
 }
 
 func (s *Settlement) IsComplete() bool {
-	return s.Settled >= s.Total
+	return s.CurrentCount >= s.TotalCount
 }
 
-func (s *Settlement) IncrementSettled() {
-	s.Settled++
+func (s *Settlement) IncrementCount() {
+	s.CurrentCount++
 }
 
 func (SettlementCollectible) TableName() string {
@@ -61,11 +61,11 @@ func (s *SettlementCollectible) BeforeCreate(tx *gorm.DB) (err error) {
 }
 
 func (s *SettlementCollectible) SetSettled() (err error) {
-	if s.Settled {
+	if s.IsSettled {
 		return fmt.Errorf("settlement collectible already settled")
 	}
 
-	s.Settled = true
+	s.IsSettled = true
 
 	return nil
 }

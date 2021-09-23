@@ -62,18 +62,18 @@ func (c *Contract) StartSettlement(ctx context.Context, db *gorm.DB, dist *Distr
 		settlementCollectibles[i] = SettlementCollectible{
 			FlowID:            c.FlowID,
 			ContractReference: c.ContractReference,
-			Settled:           false,
+			IsSettled:         false,
 		}
 	}
 
 	settlement := Settlement{
-		DistributionID: dist.ID,
-		Settled:        0,
-		Total:          uint(len(collectibles)),
-		// TODO (latenssi): Can we assume the admin is always the escrow?
-		EscrowAddress:    common.FlowAddressFromString(c.cfg.AdminAddress),
+		DistributionID:   dist.ID,
+		CurrentCount:     0,
+		TotalCount:       uint(len(collectibles)),
 		LastCheckedBlock: latestBlock.Height - 1,
-		Collectibles:     settlementCollectibles,
+		// TODO (latenssi): Can we assume the admin is always the escrow?
+		EscrowAddress: common.FlowAddressFromString(c.cfg.AdminAddress),
+		Collectibles:  settlementCollectibles,
 	}
 
 	if err := InsertSettlement(db, &settlement); err != nil {
@@ -140,9 +140,8 @@ func (c *Contract) StartMinting(ctx context.Context, db *gorm.DB, dist *Distribu
 
 	minting := Minting{
 		DistributionID:   dist.ID,
-		Distribution:     *dist,
-		Minted:           0,
-		Total:            uint(len(packs)),
+		CurrentCount:     0,
+		TotalCount:       uint(len(packs)),
 		LastCheckedBlock: latestBlock.Height - 1,
 	}
 
@@ -244,7 +243,7 @@ func (c *Contract) UpdateSettlementStatus(ctx context.Context, db *gorm.DB, dist
 						if err := UpdateSettlementCollectible(db, &missing[i]); err != nil {
 							return err
 						}
-						settlement.IncrementSettled()
+						settlement.IncrementCount()
 					}
 				}
 			}
@@ -324,7 +323,7 @@ func (c *Contract) UpdateMintingStatus(ctx context.Context, db *gorm.DB, dist *D
 				return err
 			}
 
-			minting.IncrementMinted()
+			minting.IncrementCount()
 		}
 	}
 

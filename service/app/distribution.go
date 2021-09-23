@@ -246,7 +246,6 @@ func (dist Distribution) SlotCount() int {
 
 // SetCommitmentHash should
 // - validate the pack
-// - seal the pack
 // - decide on a random salt value
 // - calculate the commitment hash for the pack
 func (p *Pack) SetCommitmentHash() error {
