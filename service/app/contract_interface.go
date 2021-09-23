@@ -5,11 +5,11 @@ import (
 	"fmt"
 	"sort"
 
-	"github.com/bjartek/go-with-the-flow/v2/gwtf"
-	"github.com/flow-hydraulics/flow-pds/go-contracts/util"
 	"github.com/flow-hydraulics/flow-pds/service/common"
 	"github.com/flow-hydraulics/flow-pds/service/config"
+	"github.com/flow-hydraulics/flow-pds/service/flow_helpers"
 	"github.com/onflow/cadence"
+	"github.com/onflow/flow-go-sdk"
 	"github.com/onflow/flow-go-sdk/client"
 	"gorm.io/gorm"
 )
@@ -23,13 +23,23 @@ type IContract interface {
 	UpdateCirculatingPack(ctx context.Context, db *gorm.DB, cpc *CirculatingPackContract) error
 }
 
+// TODO (latenssi):
+// - Timeout for settling and minting?
+// - Cancel?
+
 type Contract struct {
 	cfg        *config.Config
 	flowClient *client.Client
+	account    *flow_helpers.Account
 }
 
 func NewContract(cfg *config.Config, flowClient *client.Client) *Contract {
-	return &Contract{cfg, flowClient}
+	pdsAccount := flow_helpers.GetAccount(
+		flow.HexToAddress(cfg.AdminAddress),
+		cfg.AdminPrivateKey,
+		[]int{0}, // TODO (latenssi): more key indexes
+	)
+	return &Contract{cfg, flowClient, pdsAccount}
 }
 
 func (c *Contract) StartSettlement(ctx context.Context, db *gorm.DB, dist *Distribution) error {
@@ -80,24 +90,24 @@ func (c *Contract) StartSettlement(ctx context.Context, db *gorm.DB, dist *Distr
 		return err
 	}
 
-	// TODO (latenssi)
-	// - Clean up the transaction code
-	// - Timeout? Cancel?
-	g := gwtf.NewGoWithTheFlow([]string{"./flow.json"}, "emulator", false, 3)
-
-	transferExampleNFT := "./cadence-transactions/pds/settle_exampleNFT.cdc"
-	transferExampleNFTCode := util.ParseCadenceTemplate(transferExampleNFT)
-
 	flowIDs := make([]cadence.Value, len(collectibles))
 	for i, c := range collectibles {
 		flowIDs[i] = cadence.UInt64(c.FlowID.Int64)
 	}
 
-	if _, err := g.TransactionFromFile(transferExampleNFT, transferExampleNFTCode).
-		SignProposeAndPayAs("pds").
-		UInt64Argument(uint64(dist.DistID.Int64)).
-		Argument(cadence.NewArray(flowIDs)).
-		RunE(); err != nil {
+	arguments := []cadence.Value{
+		cadence.UInt64(dist.DistID.Int64),
+		cadence.NewArray(flowIDs),
+	}
+
+	if err := flow_helpers.SendTransactionAs(
+		ctx,
+		c.flowClient,
+		c.account,
+		latestBlock,
+		arguments,
+		"./cadence-transactions/pds/settle_exampleNFT.cdc",
+	); err != nil {
 		return err
 	}
 
@@ -154,21 +164,20 @@ func (c *Contract) StartMinting(ctx context.Context, db *gorm.DB, dist *Distribu
 		commitmentHashes[i] = cadence.NewString(p.CommitmentHash.String())
 	}
 
-	// TODO (latenssi)
-	// - Clean up the transaction code
-	// - Timeout? Cancel?
+	arguments := []cadence.Value{
+		cadence.UInt64(dist.DistID.Int64),
+		cadence.NewArray(commitmentHashes),
+		cadence.Address(dist.Issuer),
+	}
 
-	g := gwtf.NewGoWithTheFlow([]string{"./flow.json"}, "emulator", false, 3)
-
-	mintPackNFT := "./cadence-transactions/pds/mint_packNFT.cdc"
-	mintPackNFTCode := util.ParseCadenceTemplate(mintPackNFT)
-
-	if _, err := g.TransactionFromFile(mintPackNFT, mintPackNFTCode).
-		SignProposeAndPayAs("pds").
-		UInt64Argument(uint64(dist.DistID.Int64)).
-		Argument(cadence.NewArray(commitmentHashes)).
-		AccountArgument("issuer").
-		RunE(); err != nil {
+	if err := flow_helpers.SendTransactionAs(
+		ctx,
+		c.flowClient,
+		c.account,
+		latestBlock,
+		arguments,
+		"./cadence-transactions/pds/mint_packNFT.cdc",
+	); err != nil {
 		return err
 	}
 
