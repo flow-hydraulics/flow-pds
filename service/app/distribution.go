@@ -14,7 +14,7 @@ import (
 	"gorm.io/gorm"
 )
 
-const SALT_LENGTH = 8
+const SALT_LENGTH = 8 // TODO (latenssi): is this ok?
 const HASH_DELIM = ","
 
 type Distribution struct {
@@ -58,11 +58,12 @@ type Pack struct {
 	DistributionID uuid.UUID
 	ID             uuid.UUID `gorm:"column:id;primary_key;type:uuid;"`
 
-	FlowID         common.FlowID      `gorm:"column:flow_id;index"`         // ID of the pack NFT
-	State          common.PackState   `gorm:"column:state"`                 // public
-	Salt           common.BinaryValue `gorm:"column:salt"`                  // private
-	CommitmentHash common.BinaryValue `gorm:"column:commitment_hash;index"` // public
-	Collectibles   Collectibles       `gorm:"column:collectibles"`          // private
+	ContractReference AddressLocation    `gorm:"embedded;embeddedPrefix:contract_ref_"` // Reference to the pack NFT contract
+	FlowID            common.FlowID      `gorm:"column:flow_id;index"`                  // ID of the pack NFT
+	State             common.PackState   `gorm:"column:state"`                          // public
+	Salt              common.BinaryValue `gorm:"column:salt"`                           // private
+	CommitmentHash    common.BinaryValue `gorm:"column:commitment_hash;index"`          // public
+	Collectibles      Collectibles       `gorm:"column:collectibles"`                   // private
 }
 
 func (Distribution) TableName() string {
@@ -112,6 +113,7 @@ func (dist *Distribution) Resolve() error {
 	// Init packs and their slots
 	packs := make([]Pack, packCount)
 	for i := range packs {
+		packs[i].ContractReference = dist.PackTemplate.PackReference
 		packs[i].Collectibles = make([]Collectible, packSlotCount)
 	}
 
@@ -169,6 +171,17 @@ func (dist *Distribution) SetSettling() error {
 	return nil
 }
 
+// SetSettled sets the status to settled if preceding state was valid
+func (dist *Distribution) SetSettled() error {
+	if dist.State != common.DistributionStateSettling {
+		return fmt.Errorf("distribution can not be set as settled at this state: %d", dist.State)
+	}
+
+	dist.State = common.DistributionStateSettled
+
+	return nil
+}
+
 // SetMinting sets the status to minting if preceding state was valid
 func (dist *Distribution) SetMinting() error {
 	if dist.State != common.DistributionStateSettled {
@@ -176,6 +189,17 @@ func (dist *Distribution) SetMinting() error {
 	}
 
 	dist.State = common.DistributionStateMinting
+
+	return nil
+}
+
+// SetComplete sets the status to complete if preceding state was valid
+func (dist *Distribution) SetComplete() error {
+	if dist.State != common.DistributionStateMinting {
+		return fmt.Errorf("distribution can not be set as complete at this state: %d", dist.State)
+	}
+
+	dist.State = common.DistributionStateComplete
 
 	return nil
 }
@@ -225,16 +249,16 @@ func (dist Distribution) SlotCount() int {
 // - decide on a random salt value
 // - calculate the commitment hash for the pack
 func (p *Pack) SetCommitmentHash() error {
+	if err := p.Validate(); err != nil {
+		return fmt.Errorf("pack validation error: %w", err)
+	}
+
 	if !p.Salt.IsEmpty() {
 		return fmt.Errorf("salt is already set")
 	}
 
 	if !p.CommitmentHash.IsEmpty() {
 		return fmt.Errorf("commitmentHash is already set")
-	}
-
-	if err := p.Validate(); err != nil {
-		return fmt.Errorf("pack validation error: %w", err)
 	}
 
 	salt, err := common.GenerateRandomBytes(SALT_LENGTH)
@@ -248,24 +272,56 @@ func (p *Pack) SetCommitmentHash() error {
 	return nil
 }
 
+// Hash outputs the 'commitmentHash' of a pack.
+// It is converting inputs to string and joining them with a delim to make the input more readable.
+// This will allow anyone to easily copy paste strings and verify the hash.
+// We also use the full reference (address and name) of a collectible to make
+// it more difficult to fiddle with the types of collectibles inside a pack.
 func (p *Pack) Hash() []byte {
 	inputs := make([]string, 1+len(p.Collectibles))
 	inputs[0] = hex.EncodeToString(p.Salt)
 	for i, c := range p.Collectibles {
-		inputs[i+1] = c.String()
+		inputs[i+1] = fmt.Sprintf("A.%s.%s.%d", c.ContractReference.Address, c.ContractReference.Name, c.FlowID.Int64)
 	}
-	h := sha256.Sum256([]byte(strings.Join(inputs, HASH_DELIM)))
-	return h[:]
+	input := strings.Join(inputs, HASH_DELIM)
+	hash := sha256.Sum256([]byte(input))
+	return hash[:]
 }
 
-// Seal should
-// - set the pack as sealed
-func (p *Pack) Seal() error {
+// Seal should set the FlowID of the pack and set it as sealed
+func (p *Pack) Seal(id common.FlowID) error {
 	if p.State != common.PackStateInit {
 		return fmt.Errorf("pack in unexpected state: %d", p.State)
 	}
 
+	if p.FlowID.Valid {
+		return fmt.Errorf("pack FlowID already set: %v", id)
+	}
+
+	p.FlowID = id
 	p.State = common.PackStateSealed
+
+	return nil
+}
+
+// Reveal should set the pack as revealed
+func (p *Pack) Reveal() error {
+	if p.State != common.PackStateSealed {
+		return fmt.Errorf("pack in unexpected state: %d", p.State)
+	}
+
+	p.State = common.PackStateRevealed
+
+	return nil
+}
+
+// Open should set the pack as opened
+func (p *Pack) Open() error {
+	if p.State != common.PackStateRevealed {
+		return fmt.Errorf("pack in unexpected state: %d", p.State)
+	}
+
+	p.State = common.PackStateOpened
 
 	return nil
 }

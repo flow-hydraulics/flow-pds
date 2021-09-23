@@ -51,8 +51,8 @@ func getTestApp(cfg *config.Config, poll bool) (*app.App, func()) {
 	return app.New(cfg, db, flowClient, poll), clean
 }
 
-func getTestServer(cfg *config.Config) (*http.Server, func()) {
-	app, cleanupApp := getTestApp(cfg, false)
+func getTestServer(cfg *config.Config, poll bool) (*http.Server, func()) {
+	app, cleanupApp := getTestApp(cfg, poll)
 	clean := func() {
 		cleanupApp()
 	}
@@ -62,7 +62,7 @@ func getTestServer(cfg *config.Config) (*http.Server, func()) {
 func makeTestCollection(size int) []common.FlowID {
 	collection := make([]common.FlowID, size)
 	for i := range collection {
-		collection[i] = common.FlowID(i + 1)
+		collection[i] = common.FlowID{Int64: int64(i + 1), Valid: true}
 	}
 	return collection
 }

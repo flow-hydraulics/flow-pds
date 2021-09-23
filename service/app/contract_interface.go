@@ -3,10 +3,13 @@ package app
 import (
 	"context"
 	"fmt"
+	"sort"
 
+	"github.com/bjartek/go-with-the-flow/v2/gwtf"
+	"github.com/flow-hydraulics/flow-pds/go-contracts/util"
 	"github.com/flow-hydraulics/flow-pds/service/common"
 	"github.com/flow-hydraulics/flow-pds/service/config"
-	"github.com/onflow/flow-go-sdk"
+	"github.com/onflow/cadence"
 	"github.com/onflow/flow-go-sdk/client"
 	"gorm.io/gorm"
 )
@@ -15,8 +18,9 @@ type IContract interface {
 	StartSettlement(context.Context, *gorm.DB, *Distribution) error
 	StartMinting(context.Context, *gorm.DB, *Distribution) error
 	Cancel(context.Context, *gorm.DB, *Distribution) error
-	CheckSettlementStatus(ctx context.Context, db *gorm.DB, dist *Distribution) error
-	CheckMintingStatus(ctx context.Context, db *gorm.DB, dist *Distribution) error
+	UpdateSettlementStatus(ctx context.Context, db *gorm.DB, dist *Distribution) error
+	UpdateMintingStatus(ctx context.Context, db *gorm.DB, dist *Distribution) error
+	UpdateCirculatingPack(ctx context.Context, db *gorm.DB, cpc *CirculatingPackContract) error
 }
 
 type Contract struct {
@@ -42,23 +46,34 @@ func (c *Contract) StartSettlement(ctx context.Context, db *gorm.DB, dist *Distr
 		return err
 	}
 
-	collectibles := dist.ResolvedCollection()
+	packs, err := GetDistributionPacks(db, dist.ID)
+	if err != nil {
+		return err
+	}
+
+	collectibles := make(Collectibles, 0)
+	for _, pack := range packs {
+		collectibles = append(collectibles, pack.Collectibles...)
+	}
+	sort.Sort(collectibles)
+
 	settlementCollectibles := make([]SettlementCollectible, len(collectibles))
 	for i, c := range collectibles {
 		settlementCollectibles[i] = SettlementCollectible{
 			FlowID:            c.FlowID,
 			ContractReference: c.ContractReference,
-			Settled:           false,
+			IsSettled:         false,
 		}
 	}
 
 	settlement := Settlement{
 		DistributionID:   dist.ID,
-		Distribution:     *dist,
-		Total:            uint(len(collectibles)),
-		EscrowAddress:    common.FlowAddress(flow.HexToAddress("f3fcd2c1a78f5eee")), // TODO (latenssi): proper escrow address
-		LastCheckedBlock: latestBlock.Height,
-		Collectibles:     settlementCollectibles,
+		CurrentCount:     0,
+		TotalCount:       uint(len(collectibles)),
+		LastCheckedBlock: latestBlock.Height - 1,
+		// TODO (latenssi): Can we assume the admin is always the escrow?
+		EscrowAddress: common.FlowAddressFromString(c.cfg.AdminAddress),
+		Collectibles:  settlementCollectibles,
 	}
 
 	if err := InsertSettlement(db, &settlement); err != nil {
@@ -66,8 +81,25 @@ func (c *Contract) StartSettlement(ctx context.Context, db *gorm.DB, dist *Distr
 	}
 
 	// TODO (latenssi)
-	// - Send a request to PDS Contract to start withdrawing of collectible NFTs to Contract account
+	// - Clean up the transaction code
 	// - Timeout? Cancel?
+	g := gwtf.NewGoWithTheFlow([]string{"./flow.json"}, "emulator", false, 3)
+
+	transferExampleNFT := "./cadence-transactions/pds/settle_exampleNFT.cdc"
+	transferExampleNFTCode := util.ParseCadenceTemplate(transferExampleNFT)
+
+	flowIDs := make([]cadence.Value, len(collectibles))
+	for i, c := range collectibles {
+		flowIDs[i] = cadence.UInt64(c.FlowID.Int64)
+	}
+
+	if _, err := g.TransactionFromFile(transferExampleNFT, transferExampleNFTCode).
+		SignProposeAndPayAs("pds").
+		UInt64Argument(uint64(dist.DistID.Int64)).
+		Argument(cadence.NewArray(flowIDs)).
+		RunE(); err != nil {
+		return err
+	}
 
 	return nil
 }
@@ -86,21 +118,59 @@ func (c *Contract) StartMinting(ctx context.Context, db *gorm.DB, dist *Distribu
 		return err
 	}
 
-	// Add CirculatingPackContracts to database
-	for _, b := range dist.PackTemplate.Buckets {
-		cpc := CirculatingPackContract{
-			Name:             b.CollectibleReference.Name,
-			Address:          b.CollectibleReference.Address,
-			LastCheckedBlock: latestBlock.Height,
-		}
-		// TODO (latenssi): get from db instead of failing on duplicate index?
+	// Add CirculatingPackContract to database
+	cpc := CirculatingPackContract{
+		Name:             dist.PackTemplate.PackReference.Name,
+		Address:          dist.PackTemplate.PackReference.Address,
+		LastCheckedBlock: latestBlock.Height - 1,
+	}
+
+	// Try to find one
+	if _, err := GetCirculatingPackContract(db, cpc.Name, cpc.Address); err != nil {
+		// Insert new if not found
 		if err := InsertCirculatingPackContract(db, &cpc); err != nil {
-			// TODO (latenssi): once duplicate key error handling is done, return error from here
-			fmt.Printf("error while inserting CirculatingPackContract: %s\n", err)
+			return err
 		}
 	}
 
+	packs, err := GetDistributionPacks(db, dist.ID)
+	if err != nil {
+		return err
+	}
+
+	minting := Minting{
+		DistributionID:   dist.ID,
+		CurrentCount:     0,
+		TotalCount:       uint(len(packs)),
+		LastCheckedBlock: latestBlock.Height - 1,
+	}
+
+	if err := InsertMinting(db, &minting); err != nil {
+		return err
+	}
+
+	commitmentHashes := make([]cadence.Value, len(packs))
+	for i, p := range packs {
+		commitmentHashes[i] = cadence.NewString(p.CommitmentHash.String())
+	}
+
 	// TODO (latenssi)
+	// - Clean up the transaction code
+	// - Timeout? Cancel?
+
+	g := gwtf.NewGoWithTheFlow([]string{"./flow.json"}, "emulator", false, 3)
+
+	mintPackNFT := "./cadence-transactions/pds/mint_packNFT.cdc"
+	mintPackNFTCode := util.ParseCadenceTemplate(mintPackNFT)
+
+	if _, err := g.TransactionFromFile(mintPackNFT, mintPackNFTCode).
+		SignProposeAndPayAs("pds").
+		UInt64Argument(uint64(dist.DistID.Int64)).
+		Argument(cadence.NewArray(commitmentHashes)).
+		AccountArgument("issuer").
+		RunE(); err != nil {
+		return err
+	}
 
 	return nil
 }
@@ -119,13 +189,8 @@ func (c *Contract) Cancel(ctx context.Context, db *gorm.DB, dist *Distribution) 
 	return nil
 }
 
-func (c *Contract) CheckSettlementStatus(ctx context.Context, db *gorm.DB, dist *Distribution) error {
-	settlement, err := GetSettlementByDistId(db, dist.ID)
-	if err != nil {
-		return err
-	}
-
-	groupedMissing, err := MissingCollectibles(db, settlement.ID)
+func (c *Contract) UpdateSettlementStatus(ctx context.Context, db *gorm.DB, dist *Distribution) error {
+	settlement, err := GetDistributionSettlement(db, dist.ID)
 	if err != nil {
 		return err
 	}
@@ -143,6 +208,11 @@ func (c *Contract) CheckSettlementStatus(ctx context.Context, db *gorm.DB, dist 
 		return nil
 	}
 
+	groupedMissing, err := MissingCollectibles(db, settlement.ID)
+	if err != nil {
+		return err
+	}
+
 	for reference, missing := range groupedMissing {
 		arr, err := c.flowClient.GetEventsForHeightRange(ctx, client.EventRangeQuery{
 			Type:        fmt.Sprintf("%s.Deposit", reference),
@@ -155,47 +225,193 @@ func (c *Contract) CheckSettlementStatus(ctx context.Context, db *gorm.DB, dist 
 
 		for _, be := range arr {
 			for _, e := range be.Events {
-				id, err := common.FlowIDFromStr(e.Value.Fields[0].String())
+				flowID, err := common.FlowIDFromCadence(e.Value.Fields[0])
 				if err != nil {
 					return err
 				}
-				address := common.FlowAddress(flow.HexToAddress(e.Value.Fields[1].String()))
+
+				address, err := common.FlowAddressFromCadence(e.Value.Fields[1])
+				if err != nil {
+					return err
+				}
+
 				if address == settlement.EscrowAddress {
-					if i, ok := missing.ContainsID(id); ok {
-						missing[i].Settled = true
+					if i, ok := missing.ContainsID(flowID); ok {
+						if err := missing[i].SetSettled(); err != nil {
+							return err
+						}
 						if err := UpdateSettlementCollectible(db, &missing[i]); err != nil {
 							return err
 						}
-						settlement.Settled++
+						settlement.IncrementCount()
 					}
 				}
 			}
 		}
 	}
 
-	settlement.LastCheckedBlock = end
-
-	if settlement.Settled >= settlement.Total {
-		// Update settlement state
-		settlement.State = common.SettlementStateDone
-	}
-
-	if err := UpdateSettlement(db, settlement); err != nil {
-		return err
-	}
-
-	if settlement.State == common.SettlementStateDone && dist.State == common.DistributionStateSettling {
-		// Update distribution state
-		dist.State = common.DistributionStateSettled
+	if settlement.IsComplete() {
+		if err := dist.SetSettled(); err != nil {
+			return err
+		}
 		if err := UpdateDistribution(db, dist); err != nil {
 			return err
 		}
 	}
 
+	settlement.LastCheckedBlock = end
+
+	if err := UpdateSettlement(db, settlement); err != nil {
+		return err
+	}
+
 	return nil
 }
 
-func (c *Contract) CheckMintingStatus(ctx context.Context, db *gorm.DB, dist *Distribution) error {
-	// TODO (latenssi): poll for minting status of distribution => set "complete" when done
+func (c *Contract) UpdateMintingStatus(ctx context.Context, db *gorm.DB, dist *Distribution) error {
+	minting, err := GetDistributionMinting(db, dist.ID)
+	if err != nil {
+		return err
+	}
+
+	latestBlock, err := c.flowClient.GetLatestBlock(ctx, true)
+	if err != nil {
+		return err
+	}
+
+	start := minting.LastCheckedBlock + 1
+	end := min(latestBlock.Height, start+100)
+
+	if start > end {
+		// Nothing to update
+		return nil
+	}
+
+	reference := dist.PackTemplate.PackReference.String()
+
+	arr, err := c.flowClient.GetEventsForHeightRange(ctx, client.EventRangeQuery{
+		Type:        fmt.Sprintf("%s.Mint", reference),
+		StartHeight: start,
+		EndHeight:   end,
+	})
+	if err != nil {
+		return err
+	}
+
+	for _, be := range arr {
+		for _, e := range be.Events {
+			flowID, err := common.FlowIDFromCadence(e.Value.Fields[0])
+			if err != nil {
+				return err
+			}
+
+			commitmentHash, err := common.BinaryValueFromCadence(e.Value.Fields[1])
+			if err != nil {
+				return err
+			}
+
+			pack, err := GetMintingPack(db, dist.ID, commitmentHash)
+			if err != nil {
+				return fmt.Errorf("unable find a minting pack with commitmentHash %v", commitmentHash.String())
+			}
+
+			if err := pack.Seal(flowID); err != nil {
+				return err
+			}
+
+			if err := UpdatePack(db, pack); err != nil {
+				return err
+			}
+
+			minting.IncrementCount()
+		}
+	}
+
+	if minting.IsComplete() {
+		if err := dist.SetComplete(); err != nil {
+			return err
+		}
+		if err := UpdateDistribution(db, dist); err != nil {
+			return err
+		}
+	}
+
+	minting.LastCheckedBlock = end
+
+	if err := UpdateMinting(db, minting); err != nil {
+		return err
+	}
+
+	return nil
+}
+
+func (c *Contract) UpdateCirculatingPack(ctx context.Context, db *gorm.DB, cpc *CirculatingPackContract) error {
+	eventNames := []string{
+		"RevealRequest",
+		"OpenPackRequest",
+	}
+
+	latestBlock, err := c.flowClient.GetLatestBlock(ctx, true)
+	if err != nil {
+		return err
+	}
+
+	start := cpc.LastCheckedBlock + 1
+	end := min(latestBlock.Height, start+100)
+
+	if start > end {
+		return nil
+	}
+
+	for _, eventName := range eventNames {
+		arr, err := c.flowClient.GetEventsForHeightRange(ctx, client.EventRangeQuery{
+			Type:        cpc.EventName(eventName),
+			StartHeight: start,
+			EndHeight:   end,
+		})
+		if err != nil {
+			return err
+		}
+
+		for _, be := range arr {
+			for _, e := range be.Events {
+				flowID, err := common.FlowIDFromCadence(e.Value.Fields[0])
+				if err != nil {
+					return err
+				}
+
+				pack, err := GetPackByContractAndFlowID(db, AddressLocation{Name: cpc.Name, Address: cpc.Address}, flowID)
+				if err != nil {
+					return err
+				}
+
+				switch eventName {
+				case "RevealRequest":
+					fmt.Println("Reveal pack:", pack.ID)
+					if err := pack.Reveal(); err != nil {
+						return err
+					}
+					if err := UpdatePack(db, pack); err != nil {
+						return err
+					}
+				case "OpenPackRequest":
+					fmt.Println("Open pack:", pack.ID)
+					if err := pack.Open(); err != nil {
+						return err
+					}
+					if err := UpdatePack(db, pack); err != nil {
+						return err
+					}
+				}
+			}
+		}
+	}
+
+	cpc.LastCheckedBlock = end
+
+	if err := UpdateCirculatingPackContract(db, cpc); err != nil {
+		return err
+	}
+
 	return nil
 }

@@ -20,7 +20,7 @@ func CollectibleFromString(s string) (Collectible, error) {
 	split := strings.Split(string(s), ".")
 	address := common.FlowAddress(flow.HexToAddress(split[1]))
 	name := split[2]
-	id, err := common.FlowIDFromStr(split[3])
+	id, err := common.FlowIDFromString(split[3])
 	if err != nil {
 		return Collectible{}, err
 	}
@@ -34,12 +34,12 @@ func CollectibleFromString(s string) (Collectible, error) {
 }
 
 func (c Collectible) String() string {
-	return fmt.Sprintf("A.%s.%s.%d", c.ContractReference.Address, c.ContractReference.Name, c.FlowID)
+	return fmt.Sprintf("A.%s.%s.%d", c.ContractReference.Address, c.ContractReference.Name, c.FlowID.Int64)
 }
 
 // Implement sort.Interface for Collectible slice
 func (cc Collectibles) Len() int           { return len(cc) }
-func (cc Collectibles) Less(i, j int) bool { return cc[i].FlowID < cc[j].FlowID }
+func (cc Collectibles) Less(i, j int) bool { return cc[i].FlowID.LessThan(cc[j].FlowID) }
 func (cc Collectibles) Swap(i, j int)      { cc[i], cc[j] = cc[j], cc[i] }
 
 func (Collectibles) GormDataType() string {

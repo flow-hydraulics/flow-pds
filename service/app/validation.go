@@ -7,7 +7,7 @@ import (
 )
 
 func (dist Distribution) Validate() error {
-	if dist.DistID == 0 {
+	if !dist.DistID.Valid {
 		return fmt.Errorf("distId must be defined")
 	}
 
@@ -102,6 +102,9 @@ func (al AddressLocation) Validate() error {
 }
 
 func (c Collectible) Validate() error {
+	if !c.FlowID.Valid {
+		return fmt.Errorf("collectible FlowID is not set")
+	}
 	if err := c.ContractReference.Validate(); err != nil {
 		return fmt.Errorf("error while validating ContractReference: %w", err)
 	}

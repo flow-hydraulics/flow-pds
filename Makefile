@@ -3,6 +3,10 @@ dev:
 	docker-compose up -d db pgadmin emulator
 	docker-compose logs -f
 
+.PHONY: deploy
+deploy:
+	bash ./deploy.sh
+
 .PHONY: stop
 stop:
 	docker-compose stop
@@ -27,6 +31,6 @@ test-clean: clean-testcache test
 clean-testcache:
 	@go clean -testcache
 
-.PHONY: deploy
-deploy:
-	bash ./deploy.sh
+.PHONY: bench
+bench:
+	@go test -bench=. -run=^a

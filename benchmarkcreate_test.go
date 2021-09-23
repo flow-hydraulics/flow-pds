@@ -14,7 +14,7 @@ import (
 
 func benchmarkCreate(packs, slots uint, b *testing.B) {
 	cfg := getTestCfg()
-	server, cleanup := getTestServer(cfg)
+	server, cleanup := getTestServer(cfg, false)
 	defer func() {
 		cleanup()
 	}()
@@ -23,7 +23,7 @@ func benchmarkCreate(packs, slots uint, b *testing.B) {
 	collection := makeTestCollection(int(packs * slots))
 
 	dReq := pds_http.ReqCreateDistribution{
-		DistID: 1,
+		DistID: common.FlowID{Int64: int64(1), Valid: true},
 		Issuer: addr,
 		PackTemplate: pds_http.PackTemplate{
 			PackReference: pds_http.AddressLocation{

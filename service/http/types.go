@@ -87,8 +87,8 @@ func ResDistributionFromApp(d *app.Distribution, s *app.Settlement) ResDistribut
 
 	settlement := SettlementStatus{}
 	if s != nil {
-		settlement.Settled = s.Settled
-		settlement.Total = s.Total
+		settlement.Settled = s.CurrentCount
+		settlement.Total = s.TotalCount
 	}
 
 	return ResDistribution{

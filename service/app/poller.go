@@ -7,8 +7,6 @@ import (
 	"time"
 
 	"github.com/flow-hydraulics/flow-pds/service/common"
-	"github.com/onflow/flow-go-sdk"
-	"github.com/onflow/flow-go-sdk/client"
 	"gorm.io/gorm"
 	"gorm.io/gorm/clause"
 )
@@ -22,7 +20,7 @@ func poller(app *App) {
 		case <-ticker.C:
 			// This is safe? to run as a separate goroutine since it does not lock the distributions table.
 			go func() {
-				handlePollerError("pollCirculatingPackContractEvents", pollCirculatingPackContractEvents(ctx, app.db, app.flowClient))
+				handlePollerError("pollCirculatingPackContractEvents", pollCirculatingPackContractEvents(ctx, app.db, app.contract))
 			}()
 
 			// These are _not_ safe to run separately as a goroutine since they lock the distributions table.
@@ -99,7 +97,7 @@ func handleSettling(ctx context.Context, db *gorm.DB, contract IContract) error 
 		}
 
 		for _, dist := range settling {
-			if err := contract.CheckSettlementStatus(ctx, tx, &dist); err != nil {
+			if err := contract.UpdateSettlementStatus(ctx, tx, &dist); err != nil {
 				return err
 			}
 		}
@@ -132,7 +130,7 @@ func handleMinting(ctx context.Context, db *gorm.DB, contract IContract) error {
 		}
 
 		for _, dist := range minting {
-			if err := contract.CheckMintingStatus(ctx, tx, &dist); err != nil {
+			if err := contract.UpdateMintingStatus(ctx, tx, &dist); err != nil {
 				return err
 			}
 		}
@@ -140,65 +138,19 @@ func handleMinting(ctx context.Context, db *gorm.DB, contract IContract) error {
 	})
 }
 
-func pollCirculatingPackContractEvents(ctx context.Context, db *gorm.DB, flowClient *client.Client) error {
-	eventNames := []string{
-		"RevealRequest",
-		"OpenPackRequest",
-		"Mint",
-	}
-
+func pollCirculatingPackContractEvents(ctx context.Context, db *gorm.DB, contract IContract) error {
 	return db.Transaction(func(tx *gorm.DB) error {
 		cc, err := listCirculatingPacks(tx)
 		if err != nil {
 			return err
 		}
 
-		latestBlock, err := flowClient.GetLatestBlock(ctx, true)
-		if err != nil {
-			return err
-		}
-
-		for i, c := range cc {
-			start := c.LastCheckedBlock + 1
-			end := min(latestBlock.Height, start+100)
-			if start > end {
-				continue
-			}
-
-			for _, eventName := range eventNames {
-				arr, err := flowClient.GetEventsForHeightRange(ctx, client.EventRangeQuery{
-					Type:        c.EventName(eventName),
-					StartHeight: start,
-					EndHeight:   end,
-				})
-				if err != nil {
-					return err
-				}
-
-				for _, be := range arr {
-					for _, e := range be.Events {
-						if err := handleCirculatingPackContractEvent(e); err != nil {
-							return err
-						}
-					}
-				}
-			}
-
-			// Make sure to refer the entry of the slice, not the 'c' in this closure
-			cc[i].LastCheckedBlock = end
-		}
-
-		if len(cc) > 0 {
-			if err := UpdateCirculatingPackContracts(tx, cc); err != nil {
+		for _, c := range cc {
+			if err := contract.UpdateCirculatingPack(ctx, tx, &c); err != nil {
 				return err
 			}
 		}
 
 		return nil
 	})
-}
-
-func handleCirculatingPackContractEvent(flow.Event) error {
-	// TODO (latenssi)
-	return nil
 }
