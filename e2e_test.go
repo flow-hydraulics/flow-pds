@@ -2,9 +2,9 @@ package main
 
 import (
 	"context"
+	"fmt"
 	"testing"
 	"time"
-    "fmt"
 
 	"github.com/bjartek/go-with-the-flow/v2/gwtf"
 	"github.com/flow-hydraulics/flow-pds/go-contracts/util"
@@ -22,6 +22,14 @@ func TestE2E(t *testing.T) {
 	}()
 
 	g := gwtf.NewGoWithTheFlow([]string{"./flow.json"}, "emulator", false, 3)
+
+	// s := "./cadence-scripts/packNFT/checksum.cdc"
+	// sd := util.ParseCadenceTemplate(s)
+	// h, err := g.ScriptFromFile(s, sd).RunReturns()
+	// if err != nil {
+	// 	t.Fatal(err)
+	// }
+	// fmt.Println(h)
 
 	// Setup exampleNFT collection for owner (for opening PackNFT)
 	setupExampleNFT := "./cadence-transactions/exampleNFT/setup_exampleNFT.cdc"
@@ -93,7 +101,7 @@ func TestE2E(t *testing.T) {
 	if err != nil {
 		t.Fatal(err)
 	}
-    fmt.Printf("Issuer Minted NFTS: %s", nftIDs.String())
+	fmt.Printf("Issuer Minted NFTS: %s", nftIDs.String())
 
 	arr, ok := nftIDs.(cadence.Array)
 	if !ok {
@@ -223,7 +231,7 @@ func TestE2E(t *testing.T) {
 
 	events = util.ParseTestEvents(e)
 	ownerAddr := util.GetAccountAddr(g, "owner")
-    // Onwer withdraw PackNFT from the collection, calls reveal on it and deposits back into their collection
+	// Onwer withdraw PackNFT from the collection, calls reveal on it and deposits back into their collection
 	util.NewExpectedPackNFTEvent("Withdraw").AddField("id", randomPackID.String()).AddField("from", ownerAddr).AssertEqual(t, events[0])
 	util.NewExpectedPackNFTEvent("RevealRequest").AddField("id", randomPackID.String()).AssertEqual(t, events[1])
 	util.NewExpectedPackNFTEvent("Deposit").AddField("id", randomPackID.String()).AddField("to", ownerAddr).AssertEqual(t, events[2])
@@ -233,7 +241,7 @@ func TestE2E(t *testing.T) {
 
 	// PDS backend submits revealed information
 
-    testSalt := "TestSalt"
+	testSalt := "TestSalt"
 	reveal := "./cadence-transactions/pds/reveal_packNFT.cdc"
 	revealCode := util.ParseCadenceTemplate(reveal)
 	e, err = g.TransactionFromFile(reveal, revealCode).
@@ -249,10 +257,10 @@ func TestE2E(t *testing.T) {
 
 	events = util.ParseTestEvents(e)
 	util.NewExpectedPackNFTEvent("Revealed").
-        AddField("id", randomPackID.String()).
-        AddField("nftIds", nftIDs.ToGoValue().([]interface{})).
-        AddField("salt", testSalt).
-        AssertEqual(t, events[0])
+		AddField("id", randomPackID.String()).
+		AddField("nftIds", nftIDs.ToGoValue().([]interface{})).
+		AddField("salt", testSalt).
+		AssertEqual(t, events[0])
 
 	// -- Retrieve --
 	// Owner requests to open PackNFT
@@ -268,25 +276,24 @@ func TestE2E(t *testing.T) {
 	}
 
 	events = util.ParseTestEvents(e)
-    // Onwer withdraw PackNFT from the collection, calls open on it and deposits back into their collection
+	// Onwer withdraw PackNFT from the collection, calls open on it and deposits back into their collection
 	util.NewExpectedPackNFTEvent("Withdraw").AddField("id", randomPackID.String()).AddField("from", ownerAddr).AssertEqual(t, events[0])
 	util.NewExpectedPackNFTEvent("OpenRequest").AddField("id", randomPackID.String()).AssertEqual(t, events[1])
 	util.NewExpectedPackNFTEvent("Deposit").AddField("id", randomPackID.String()).AddField("to", ownerAddr).AssertEqual(t, events[2])
 
+	// PDS backend submits open tx and  transfer escrow
 
-	// PDS backend submits open tx and  transfer escrow 
-
-    // NOTE: Not sure why if I just use nftIds we might get some missing NFTs
-    // suspect some nfts not settled, so just transfering what we have at the moment
-    // TODO: Get the correct nftIds as need to check with commitHash
+	// NOTE: Not sure why if I just use nftIds we might get some missing NFTs
+	// suspect some nfts not settled, so just transfering what we have at the moment
+	// TODO: Get the correct nftIds as need to check with commitHash
 	escrowedNFTs, err := g.ScriptFromFile(balanceExampleNFT, balanceExampleNFTCode).
 		AccountArgument("pds").RunReturns()
 	if err != nil {
 		t.Fatal(err)
 	}
-    fmt.Printf("Escrowed NFTS: %s", escrowedNFTs.String())
+	fmt.Printf("Escrowed NFTS: %s", escrowedNFTs.String())
 
-	open:= "./cadence-transactions/pds/open_packNFT.cdc"
+	open := "./cadence-transactions/pds/open_packNFT.cdc"
 	openCode := util.ParseCadenceTemplate(open)
 	e, err = g.TransactionFromFile(open, openCode).
 		SignProposeAndPayAs("pds").
@@ -299,11 +306,11 @@ func TestE2E(t *testing.T) {
 		t.Fatal(err)
 	}
 
-    // There are withdraw and deposit event for each nft being released from escrow
-    // So we only check the last event as "Opened"
-    l := len(escrowedNFTs.ToGoValue().([]interface{}))*2
+	// There are withdraw and deposit event for each nft being released from escrow
+	// So we only check the last event as "Opened"
+	l := len(escrowedNFTs.ToGoValue().([]interface{})) * 2
 	events = util.ParseTestEvents(e)
 	util.NewExpectedPackNFTEvent("Opened").
-        AddField("id", randomPackID.String()).
-        AssertEqual(t, events[l])
+		AddField("id", randomPackID.String()).
+		AssertEqual(t, events[l])
 }
