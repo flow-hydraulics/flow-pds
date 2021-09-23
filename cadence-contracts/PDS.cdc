@@ -12,6 +12,40 @@ pub contract PDS{
     pub let distCreatorPrivPath: PrivatePath
     pub let distManagerStoragePath: StoragePath
 
+    pub struct Collectible: IPackNFT.Collectible {
+        pub let address: Address
+        pub let contractName: String
+        pub let id: UInt64
+
+        // returning in string so that it is more readable and anyone can check the hash
+        pub fun hashString(): String {
+            // address string is 16 characters long with 0x as prefix (for 8 bytes in hex)
+            // example: ,f3fcd2c1a78f5ee.ExampleNFT.12
+            let c = ",A."
+            var a = ""
+            let addrStr = self.address.toString()
+            if addrStr.length < 18 {
+                let padding = 18 - addrStr.length
+                let p = "0"
+                var i = 0
+                a = addrStr.slice(from: 2, upTo: addrStr.length)
+                while i < padding {
+                    a = p.concat(a)
+                    i = i + 1
+                }
+            } else {
+                a = addrStr.slice(from: 2, upTo: 18)
+            }
+            var str = c.concat(a).concat(".").concat(self.contractName).concat(".").concat(self.id.toString())
+            return str
+        } 
+        init(address: Address, contractName: String, id: UInt64) {
+            self.address = address
+            self.contractName = contractName
+            self.id = id
+        }
+    }
+
     pub resource SharedCapabilities {
         access(self) let withdrawCap: Capability<&{NonFungibleToken.Provider}>
         access(self) let operatorCap: Capability<&{IPackNFT.IOperator}>
@@ -32,11 +66,12 @@ pub contract PDS{
             }
         }
         
-        pub fun revealPackNFT(packId: UInt64, nftIds: [UInt64], salt: String) {
+        pub fun revealPackNFT(packId: UInt64, nfts: [{IPackNFT.Collectible}], salt: String) {
             let c = self.operatorCap.borrow() ?? panic("no such cap")
-            c.reveal(id: packId, nftIds: nftIds, salt: salt)
+            c.reveal(id: packId, nfts: nfts, salt: salt)
         }
 
+        //TODO: add pub path(s)
         pub fun openPackNFT(packId: UInt64, nftIds: [UInt64], owner: Address) {
             let c = self.operatorCap.borrow() ?? panic("no such cap")
             PDS.releaseEscrow(nftIds: nftIds, owner: owner)
@@ -118,10 +153,22 @@ pub contract PDS{
             PDS.Distributions[distId] <-! d
         }
         
-        pub fun revealPackNFT(distId: UInt64, packId: UInt64, nftIds: [UInt64], salt: String){
+        pub fun revealPackNFT(distId: UInt64, packId: UInt64, nftContractAddrs: [Address], nftContractName: [String], nftIds: [UInt64], salt: String){
             assert(PDS.Distributions.containsKey(distId), message: "No such distribution")
+            assert(
+                nftContractAddrs.length == nftContractName.length && 
+                nftContractName.length == nftIds.length, 
+                message: "NFTs must be fully described"
+            )
             let d <- PDS.Distributions.remove(key: distId)!
-            d.revealPackNFT(packId: packId, nftIds: nftIds, salt: salt)
+            let arr: [{IPackNFT.Collectible}] = []
+            var i = 0
+            while i < nftContractAddrs.length {
+                let s = Collectible(address: nftContractAddrs[i], contractName: nftContractName[i], id: nftIds[i])
+                arr.append(s)
+                i = i + 1
+            }
+            d.revealPackNFT(packId: packId, nfts: arr, salt: salt)
             PDS.Distributions[distId] <-! d
         }
 
@@ -142,6 +189,7 @@ pub contract PDS{
         return pdsCollection
     }
     
+    // TODO remove ExampleNFT
     access(contract) fun releaseEscrow(nftIds: [UInt64], owner: Address) {
         let pdsCollection = self.account.borrow<&ExampleNFT.Collection>(from: ExampleNFT.CollectionStoragePath) ?? panic("cannot find escrow collection")
         let recvAcct = getAccount(owner)

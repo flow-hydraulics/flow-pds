@@ -254,8 +254,24 @@ func TestE2E(t *testing.T) {
 	}
 	randomPackNftNamesArr := cadence.NewArray(randomPackNftNames)
 
+	// Parse the collectible Address in the pack
+	randomPackNftAddrs := make([]cadence.Value, len(randomPack.Collectibles))
+	for i, c := range randomPack.Collectibles {
+		randomPackNftAddrs[i] = cadence.Address(c.ContractReference.Address)
+	}
+	randomPackNftAddrsArr := cadence.NewArray(randomPackNftAddrs)
+
+	// Parse the collectible ContractName in the pack
+	randomPackNftCNames := make([]cadence.Value, len(randomPack.Collectibles))
+	for i, c := range randomPack.Collectibles {
+		randomPackNftCNames[i] = cadence.String(c.ContractReference.Name)
+	}
+	randomPackNftCNamesArr := cadence.NewArray(randomPackNftCNames)
+
 	fmt.Println("Pack contents:")
 	fmt.Println("IDs", randomPackNftIDsArr)
+	fmt.Println("Addrs", randomPackNftAddrsArr)
+	fmt.Println("ContractNames", randomPackNftCNamesArr)
 	fmt.Println("Names", randomPackNftNamesArr)
 
 	// PDS backend submits revealed information
@@ -265,6 +281,8 @@ func TestE2E(t *testing.T) {
 		SignProposeAndPayAs("pds").
 		Argument(currentDistId).
 		Argument(randomPackID).
+		Argument(randomPackNftAddrsArr).
+		Argument(randomPackNftCNamesArr).
 		Argument(randomPackNftIDsArr).
 		StringArgument(randomPack.Salt.String()).
 		RunE()
@@ -275,7 +293,6 @@ func TestE2E(t *testing.T) {
 	events = util.ParseTestEvents(e)
 	util.NewExpectedPackNFTEvent("Revealed").
 		AddField("id", randomPackID.String()).
-		AddField("nftIds", randomPackNftIDsArr.ToGoValue().([]interface{})).
 		AddField("salt", randomPack.Salt.String()).
 		AssertEqual(t, events[0])
 

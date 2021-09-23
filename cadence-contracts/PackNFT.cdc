@@ -16,7 +16,7 @@ pub contract PackNFT: NonFungibleToken, IPackNFT {
 
     pub event RevealRequest(id: UInt64)
     pub event OpenRequest(id: UInt64) 
-    pub event Revealed(id: UInt64, nftIds: [UInt64], salt: String)
+    pub event Revealed(id: UInt64, salt: String)
     pub event Opened(id: UInt64)
     pub event Mint(id: UInt64, commitHash: String) 
     pub event ContractInitialized()
@@ -39,9 +39,9 @@ pub contract PackNFT: NonFungibleToken, IPackNFT {
             emit Mint(id: id, commitHash: commitHash)
          }
 
-        pub fun reveal(id: UInt64, nftIds: [UInt64], salt: String) {
+        pub fun reveal(id: UInt64, nfts: [{IPackNFT.Collectible}], salt: String) {
             let p <- PackNFT.packs.remove(key: id) ?? panic("no such pack")
-            p.reveal(id: id, nftIds: nftIds, salt: salt)
+            p.reveal(id: id, nfts: nfts, salt: salt)
             PackNFT.packs[id] <-! p
         }
 
@@ -59,7 +59,7 @@ pub contract PackNFT: NonFungibleToken, IPackNFT {
         pub let issuer: Address 
         pub var status: String
         pub var salt: String?
-        access(self) let NFTIds: [UInt64]
+        access(self) let NFTs: [{IPackNFT.Collectible}]
         
         pub fun getCommitHash(): String {
             return self.commitHash
@@ -67,29 +67,56 @@ pub contract PackNFT: NonFungibleToken, IPackNFT {
 
         // public verify commitHash
         pub fun verify(): Bool {
-            return self._verify(nftIds: self.NFTIds, salt: self.salt!)
+            return self._verify(nfts: self.NFTs, salt: self.salt!, commitHash: self.commitHash)
         }
 
-        pub fun getNftIds():  [UInt64]{
-            return self.NFTIds
+        pub fun getNfts():  [String]{
+            let nameArr: [String] = []
+            var i = 0 
+            while i < self.NFTs.length {
+                nameArr.append(self.NFTs[i].hashString()) 
+                i = i + 1
+            }
+            return nameArr 
         }
+
         pub fun getSalt(): String? {
             return self.salt
         }
         
         // TODO
-        access(self) fun _verify(nftIds: [UInt64], salt: String): Bool {
-            // use HashAlgorithm.SHA2_256.hash()
-            return true
+        access(self) fun _verify(nfts: [{IPackNFT.Collectible}], salt: String, commitHash: String): Bool {
+            var i = 0 
+            var hashString = salt 
+            while i < nfts.length {
+                let s = nfts[i].hashString()
+                log(s)
+                hashString = hashString.concat(s) 
+                i = i + 1
+            }
+            let hash = HashAlgorithm.SHA2_256.hash(hashString.utf8)
+
+            log("HashString")
+            log(hashString)
+            log("given hash")
+            log(commitHash)
+            log("calc hash")
+            log(String.encodeHex(hash))
+
+            if commitHash != String.encodeHex(hash) {
+                return false
+            } else {
+                return true
+            }
         }
         
-        access(contract) fun reveal(id: UInt64, nftIds: [UInt64], salt: String) {
-            let v = self._verify(nftIds: nftIds, salt: salt)
+        access(contract) fun reveal(id: UInt64, nfts: [{IPackNFT.Collectible}], salt: String) {
+            let v = self._verify(nfts: nfts, salt: salt, commitHash: self.commitHash)
             if v {
-                self.NFTIds.appendAll(nftIds)
+                self.NFTs.appendAll(nfts)
                 self.salt = salt 
                 self.status = "Revealed"
-                emit Revealed(id: id, nftIds: nftIds, salt: salt)
+                emit Revealed(id: id, salt: salt)
             } else {
                 panic("commitHash was not verified")
 
@@ -106,7 +133,7 @@ pub contract PackNFT: NonFungibleToken, IPackNFT {
             self.issuer = issuer
             self.status = status
             self.salt = nil
-            self.NFTIds = []
+            self.NFTs = []
         }
     }
 
