@@ -14,7 +14,7 @@ import (
 	"gorm.io/gorm"
 )
 
-const SALT_LENGTH = 8
+const SALT_LENGTH = 8 // TODO (latenssi): is this ok?
 const HASH_DELIM = ","
 
 type Distribution struct {
@@ -273,14 +273,20 @@ func (p *Pack) SetCommitmentHash() error {
 	return nil
 }
 
+// Hash outputs the 'commitmentHash' of a pack.
+// It is converting inputs to string and joining them with a delim to make the input more readable.
+// This will allow anyone to easily copy paste strings and verify the hash.
+// We also use the full reference (address and name) of a collectible to make
+// it more difficult to fiddle with the types of collectibles inside a pack.
 func (p *Pack) Hash() []byte {
 	inputs := make([]string, 1+len(p.Collectibles))
 	inputs[0] = hex.EncodeToString(p.Salt)
 	for i, c := range p.Collectibles {
-		inputs[i+1] = c.String()
+		inputs[i+1] = fmt.Sprintf("A.%s.%s.%d", c.ContractReference.Address, c.ContractReference.Name, c.FlowID.Int64)
 	}
-	h := sha256.Sum256([]byte(strings.Join(inputs, HASH_DELIM)))
-	return h[:]
+	input := strings.Join(inputs, HASH_DELIM)
+	hash := sha256.Sum256([]byte(input))
+	return hash[:]
 }
 
 // Seal should set the FlowID of the pack and set it as sealed
