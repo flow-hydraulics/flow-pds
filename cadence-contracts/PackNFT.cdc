@@ -12,12 +12,29 @@ pub contract PackNFT: NonFungibleToken, IPackNFT {
     pub let operatorStoragePath: StoragePath 
     pub let operatorPrivPath: PrivatePath 
 
+    // TODO replace content
+    pub resource PackContent {
+        access(self) let NFTIds: [UInt64]
+        access(self) let salt: String 
+        
+        pub fun getNFTIds():  [UInt64]{
+            return self.NFTIds
+        }
+        pub fun getSalt(): String {
+            return self.salt
+        }
+        init(NFTIds: [UInt64], salt: String) {
+            // TODO: check Hash 
+            self.NFTIds = NFTIds
+            self.salt = salt
+        }
+    }
     access(contract) let status: {UInt64: String}
     access(contract) let content: {UInt64: [UInt64]}
 
     pub event RevealRequest(id: UInt64)
     pub event OpenRequest(id: UInt64) 
-    pub event Revealed(id: UInt64, nftIds: [UInt64])
+    pub event Revealed(id: UInt64, nftIds: [UInt64], salt: String)
     pub event Opened(id: UInt64)
     pub event Mint(id: UInt64, commitHash: String) 
     pub event ContractInitialized()
@@ -38,8 +55,8 @@ pub contract PackNFT: NonFungibleToken, IPackNFT {
             emit Mint(id: id, commitHash: commitHash)
          }
 
-        pub fun reveal(id: UInt64, nftIds: [UInt64]) {
-            PackNFT.reveal(id: id, nftIds: nftIds)
+        pub fun reveal(id: UInt64, nftIds: [UInt64], salt: String) {
+            PackNFT.reveal(id: id, nftIds: nftIds, salt: salt)
         }
 
         pub fun open(id: UInt64) {
@@ -134,10 +151,11 @@ pub contract PackNFT: NonFungibleToken, IPackNFT {
         emit OpenRequest(id: id)
     }
 
-    access(contract) fun reveal(id: UInt64, nftIds: [UInt64]) {
+    access(contract) fun reveal(id: UInt64, nftIds: [UInt64], salt: String) {
+        // TODO: Check hashes with salt
         self.status[id] = "Revealed"
         self.content.insert(key: id, nftIds)
-        emit Revealed(id: id, nftIds: nftIds)
+        emit Revealed(id: id, nftIds: nftIds, salt: salt)
     }
 
     access(contract) fun open(id: UInt64) {

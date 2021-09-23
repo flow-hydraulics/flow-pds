@@ -32,7 +32,7 @@ pub contract interface IPackNFT{
     /// Revealed
     /// 
     /// Emitted when a packNFT has been revealed
-    pub event Revealed(id: UInt64, nftIds: [UInt64])
+    pub event Revealed(id: UInt64, nftIds: [UInt64], salt: String)
     /// Opened
     ///
     /// Emitted when a packNFT has been opened
@@ -41,7 +41,10 @@ pub contract interface IPackNFT{
     /// Public function to get status
     pub fun getStatus(id: UInt64): String?
 
-    access(contract) fun reveal(id: UInt64, nftIds: [UInt64]) {
+    access(contract) fun revealRequest(id: UInt64)
+    access(contract) fun openRequest(id: UInt64)
+
+    access(contract) fun reveal(id: UInt64, nftIds: [UInt64], salt: String) {
         pre {
             self.status[id] == "Sealed": "PackNFT not sealed"
         }
@@ -63,12 +66,12 @@ pub contract interface IPackNFT{
     
     pub resource interface IOperator {
         pub fun mint(commitHash: String, issuer: Address)
-        pub fun reveal(id: UInt64, nftIds: [UInt64])
+        pub fun reveal(id: UInt64, nftIds: [UInt64], salt: String)
         pub fun open(id: UInt64) 
     }
     pub resource PackNFTOperator: IOperator {
         pub fun mint(commitHash: String, issuer: Address)
-        pub fun reveal(id: UInt64, nftIds: [UInt64])
+        pub fun reveal(id: UInt64, nftIds: [UInt64], salt: String)
         pub fun open(id: UInt64) 
     }
 

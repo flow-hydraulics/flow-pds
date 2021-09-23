@@ -32,15 +32,15 @@ pub contract PDS{
             }
         }
         
-        pub fun revealPackNFT(packNFTId: UInt64, nftIds: [UInt64]) {
+        pub fun revealPackNFT(packId: UInt64, nftIds: [UInt64], salt: String) {
             let c = self.operatorCap.borrow() ?? panic("no such cap")
-            c.reveal(id: packNFTId, nftIds: nftIds)
+            c.reveal(id: packId, nftIds: nftIds, salt: salt)
         }
 
-        pub fun openPackNFT(packNFTId: UInt64, nftIds: [UInt64], owner: Address) {
+        pub fun openPackNFT(packId: UInt64, nftIds: [UInt64], owner: Address) {
             let c = self.operatorCap.borrow() ?? panic("no such cap")
             PDS.releaseEscrow(nftIds: nftIds, owner: owner)
-            c.open(id: packNFTId)
+            c.open(id: packId)
         }
         
 
@@ -118,10 +118,17 @@ pub contract PDS{
             PDS.Distributions[distId] <-! d
         }
         
-        pub fun revealPackNFT(distId: UInt64, packNFTId: UInt64, nftIds: [UInt64]){
+        pub fun revealPackNFT(distId: UInt64, packId: UInt64, nftIds: [UInt64], salt: String){
             assert(PDS.Distributions.containsKey(distId), message: "No such distribution")
             let d <- PDS.Distributions.remove(key: distId)!
-            d.revealPackNFT(packNFTId: packNFTId, nftIds: nftIds)
+            d.revealPackNFT(packId: packId, nftIds: nftIds, salt: salt)
+            PDS.Distributions[distId] <-! d
+        }
+
+        pub fun openPackNFT(distId: UInt64, packId: UInt64, nftIds: [UInt64], owner: Address){
+            assert(PDS.Distributions.containsKey(distId), message: "No such distribution")
+            let d <- PDS.Distributions.remove(key: distId)!
+            d.openPackNFT(packId: packId, nftIds: nftIds, owner: owner)
             PDS.Distributions[distId] <-! d
         }
 
@@ -140,8 +147,11 @@ pub contract PDS{
         let recvAcct = getAccount(owner)
         let recv = recvAcct.getCapability(ExampleNFT.CollectionPublicPath).borrow<&{NonFungibleToken.CollectionPublic}>()
             ?? panic("Unable to borrow Collection Public reference for recipient")
+        log("releasing escrow")
+        log(nftIds)
         var i = 0
         while i < nftIds.length {
+            log(nftIds[i])
             recv.deposit(token: <- pdsCollection.withdraw(withdrawID: nftIds[i]))
             i = i + 1
         }
