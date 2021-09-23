@@ -11,11 +11,11 @@ transaction(NFTProviderPath: PrivatePath) {
         // issuer must have a PackNFT collection
         log(NFTProviderPath)
         let withdrawCap = issuer.getCapability<&{NonFungibleToken.Provider}>(NFTProviderPath);
-        let mintCap = issuer.getCapability<&{IPackNFT.IMinter}>(PackNFT.minterPrivPath);
+        let operatorCap = issuer.getCapability<&{IPackNFT.IOperator}>(PackNFT.operatorPrivPath);
         assert(withdrawCap.check(), message:  "cannot borrow withdraw capability") 
-        assert(mintCap.check(), message:  "cannot borrow mint capability") 
+        assert(operatorCap.check(), message:  "cannot borrow operator capability") 
 
-        let sc <- PDS.createSharedCapabilities ( withdrawCap: withdrawCap, mintCap: mintCap )
+        let sc <- PDS.createSharedCapabilities ( withdrawCap: withdrawCap, operatorCap: operatorCap )
         i.create(sharedCap: <-sc)
     } 
 }

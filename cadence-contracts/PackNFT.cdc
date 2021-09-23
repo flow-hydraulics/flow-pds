@@ -9,49 +9,22 @@ pub contract PackNFT: NonFungibleToken, IPackNFT {
     pub let collectionStoragePath: StoragePath 
     pub let collectionPublicPath: PublicPath 
     pub let collectionIPackNFTPublicPath: PublicPath
-    pub let minterStoragePath: StoragePath 
-    pub let minterPrivPath: PrivatePath 
-    pub let minterProxyStoragePath: StoragePath 
-    pub let minterProxyMintCapRecv: PublicPath 
+    pub let operatorStoragePath: StoragePath 
+    pub let operatorPrivPath: PrivatePath 
 
     access(contract) let status: {UInt64: String}
+    access(contract) let content: {UInt64: [UInt64]}
 
     pub event RevealRequest(id: UInt64)
-    pub event OpenPackRequest(id: UInt64) 
+    pub event OpenRequest(id: UInt64) 
+    pub event Revealed(id: UInt64, nftIds: [UInt64])
+    pub event Opened(id: UInt64)
     pub event Mint(id: UInt64, commitHash: String) 
     pub event ContractInitialized()
     pub event Withdraw(id: UInt64, from: Address?)
     pub event Deposit(id: UInt64, to: Address?)
 
-    /// MintCapReceiver
-    ///
-    /// This must be linked Publicly so that the PackNFTMinter owner (issuer) can have access to set this
-    pub resource interface MintCapReceiver {
-        pub fun setMintCap(mintCap: Capability<&PackNFTMinter{IPackNFT.IMinter}>) 
-    }
-    
-    // TODO: remove as capabilities directly shared in PDS.SharedCapabilities
-    pub resource PDSMinterProxy: MintCapReceiver {
-        access(self) var mintCap:  Capability<&PackNFTMinter{IPackNFT.IMinter}>?
-        
-        pub fun setMintCap(mintCap: Capability<&PackNFTMinter{IPackNFT.IMinter}>) {
-            pre {
-                mintCap.borrow() != nil: "Invalid MintCap capability"
-            }
-            self.mintCap = mintCap
-        }
-
-        pub fun mint(commitHash: String, issuer: Address){
-           let cap = self.mintCap!.borrow()!
-           cap.mint(commitHash: commitHash, issuer: issuer)
-        }
-
-        init(){
-            self.mintCap = nil
-        }
-    }
-
-    pub resource PackNFTMinter: IPackNFT.IMinter {
+    pub resource PackNFTOperator: IPackNFT.IOperator {
          pub fun mint(commitHash: String, issuer: Address) {
             let id = PackNFT.totalSupply
             let pack <- create NFT(initID: id, commitHash: commitHash, issuer: issuer)
@@ -62,25 +35,31 @@ pub contract PackNFT: NonFungibleToken, IPackNFT {
 
             recv.deposit(token: <- pack)
             PackNFT.status.insert(key: id, "Sealed")
-            log("Minted")
-            log(id)
             emit Mint(id: id, commitHash: commitHash)
          }
+
+        pub fun reveal(id: UInt64, nftIds: [UInt64]) {
+            PackNFT.reveal(id: id, nftIds: nftIds)
+        }
+
+        pub fun open(id: UInt64) {
+            PackNFT.open(id: id)
+        }
 
          init(){}
     }
     
-    pub resource NFT: NonFungibleToken.INFT, IPackNFT.IPackNFTToken, IPackNFT.IPackNFTOperator {
+    pub resource NFT: NonFungibleToken.INFT, IPackNFT.IPackNFTToken, IPackNFT.IPackNFTOwnerOperator {
         pub let id: UInt64
         pub let commitHash: String
         pub let issuer: Address
 
         pub fun reveal(){
-            PackNFT.reveal(id: self.id)
+            PackNFT.revealRequest(id: self.id)
         }
         
         pub fun open(){
-            PackNFT.open(id: self.id)
+            PackNFT.openRequest(id: self.id)
         }
 
         init(initID: UInt64, commitHash: String, issuer: Address ) {
@@ -147,24 +126,30 @@ pub contract PackNFT: NonFungibleToken, IPackNFT {
         }
     }
     
-    access(contract) fun reveal(id: UInt64) {
-        self.status[id] = "Revealed"
+    access(contract) fun revealRequest(id: UInt64 ) {
         emit RevealRequest(id: id)
     }
-    
+
+    access(contract) fun openRequest(id: UInt64) {
+        emit OpenRequest(id: id)
+    }
+
+    access(contract) fun reveal(id: UInt64, nftIds: [UInt64]) {
+        self.status[id] = "Revealed"
+        self.content.insert(key: id, nftIds)
+        emit Revealed(id: id, nftIds: nftIds)
+    }
+
     access(contract) fun open(id: UInt64) {
         self.status[id] = "Opened"
-        emit OpenPackRequest(id: id)
+        emit Opened(id: id)
     }
+    
     
     pub fun getStatus(id: UInt64): String? {
         return self.status[id]
     }
     
-    pub fun createNewMinterProxy(): @PDSMinterProxy {
-        return <- create PDSMinterProxy()
-    }
-
     pub fun createEmptyCollection(): @NonFungibleToken.Collection {
         let c <- create Collection()
         return <- c
@@ -175,21 +160,18 @@ pub contract PackNFT: NonFungibleToken, IPackNFT {
         collectionStoragePath: StoragePath,
         collectionPublicPath: PublicPath,
         collectionIPackNFTPublicPath: PublicPath,
-        minterStoragePath: StoragePath,
-        minterPrivPath: PrivatePath,
-        minterProxyStoragePath: StoragePath,
-        minterProxyMintCapRecv: PublicPath,
+        operatorStoragePath: StoragePath,
+        operatorPrivPath: PrivatePath,
         version: String
     ){
         self.totalSupply = 0
         self.status = {}
+        self.content = {}
         self.collectionStoragePath = collectionStoragePath
         self.collectionPublicPath = collectionPublicPath
         self.collectionIPackNFTPublicPath = collectionIPackNFTPublicPath
-        self.minterStoragePath = minterStoragePath
-        self.minterPrivPath = minterPrivPath
-        self.minterProxyStoragePath = minterProxyStoragePath
-        self.minterProxyMintCapRecv = minterProxyMintCapRecv
+        self.operatorStoragePath = operatorStoragePath
+        self.operatorPrivPath = operatorPrivPath
         self.version = version
 
         // Create a collection to receive Pack NFTs
@@ -198,10 +180,10 @@ pub contract PackNFT: NonFungibleToken, IPackNFT {
         adminAccount.link<&Collection{NonFungibleToken.CollectionPublic}>(self.collectionPublicPath, target: self.collectionStoragePath)
         adminAccount.link<&Collection{IPackNFT.IPackNFTCollection}>(self.collectionIPackNFTPublicPath, target: self.collectionStoragePath)
 
-        // Create a minter to share mint capability with proxy 
-        let minter <- create PackNFTMinter()
-        adminAccount.save(<-minter, to: self.minterStoragePath)
-        adminAccount.link<&PackNFTMinter{IPackNFT.IMinter}>(self.minterPrivPath, target: self.minterStoragePath)
+        // Create a operator to share mint capability with proxy 
+        let operator <- create PackNFTOperator()
+        adminAccount.save(<-operator, to: self.operatorStoragePath)
+        adminAccount.link<&PackNFTOperator{IPackNFT.IOperator}>(self.operatorPrivPath, target: self.operatorStoragePath)
     }
 
 }

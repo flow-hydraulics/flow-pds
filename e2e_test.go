@@ -201,7 +201,7 @@ func TestE2E(t *testing.T) {
 	// -- Reveal --
 	// Owner requests to reveal PackNFT
 
-	reveal := "./cadence-transactions/packNFT/reveal.cdc"
+	reveal := "./cadence-transactions/packNFT/reveal_request.cdc"
 	revealCode := util.ParseCadenceTemplate(reveal)
 	e, err = g.TransactionFromFile(reveal, revealCode).
 		SignProposeAndPayAs("owner").
@@ -220,5 +220,8 @@ func TestE2E(t *testing.T) {
 	// Wait a moment to let reveal to be noticed
 	time.Sleep(time.Second * 1)
 
+	// PDS backend submits revealed information
+
 	// -- Retrieve --
+
 }

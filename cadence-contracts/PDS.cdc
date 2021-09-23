@@ -1,6 +1,5 @@
-// import NonFungibleToken from "./NonFungibleToken.cdc" 
-// import IPackNFT from "./IPackNFT.cdc" 
 import NonFungibleToken from 0x{{.NonFungibleToken}} 
+import ExampleNFT from 0x{{.ExampleNFT}}
 import IPackNFT from 0x{{.IPackNFT}} 
 
 pub contract PDS{
@@ -15,7 +14,7 @@ pub contract PDS{
 
     pub resource SharedCapabilities {
         access(self) let withdrawCap: Capability<&{NonFungibleToken.Provider}>
-        access(self) let mintCap: Capability<&{IPackNFT.IMinter}>
+        access(self) let operatorCap: Capability<&{IPackNFT.IOperator}>
 
         pub fun withdrawFromIssuer(withdrawID: UInt64): @NonFungibleToken.NFT {
             let c = self.withdrawCap.borrow() ?? panic("no such cap")
@@ -26,27 +25,32 @@ pub contract PDS{
         // this is also used in storing inside the NFT though
         pub fun mintPackNFT(commitHashes: [String], issuer: Address){
             var i = 0
-            let c = self.mintCap.borrow() ?? panic("no such cap")
+            let c = self.operatorCap.borrow() ?? panic("no such cap")
             while i < commitHashes.length{
                 c.mint(commitHash: commitHashes[i], issuer: issuer)
                 i = i + 1
             }
         }
         
-        pub fun revealPackNFT(packNFTId: UInt64) {
-            
+        pub fun revealPackNFT(packNFTId: UInt64, nftIds: [UInt64]) {
+            let c = self.operatorCap.borrow() ?? panic("no such cap")
+            c.reveal(id: packNFTId, nftIds: nftIds)
         }
-        
+
+        pub fun openPackNFT(packNFTId: UInt64, nftIds: [UInt64], owner: Address) {
+            let c = self.operatorCap.borrow() ?? panic("no such cap")
+            PDS.releaseEscrow(nftIds: nftIds, owner: owner)
+            c.open(id: packNFTId)
+        }
         
 
         init(
             withdrawCap: Capability<&{NonFungibleToken.Provider}>
-            mintCap: Capability<&{IPackNFT.IMinter}>
-            revealPack: Capability<&{IPackNFT.IMinter}>
+            operatorCap: Capability<&{IPackNFT.IOperator}>
 
         ){
             self.withdrawCap = withdrawCap
-            self.mintCap = mintCap
+            self.operatorCap = operatorCap
         }
     }
 
@@ -94,7 +98,6 @@ pub contract PDS{
     }
     
     pub resource DistributionManager {
-        // TODO: set state on PackNFT
         pub fun withdraw(distId: UInt64, nftIDs: [UInt64], escrowCollectionPublic: PublicPath) {
             assert(PDS.Distributions.containsKey(distId), message: "No such distribution")
             let d <- PDS.Distributions.remove(key: distId)!
@@ -108,7 +111,6 @@ pub contract PDS{
             PDS.Distributions[distId] <-! d
         }
         
-        // TODO: set state on PackNFT, maybe remove issuer (need backend discussion)
         pub fun mintPackNFT(distId: UInt64, commitHashes: [String], issuer: Address){
             assert(PDS.Distributions.containsKey(distId), message: "No such distribution")
             let d <- PDS.Distributions.remove(key: distId)!
@@ -116,10 +118,10 @@ pub contract PDS{
             PDS.Distributions[distId] <-! d
         }
         
-        pub fun revealPackNFT(distId: UInt64, packNFTId: UInt64){
+        pub fun revealPackNFT(distId: UInt64, packNFTId: UInt64, nftIds: [UInt64]){
             assert(PDS.Distributions.containsKey(distId), message: "No such distribution")
             let d <- PDS.Distributions.remove(key: distId)!
-            d.revealPackNFT(packNFTId: packNFTID)
+            d.revealPackNFT(packNFTId: packNFTId, nftIds: nftIds)
             PDS.Distributions[distId] <-! d
         }
 
@@ -133,19 +135,32 @@ pub contract PDS{
         return pdsCollection
     }
     
+    access(contract) fun releaseEscrow(nftIds: [UInt64], owner: Address) {
+        let pdsCollection = self.account.borrow<&ExampleNFT.Collection>(from: ExampleNFT.CollectionStoragePath) ?? panic("cannot find escrow collection")
+        let recvAcct = getAccount(owner)
+        let recv = recvAcct.getCapability(ExampleNFT.CollectionPublicPath).borrow<&{NonFungibleToken.CollectionPublic}>()
+            ?? panic("Unable to borrow Collection Public reference for recipient")
+        var i = 0
+        while i < nftIds.length {
+            recv.deposit(token: <- pdsCollection.withdraw(withdrawID: nftIds[i]))
+            i = i + 1
+        }
+    }
+
     pub fun createPackIssuer (): @PackIssuer{
         return <- create PackIssuer()
     }
 
     pub fun createSharedCapabilities (
             withdrawCap: Capability<&{NonFungibleToken.Provider}>
-            mintCap: Capability<&{IPackNFT.IMinter}>
+            operatorCap: Capability<&{IPackNFT.IOperator}>
     ): @SharedCapabilities{
         return <- create SharedCapabilities(
             withdrawCap: withdrawCap,
-            mintCap: mintCap
+            operatorCap: operatorCap
         )
     }
+
     
     init(
         adminAccount: AuthAccount,
