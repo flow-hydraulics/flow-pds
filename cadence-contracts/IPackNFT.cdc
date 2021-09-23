@@ -3,14 +3,6 @@ import NonFungibleToken from "./NonFungibleToken.cdc"
 
 
 pub contract interface IPackNFT{
-    /// Status of the PackNFTs
-    /// 
-    /// map of pack Id : Status {"Sealed", "Revealed", "Opened"}
-    access(contract) let status: {UInt64: String}
-    /// Content of the PackNFTs
-    ///
-    ///  map of pack Id : nftIds 
-    access(contract) let content: {UInt64: [UInt64]}
     /// StoragePath for Collection Resource
     /// 
     pub let collectionStoragePath: StoragePath 
@@ -38,31 +30,10 @@ pub contract interface IPackNFT{
     /// Emitted when a packNFT has been opened
     pub event Opened(id: UInt64)
 
-    /// Public function to get status
-    pub fun getStatus(id: UInt64): String?
-
     access(contract) fun revealRequest(id: UInt64)
     access(contract) fun openRequest(id: UInt64)
 
-    access(contract) fun reveal(id: UInt64, nftIds: [UInt64], salt: String) {
-        pre {
-            self.status[id] == "Sealed": "PackNFT not sealed"
-        }
-        post {
-            self.status[id] == "Revealed": "PackNFT status must be Revealed"
-            self.content.containsKey(id) : "Revealed data must be recorded"
-        }
-    }
-    
-    access(contract) fun open(id: UInt64) {
-        pre {
-            self.status[id] == "Revealed": "PackNFT not yet revealed"
-        }
-        post {
-            self.status[id] == "Opened": "PackNFT status must be Opened"
-        }
-        
-    }
+    // TODO Pack resource
     
     pub resource interface IOperator {
         pub fun mint(commitHash: String, issuer: Address)
