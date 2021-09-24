@@ -106,14 +106,20 @@ func (c *Contract) StartSettlement(ctx context.Context, db *gorm.DB, dist *Distr
 	}
 
 	// TODO (latenssi): this only handles ExampleNFTs currently
-	if err := flow_helpers.SendTransactionAs(
+	tx, err := flow_helpers.PrepareTransactionAs(
 		ctx,
 		c.flowClient,
 		c.account,
 		latestBlock,
 		arguments,
 		"./cadence-transactions/pds/settle_exampleNFT.cdc",
-	); err != nil {
+	)
+
+	if err != nil {
+		return err
+	}
+
+	if err := c.flowClient.SendTransaction(ctx, *tx); err != nil {
 		return err
 	}
 
@@ -176,14 +182,20 @@ func (c *Contract) StartMinting(ctx context.Context, db *gorm.DB, dist *Distribu
 		cadence.Address(dist.Issuer),
 	}
 
-	if err := flow_helpers.SendTransactionAs(
+	tx, err := flow_helpers.PrepareTransactionAs(
 		ctx,
 		c.flowClient,
 		c.account,
 		latestBlock,
 		arguments,
 		"./cadence-transactions/pds/mint_packNFT.cdc",
-	); err != nil {
+	)
+
+	if err != nil {
+		return err
+	}
+
+	if err := c.flowClient.SendTransaction(ctx, *tx); err != nil {
 		return err
 	}
 
@@ -378,6 +390,8 @@ func (c *Contract) UpdateCirculatingPack(ctx context.Context, db *gorm.DB, cpc *
 		return nil
 	}
 
+	contractRef := AddressLocation{Name: cpc.Name, Address: cpc.Address}
+
 	for _, eventName := range eventNames {
 		arr, err := c.flowClient.GetEventsForHeightRange(ctx, client.EventRangeQuery{
 			Type:        cpc.EventName(eventName),
@@ -390,30 +404,118 @@ func (c *Contract) UpdateCirculatingPack(ctx context.Context, db *gorm.DB, cpc *
 
 		for _, be := range arr {
 			for _, e := range be.Events {
+				// TODO (latenssi): consider separating this one db transaction ("db")
+
 				flowID, err := common.FlowIDFromCadence(e.Value.Fields[0])
 				if err != nil {
 					return err
 				}
 
-				pack, err := GetPackByContractAndFlowID(db, AddressLocation{Name: cpc.Name, Address: cpc.Address}, flowID)
+				pack, err := GetPackByContractAndFlowID(db, contractRef, flowID)
 				if err != nil {
 					return err
 				}
 
 				switch eventName {
 				case REVEAL_REQUEST:
-					fmt.Println("Reveal pack:", pack.ID)
 					if err := pack.Reveal(); err != nil {
 						return err
 					}
+
+					distribution, err := GetDistribution(db, pack.DistributionID)
+					if err != nil {
+						return err
+					}
+
+					collectibleCount := len(pack.Collectibles)
+
+					collectibleContractAddresses := make([]cadence.Value, collectibleCount)
+					collectibleContractNames := make([]cadence.Value, collectibleCount)
+					collectibleIDs := make([]cadence.Value, collectibleCount)
+
+					for i, c := range pack.Collectibles {
+						collectibleContractAddresses[i] = cadence.Address(c.ContractReference.Address)
+						collectibleContractNames[i] = cadence.String(c.ContractReference.Name)
+						collectibleIDs[i] = cadence.UInt64(c.FlowID.Int64)
+					}
+
+					arguments := []cadence.Value{
+						cadence.UInt64(distribution.DistID.Int64),
+						cadence.UInt64(pack.FlowID.Int64),
+						cadence.NewArray(collectibleContractAddresses),
+						cadence.NewArray(collectibleContractNames),
+						cadence.NewArray(collectibleIDs),
+						cadence.String(pack.Salt.String()),
+					}
+
+					tx, err := flow_helpers.PrepareTransactionAs(
+						ctx,
+						c.flowClient,
+						c.account,
+						latestBlock,
+						arguments,
+						"./cadence-transactions/pds/reveal_packNFT.cdc",
+					)
+
+					if err != nil {
+						return err
+					}
+
+					if err := c.flowClient.SendTransaction(ctx, *tx); err != nil {
+						return err
+					}
+
 					if err := UpdatePack(db, pack); err != nil {
 						return err
 					}
+
 				case OPEN_REQUEST:
-					fmt.Println("Open pack:", pack.ID)
 					if err := pack.Open(); err != nil {
 						return err
 					}
+
+					// Get the owner of the pack from the transaction that emitted the open request event
+					t, err := c.flowClient.GetTransaction(ctx, e.TransactionID)
+					if err != nil {
+						return err
+					}
+					owner := t.Authorizers[0]
+
+					distribution, err := GetDistribution(db, pack.DistributionID)
+					if err != nil {
+						return err
+					}
+
+					collectibleIDs := make([]cadence.Value, len(pack.Collectibles))
+
+					for i, c := range pack.Collectibles {
+						collectibleIDs[i] = cadence.UInt64(c.FlowID.Int64)
+					}
+
+					arguments := []cadence.Value{
+						cadence.UInt64(distribution.DistID.Int64),
+						cadence.UInt64(pack.FlowID.Int64),
+						cadence.NewArray(collectibleIDs),
+						cadence.Address(owner),
+					}
+
+					tx, err := flow_helpers.PrepareTransactionAs(
+						ctx,
+						c.flowClient,
+						c.account,
+						latestBlock,
+						arguments,
+						"./cadence-transactions/pds/open_packNFT.cdc",
+					)
+
+					if err != nil {
+						return err
+					}
+
+					if err := c.flowClient.SendTransaction(ctx, *tx); err != nil {
+						return err
+					}
+
 					if err := UpdatePack(db, pack); err != nil {
 						return err
 					}
