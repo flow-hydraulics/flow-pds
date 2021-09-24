@@ -333,6 +333,9 @@ func TestE2E(t *testing.T) {
 		time.Sleep(time.Second)
 	}
 
+	// Wait a bit more as the blocktime might be 1s if run from the test script
+	time.Sleep(time.Second * 2)
+
 	ownerCollectibleNFTsAfter, err := g.
 		ScriptFromFile(balanceExampleNFT, balanceExampleNFTCode).
 		AccountArgument("owner").
