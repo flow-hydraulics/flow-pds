@@ -37,6 +37,10 @@ func (c Collectible) String() string {
 	return fmt.Sprintf("A.%s.%s.%d", c.ContractReference.Address, c.ContractReference.Name, c.FlowID.Int64)
 }
 
+func (c Collectible) HashString() string {
+	return c.String()
+}
+
 // Implement sort.Interface for Collectible slice
 func (cc Collectibles) Len() int           { return len(cc) }
 func (cc Collectibles) Less(i, j int) bool { return cc[i].FlowID.LessThan(cc[j].FlowID) }
