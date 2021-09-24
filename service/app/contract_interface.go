@@ -14,6 +14,11 @@ import (
 	"gorm.io/gorm"
 )
 
+const (
+	REVEAL_REQUEST = "RevealRequest"
+	OPEN_REQUEST   = "OpenRequest"
+)
+
 type IContract interface {
 	StartSettlement(context.Context, *gorm.DB, *Distribution) error
 	StartMinting(context.Context, *gorm.DB, *Distribution) error
@@ -100,6 +105,7 @@ func (c *Contract) StartSettlement(ctx context.Context, db *gorm.DB, dist *Distr
 		cadence.NewArray(flowIDs),
 	}
 
+	// TODO (latenssi): this only handles ExampleNFTs currently
 	if err := flow_helpers.SendTransactionAs(
 		ctx,
 		c.flowClient,
@@ -356,8 +362,8 @@ func (c *Contract) UpdateMintingStatus(ctx context.Context, db *gorm.DB, dist *D
 
 func (c *Contract) UpdateCirculatingPack(ctx context.Context, db *gorm.DB, cpc *CirculatingPackContract) error {
 	eventNames := []string{
-		"RevealRequest",
-		"OpenPackRequest",
+		REVEAL_REQUEST,
+		OPEN_REQUEST,
 	}
 
 	latestBlock, err := c.flowClient.GetLatestBlock(ctx, true)
@@ -395,7 +401,7 @@ func (c *Contract) UpdateCirculatingPack(ctx context.Context, db *gorm.DB, cpc *
 				}
 
 				switch eventName {
-				case "RevealRequest":
+				case REVEAL_REQUEST:
 					fmt.Println("Reveal pack:", pack.ID)
 					if err := pack.Reveal(); err != nil {
 						return err
@@ -403,7 +409,7 @@ func (c *Contract) UpdateCirculatingPack(ctx context.Context, db *gorm.DB, cpc *
 					if err := UpdatePack(db, pack); err != nil {
 						return err
 					}
-				case "OpenPackRequest":
+				case OPEN_REQUEST:
 					fmt.Println("Open pack:", pack.ID)
 					if err := pack.Open(); err != nil {
 						return err
