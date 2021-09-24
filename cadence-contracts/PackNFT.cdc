@@ -91,7 +91,7 @@ pub contract PackNFT: NonFungibleToken, IPackNFT {
             while i < nfts.length {
                 let s = nfts[i].hashString()
                 log(s)
-                hashString = hashString.concat(s) 
+                hashString = hashString.concat(",").concat(s) 
                 i = i + 1
             }
             let hash = HashAlgorithm.SHA2_256.hash(hashString.utf8)
