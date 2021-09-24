@@ -3,7 +3,9 @@ package flow_helpers
 import (
 	"context"
 	"fmt"
+	"math/rand"
 	"sync"
+	"time"
 
 	"github.com/onflow/flow-go-sdk"
 	"github.com/onflow/flow-go-sdk/client"
@@ -34,10 +36,15 @@ func GetAccount(address flow.Address, privateKeyInHex string, keyIndexes []int) 
 		return existing
 	}
 
+	// Pick a random index to start from
+	rand.Seed(time.Now().UnixNano())
+	randomIndex := rand.Intn(len(keyIndexes))
+
 	new := &Account{
-		Address:         address,
-		PrivateKeyInHex: privateKeyInHex,
-		KeyIndexes:      keyIndexes,
+		Address:           address,
+		PrivateKeyInHex:   privateKeyInHex,
+		KeyIndexes:        keyIndexes,
+		nextKeyIndexIndex: randomIndex,
 	}
 
 	accounts[address] = new
