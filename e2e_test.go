@@ -21,59 +21,58 @@ func TestE2E(t *testing.T) {
 		cleanup()
 	}()
 
-	g := gwtf.NewGoWithTheFlow([]string{"./flow.json"}, "emulator", false, 3)
+	g := gwtf.NewGoWithTheFlow([]string{"./flow.json"}, "emulator", false, 0)
 
-	// s := "./cadence-scripts/packNFT/checksum.cdc"
-	// sd := util.ParseCadenceTemplate(s)
-	// h, err := g.ScriptFromFile(s, sd).RunReturns()
-	// if err != nil {
-	// 	t.Fatal(err)
-	// }
-	// fmt.Println(h)
+	t.Log("Setting up collectible NFT (ExampleNFT) collection for owner")
 
-	// Setup exampleNFT collection for owner (for opening PackNFT)
 	setupExampleNFT := "./cadence-transactions/exampleNFT/setup_exampleNFT.cdc"
 	setupExampleNFTCode := util.ParseCadenceTemplate(setupExampleNFT)
-	_, err := g.TransactionFromFile(setupExampleNFT, setupExampleNFTCode).
+	_, err := g.
+		TransactionFromFile(setupExampleNFT, setupExampleNFTCode).
 		SignProposeAndPayAs("owner").
 		RunE()
 	if err != nil {
 		t.Fatal(err)
 	}
 
-	// Setup exampleNFT collection for PDS (for escrow)
-	_, err = g.TransactionFromFile(setupExampleNFT, setupExampleNFTCode).
+	t.Log("Setting up collectible NFT (ExampleNFT) collection for PDS")
+
+	_, err = g.
+		TransactionFromFile(setupExampleNFT, setupExampleNFTCode).
 		SignProposeAndPayAs("pds").
 		RunE()
 	if err != nil {
 		t.Fatal(err)
 	}
 
-	// Issuer create PackIssuer resource to store DistCap
+	t.Log("Issuer create PackIssuer resource to store DistCap")
 
 	createPackIssuer := "./cadence-transactions/pds/create_new_pack_issuer.cdc"
 	createPackIssuerCode := util.ParseCadenceTemplate(createPackIssuer)
-	_, err = g.TransactionFromFile(createPackIssuer, createPackIssuerCode).
+	_, err = g.
+		TransactionFromFile(createPackIssuer, createPackIssuerCode).
 		SignProposeAndPayAs("issuer").
 		RunE()
 	if err != nil {
 		t.Fatal(err)
 	}
 
-	// Issuer create PackNFT collection resource to store minted PackNFT
+	t.Log("Issuer create PackNFT collection resource to store minted PackNFT")
 
 	createPackNFTCollection := "./cadence-transactions/packNFT/create_new_packNFT_collection.cdc"
 	createPackNFTCollectionCode := util.ParseCadenceTemplate(createPackNFTCollection)
-	_, err = g.TransactionFromFile(createPackNFTCollection, createPackNFTCollectionCode).
+	_, err = g.
+		TransactionFromFile(createPackNFTCollection, createPackNFTCollectionCode).
 		SignProposeAndPayAs("issuer").
 		RunE()
 	if err != nil {
 		t.Fatal(err)
 	}
 
-	// Owner create PackNFT collection resource to store PackNFT after purchase
+	t.Log("Owner create PackNFT collection resource to store PackNFT after purchase")
 
-	_, err = g.TransactionFromFile(createPackNFTCollection, createPackNFTCollectionCode).
+	_, err = g.
+		TransactionFromFile(createPackNFTCollection, createPackNFTCollectionCode).
 		SignProposeAndPayAs("owner").
 		RunE()
 	if err != nil {
@@ -81,13 +80,16 @@ func TestE2E(t *testing.T) {
 	}
 
 	// -- Mint some collectible NFTs as issuer --
+	t.Log("Mint some collectible NFTs as issuer")
 
 	// First check if we need more
 	balanceExampleNFT := "./cadence-scripts/exampleNFT/balance_exampleNFT.cdc"
 	balanceExampleNFTCode := util.ParseCadenceTemplate(balanceExampleNFT)
 
-	available, err := g.ScriptFromFile(balanceExampleNFT, balanceExampleNFTCode).
-		AccountArgument("issuer").RunReturns()
+	available, err := g.
+		ScriptFromFile(balanceExampleNFT, balanceExampleNFTCode).
+		AccountArgument("issuer").
+		RunReturns()
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -98,7 +100,8 @@ func TestE2E(t *testing.T) {
 	mintExampleNFT := "./cadence-transactions/exampleNFT/mint_exampleNFT.cdc"
 	mintExampleNFTCode := util.ParseCadenceTemplate(mintExampleNFT)
 	for i := 0; i < mintCount; i++ {
-		_, err := g.TransactionFromFile(mintExampleNFT, mintExampleNFTCode).
+		_, err := g.
+			TransactionFromFile(mintExampleNFT, mintExampleNFTCode).
 			SignProposeAndPayAs("issuer").
 			AccountArgument("issuer").
 			RunE()
@@ -113,13 +116,14 @@ func TestE2E(t *testing.T) {
 		t.Fatal(err)
 	}
 
-	t.Logf("Issuer available collectible NFTs: %s (%d)\n\n", issuerCollectibleNFTs.String(), len(issuerCollectibleNFTs.(cadence.Array).Values))
+	t.Logf("Issuer available collectible NFTs: %s (%d)\n", issuerCollectibleNFTs.String(), len(issuerCollectibleNFTs.(cadence.Array).Values))
 
-	// PDS share DistCap to PackIssuer (owned by Issuer)
+	t.Log("PDS share DistCap to PackIssuer (owned by Issuer)")
 
 	setDistCap := "./cadence-transactions/pds/set_pack_issuer_cap.cdc"
 	setDistCapCode := util.ParseCadenceTemplate(setDistCap)
-	_, err = g.TransactionFromFile(setDistCap, setDistCapCode).
+	_, err = g.
+		TransactionFromFile(setDistCap, setDistCapCode).
 		SignProposeAndPayAs("pds").
 		AccountArgument("issuer").
 		RunE()
@@ -127,7 +131,7 @@ func TestE2E(t *testing.T) {
 		t.Fatal(err)
 	}
 
-	// Issuer now creates distribution on chain
+	t.Log("Issuer creates distribution on chain")
 
 	pdsDistId := "./cadence-scripts/pds/get_current_dist_id.cdc"
 	pdsDistIdCode := util.ParseCadenceTemplate(pdsDistId)
@@ -139,7 +143,8 @@ func TestE2E(t *testing.T) {
 	createDist := "./cadence-transactions/pds/create_distribution.cdc"
 	createDistCode := util.ParseCadenceTemplate(createDist)
 	// Private path must match the PackNFT contract
-	e, err := g.TransactionFromFile(createDist, createDistCode).
+	e, err := g.
+		TransactionFromFile(createDist, createDistCode).
 		SignProposeAndPayAs("issuer").
 		Argument(cadence.Path{Domain: "private", Identifier: "exampleNFTCollectionProvider"}).
 		RunE()
@@ -150,7 +155,9 @@ func TestE2E(t *testing.T) {
 
 	util.NewExpectedPDSEvent("DistributionCreated").AddField("DistId", currentDistId.String()).AssertEqual(t, events[0])
 
-	// -- Use available NFTs to create a distribution in backend --
+	// -- Create distribution --
+
+	t.Log("Use available NFTs to create a distribution in backend")
 
 	issuer := common.FlowAddress(flow.HexToAddress(util.GetAccountAddr(g, "issuer")))
 
@@ -199,7 +206,8 @@ func TestE2E(t *testing.T) {
 
 	// -- Resolve, settle and mint --
 
-	// Wait for the distribution to complete
+	t.Log("Wait for the distribution to complete")
+
 	for {
 		d, _, err := a.GetDistribution(context.Background(), distribution.ID)
 		if err != nil {
@@ -212,23 +220,40 @@ func TestE2E(t *testing.T) {
 		time.Sleep(time.Second)
 	}
 
-	ownerCollectibleNFTsBefore, err := g.ScriptFromFile(balanceExampleNFT, balanceExampleNFTCode).
-		AccountArgument("owner").RunReturns()
+	ownerCollectibleNFTsBefore, err := g.
+		ScriptFromFile(balanceExampleNFT, balanceExampleNFTCode).
+		AccountArgument("owner").
+		RunReturns()
 	if err != nil {
 		t.Fatal(err)
 	}
-	t.Logf("BEFORE: Owner collectible NFT IDs: %s\n\n", ownerCollectibleNFTsBefore.String())
+
+	t.Log("Picking one pack")
 
 	// Pick one pack
 	randomPack := distribution.Packs[0]
 	randomPackID := cadence.UInt64(randomPack.FlowID.Int64)
 
+	if len(randomPack.Collectibles) != 2 {
+		t.Fatal("expected pack to contain 2 collectibles")
+	}
+
+	collectibles := randomPack.Collectibles
+	collectiblesStr := make([]string, len(collectibles))
+	for i, c := range collectibles {
+		collectiblesStr[i] = c.String()
+	}
+	t.Logf("Collectible NFTs in the pack:\n%s\n", strings.Join(collectiblesStr, "\n"))
+
 	// -- Transfer --
+
+	t.Log("Transferring a pack to owner")
 
 	// Issuer transfer PackNFT to owner
 	transferPackNFT := "./cadence-transactions/packNFT/transfer_packNFT.cdc"
 	transferPackNFTCode := util.ParseCadenceTemplate(transferPackNFT)
-	_, err = g.TransactionFromFile(transferPackNFT, transferPackNFTCode).
+	_, err = g.
+		TransactionFromFile(transferPackNFT, transferPackNFTCode).
 		SignProposeAndPayAs("issuer").
 		AccountArgument("owner").
 		Argument(randomPackID).
@@ -239,10 +264,12 @@ func TestE2E(t *testing.T) {
 
 	// -- Reveal --
 
-	// Owner requests to reveal PackNFT
+	t.Log("Owner requests to reveal the pack")
+
 	revealRequest := "./cadence-transactions/packNFT/reveal_request.cdc"
 	revealRequestCode := util.ParseCadenceTemplate(revealRequest)
-	e, err = g.TransactionFromFile(revealRequest, revealRequestCode).
+	e, err = g.
+		TransactionFromFile(revealRequest, revealRequestCode).
 		SignProposeAndPayAs("owner").
 		Argument(randomPackID).
 		RunE()
@@ -257,26 +284,28 @@ func TestE2E(t *testing.T) {
 	util.NewExpectedPackNFTEvent("RevealRequest").AddField("id", randomPackID.String()).AssertEqual(t, events[1])
 	util.NewExpectedPackNFTEvent("Deposit").AddField("id", randomPackID.String()).AddField("to", ownerAddr).AssertEqual(t, events[2])
 
-	// PDS backend submits reveal transaction
+	t.Log("PDS backend submits reveal transaction")
 
-	// Wait a moment for the reveal to happen
-	time.Sleep(time.Second * 2)
-
-	pack, err := a.GetPack(context.Background(), randomPack.ID)
-	if err != nil {
-		t.Fatal(err)
-	}
-
-	if pack.State != common.PackStateRevealed {
-		t.Fatal("expected pack to revealed")
+	t.Log("Wait for the reveal to happen")
+	for {
+		p, err := a.GetPack(context.Background(), randomPack.ID)
+		if err != nil {
+			t.Fatal(err)
+		}
+		if p.State == common.PackStateRevealed {
+			break
+		}
+		time.Sleep(time.Second)
 	}
 
 	// -- Open --
 
-	// Owner requests to open PackNFT
+	t.Log("Owner requests to open the pack")
+
 	openRequest := "./cadence-transactions/packNFT/open_request.cdc"
 	openRequestCode := util.ParseCadenceTemplate(openRequest)
-	e, err = g.TransactionFromFile(openRequest, openRequestCode).
+	e, err = g.
+		TransactionFromFile(openRequest, openRequestCode).
 		SignProposeAndPayAs("owner").
 		Argument(randomPackID).
 		RunE()
@@ -290,31 +319,44 @@ func TestE2E(t *testing.T) {
 	util.NewExpectedPackNFTEvent("OpenRequest").AddField("id", randomPackID.String()).AssertEqual(t, events[1])
 	util.NewExpectedPackNFTEvent("Deposit").AddField("id", randomPackID.String()).AddField("to", ownerAddr).AssertEqual(t, events[2])
 
-	// PDS backend submits open transaction
+	t.Log("PDS backend submits open transaction")
 
-	// Wait a moment for the open to happen
-	time.Sleep(time.Second * 2)
+	t.Log("Wait for the open to happen")
+	for {
+		p, err := a.GetPack(context.Background(), randomPack.ID)
+		if err != nil {
+			t.Fatal(err)
+		}
+		if p.State == common.PackStateOpened {
+			break
+		}
+		time.Sleep(time.Second)
+	}
 
-	pack, err = a.GetPack(context.Background(), randomPack.ID)
+	ownerCollectibleNFTsAfter, err := g.
+		ScriptFromFile(balanceExampleNFT, balanceExampleNFTCode).
+		AccountArgument("owner").
+		RunReturns()
 	if err != nil {
 		t.Fatal(err)
 	}
 
-	if pack.State != common.PackStateOpened {
-		t.Fatal("expected pack to opened")
-	}
-
-	collectibles := pack.Collectibles
-	collectiblesStr := make([]string, len(collectibles))
-	for i, c := range collectibles {
-		collectiblesStr[i] = c.String()
-	}
-	t.Logf("Collectible NFTs in the pack:\n%s\n", strings.Join(collectiblesStr, "\n"))
-
-	ownerCollectibleNFTsAfter, err := g.ScriptFromFile(balanceExampleNFT, balanceExampleNFTCode).
-		AccountArgument("owner").RunReturns()
+	ownerCollectibleIDs, err := common.FlowIDListFromCadence(ownerCollectibleNFTsAfter)
 	if err != nil {
 		t.Fatal(err)
 	}
-	t.Logf("AFTER: Owner collectible NFT IDs: %s\n\n", ownerCollectibleNFTsAfter.String())
+
+	randomPackCollectibleIDs := make(common.FlowIDList, len(randomPack.Collectibles))
+	for i, c := range randomPack.Collectibles {
+		randomPackCollectibleIDs[i] = c.FlowID
+	}
+
+	for _, id := range randomPackCollectibleIDs {
+		if _, ok := ownerCollectibleIDs.Contains(id); !ok {
+			t.Fatalf("expected owner to have collectible NFT: %s", id)
+		}
+	}
+
+	t.Logf("Owner collectible NFTs before: %s\n", ownerCollectibleNFTsBefore.String())
+	t.Logf("Owner collectible NFTs after:  %s\n", ownerCollectibleNFTsAfter.String())
 }

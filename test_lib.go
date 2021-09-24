@@ -31,6 +31,10 @@ func getTestApp(cfg *config.Config, poll bool) (*app.App, func()) {
 		panic(err)
 	}
 
+	if cfg.DatabaseType == "sqlite" {
+		os.Remove(cfg.DatabaseDSN)
+	}
+
 	db, err := common.NewGormDB(cfg)
 	if err != nil {
 		panic(err)

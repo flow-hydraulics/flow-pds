@@ -44,8 +44,8 @@ func main() {
 		fmt.Println(ferr)
 		return
 	} else {
-		fmt.Print("deployed packNFT")
-		fmt.Print(e)
+		fmt.Print("deployed packNFT ")
+		fmt.Println(e)
 	}
 
 	pds := util.ParseCadenceTemplate("../cadence-contracts/PDS.cdc")
@@ -69,7 +69,7 @@ func main() {
 		fmt.Println(ferr)
 		return
 	} else {
-		fmt.Print("deployed packNFT")
-		fmt.Print(e)
+		fmt.Print("deployed packNFT ")
+		fmt.Println(e)
 	}
 }

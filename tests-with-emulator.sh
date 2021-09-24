@@ -59,6 +59,6 @@ flow project deploy --network="$NETWORK" --update=true
 
 go clean -testcache
 
-go test ./go-contracts/...
-go test ./service/...
-go test
+go test ./go-contracts/... -v
+go test ./service/... -v
+go test -v
