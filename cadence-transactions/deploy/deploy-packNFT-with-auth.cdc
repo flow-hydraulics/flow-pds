@@ -6,10 +6,8 @@ transaction(
     collectionStoragePath: StoragePath,
     collectionPublicPath: PublicPath,
     collectionIPackNFTPublicPath: PublicPath,
-    minterStoragePath: StoragePath,
-    minterPrivPath: PrivatePath,
-    minterProxyStoragePath: StoragePath,
-    minterProxyMintCapRecv: PublicPath,
+    operatorStoragePath: StoragePath,
+    operatorPrivPath: PrivatePath,
     version: String,
 ) {
     prepare(owner: AuthAccount) {
@@ -24,10 +22,8 @@ transaction(
                 collectionStoragePath: collectionStoragePath,
                 collectionPublicPath: collectionPublicPath,
                 collectionIPackNFTPublicPath: collectionIPackNFTPublicPath,
-                minterStoragePath: minterStoragePath,
-                minterPrivPath: minterPrivPath,
-                minterProxyStoragePath: minterProxyStoragePath,
-                minterProxyMintCapRecv: minterProxyMintCapRecv,
+                operatorStoragePath: operatorStoragePath,
+                operatorPrivPath: operatorPrivPath,
                 version: version,
             )
         } else {

@@ -41,14 +41,17 @@ func getTestApp(cfg *config.Config, poll bool) (*app.App, func()) {
 		panic(err)
 	}
 
+	app := app.New(cfg, db, flowClient, poll)
+
 	clean := func() {
+		app.Close()
+		flowClient.Close()
 		if cfg.DatabaseType == "sqlite" {
 			os.Remove(cfg.DatabaseDSN)
 		}
-		flowClient.Close()
 	}
 
-	return app.New(cfg, db, flowClient, poll), clean
+	return app, clean
 }
 
 func getTestServer(cfg *config.Config, poll bool) (*http.Server, func()) {

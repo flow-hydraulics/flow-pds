@@ -34,10 +34,8 @@ func main() {
 		Argument(cadence.Path{Domain: "storage", Identifier: "ExamplePackNFTCollection"}).
 		Argument(cadence.Path{Domain: "public", Identifier: "ExamplePackNFTCollectionPub"}).
 		Argument(cadence.Path{Domain: "public", Identifier: "ExamplePackNFTIPackNFTCollectionPub"}).
-		Argument(cadence.Path{Domain: "storage", Identifier: "ExamplePackNFTMinter"}).
-		Argument(cadence.Path{Domain: "private", Identifier: "ExamplePackNFTMinterPriv"}).
-		Argument(cadence.Path{Domain: "storage", Identifier: "ExamplePackNFTMinterProxy"}).
-		Argument(cadence.Path{Domain: "public", Identifier: "ExamplePackNFTMinterProxyPub"}).
+		Argument(cadence.Path{Domain: "storage", Identifier: "ExamplePackNFTOperator"}).
+		Argument(cadence.Path{Domain: "private", Identifier: "ExamplePackNFTOperatorPriv"}).
 		StringArgument("0.1.0").
 		RunE()
 

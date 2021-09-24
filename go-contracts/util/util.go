@@ -4,12 +4,16 @@ import (
 	"bytes"
 	"errors"
 	"io/ioutil"
+	"strconv"
 	"testing"
 	"time"
 
 	// "os"
 
 	"text/template"
+
+	"fmt"
+	"reflect"
 
 	"github.com/bjartek/go-with-the-flow/v2/gwtf"
 	"github.com/onflow/cadence"
@@ -32,7 +36,7 @@ type Addresses struct {
 
 type TestEvent struct {
 	Name   string
-	Fields map[string]string
+	Fields map[string]interface{}
 }
 
 var addresses Addresses
@@ -72,18 +76,18 @@ func ParseTestEvents(events []flow.Event) (formatedEvents []*gwtf.FormatedEvent)
 func NewExpectedPackNFTEvent(name string) TestEvent {
 	return TestEvent{
 		Name:   "A." + addresses.PackNFT + ".PackNFT." + name,
-		Fields: map[string]string{},
+		Fields: make(map[string]interface{}),
 	}
 }
 
 func NewExpectedPDSEvent(name string) TestEvent {
 	return TestEvent{
 		Name:   "A." + addresses.PDSInterface + ".PDS." + name,
-		Fields: map[string]string{},
+		Fields: make(map[string]interface{}),
 	}
 }
 
-func (te TestEvent) AddField(fieldName string, fieldValue string) TestEvent {
+func (te TestEvent) AddField(fieldName string, fieldValue interface{}) TestEvent {
 	te.Fields[fieldName] = fieldValue
 	return te
 }
@@ -98,7 +102,25 @@ func (te TestEvent) AssertEqual(t *testing.T, event *gwtf.FormatedEvent) {
 	assert.Equal(t, event.Name, te.Name)
 	assert.Equal(t, len(te.Fields), len(event.Fields))
 	for k := range te.Fields {
-		assert.Equal(t, te.Fields[k], event.Fields[k])
+		v := reflect.ValueOf(event.Fields[k])
+		switch v.Kind() {
+		case reflect.String:
+			assert.Equal(t, te.Fields[k], event.Fields[k])
+		case reflect.Slice:
+			assert.Equal(t, len(te.Fields[k].([]interface{})), v.Len())
+			for i := 0; i < v.Len(); i++ {
+				// This is the special case we are addressing
+				u := te.Fields[k].([]interface{})[i].(uint64)
+				assert.Equal(t, strconv.FormatUint(u, 10), v.Interface().([]interface{})[i])
+				i++
+			}
+		case reflect.Map:
+			fmt.Printf("map: %v\n", v.Interface())
+		case reflect.Chan:
+			fmt.Printf("chan %v\n", v.Interface())
+		default:
+			fmt.Println("Unsupported types")
+		}
 	}
 }
 
