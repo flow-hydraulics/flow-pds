@@ -109,3 +109,28 @@ func (l *FlowIDList) Scan(value interface{}) error {
 func (l FlowIDList) Value() (driver.Value, error) {
 	return strings.Trim(strings.Join(strings.Fields(fmt.Sprint(l)), ","), "[]"), nil
 }
+
+func (l FlowIDList) Contains(b FlowID) (int, bool) {
+	for i, a := range l {
+		if a == b {
+			return i, true
+		}
+	}
+	return -1, false
+}
+
+func FlowIDListFromCadence(cArr cadence.Value) (FlowIDList, error) {
+	arr, ok := cArr.(cadence.Array)
+	if !ok {
+		return nil, fmt.Errorf("unable to parse as cadence.Array: %s", cArr)
+	}
+	res := make(FlowIDList, len(arr.Values))
+	for i := 0; i < len(arr.Values); i++ {
+		id, err := FlowIDFromCadence(arr.Values[i])
+		if err != nil {
+			return nil, err
+		}
+		res[i] = id
+	}
+	return res, nil
+}

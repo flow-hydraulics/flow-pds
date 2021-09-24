@@ -3,7 +3,6 @@ package app
 import (
 	"context"
 	"fmt"
-	"strings"
 	"time"
 
 	"github.com/flow-hydraulics/flow-pds/service/common"
@@ -48,8 +47,7 @@ func min(x, y uint64) uint64 {
 }
 
 func handlePollerError(pollerName string, err error) {
-	// Ignore db lock errors, print others
-	if err != nil && !strings.Contains(err.Error(), "could not obtain lock on row") {
+	if err != nil {
 		fmt.Printf("error while runnig poller \"%s\": %s\n", pollerName, err)
 	}
 }

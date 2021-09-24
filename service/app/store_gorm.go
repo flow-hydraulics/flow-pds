@@ -79,6 +79,15 @@ func GetDistribution(db *gorm.DB, id uuid.UUID) (*Distribution, error) {
 	return &distribution, nil
 }
 
+// Get pack
+func GetPack(db *gorm.DB, id uuid.UUID) (*Pack, error) {
+	pack := Pack{}
+	if err := db.First(&pack, id).Error; err != nil {
+		return nil, err
+	}
+	return &pack, nil
+}
+
 func GetDistributionPacks(db *gorm.DB, distributionID uuid.UUID) ([]Pack, error) {
 	list := []Pack{}
 	if err := db.Where(&Pack{DistributionID: distributionID}).Find(&list).Error; err != nil {

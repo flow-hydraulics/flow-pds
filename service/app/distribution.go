@@ -281,7 +281,7 @@ func (p *Pack) Hash() []byte {
 	inputs := make([]string, 1+len(p.Collectibles))
 	inputs[0] = hex.EncodeToString(p.Salt)
 	for i, c := range p.Collectibles {
-		inputs[i+1] = fmt.Sprintf("A.%s.%s.%d", c.ContractReference.Address, c.ContractReference.Name, c.FlowID.Int64)
+		inputs[i+1] = c.HashString()
 	}
 	input := strings.Join(inputs, HASH_DELIM)
 	hash := sha256.Sum256([]byte(input))

@@ -1,7 +1,5 @@
 .PHONY: dev
-dev:
-	docker-compose up -d db pgadmin emulator
-	docker-compose logs -f
+dev: up deploy
 
 .PHONY: deploy
 deploy:
@@ -11,12 +9,17 @@ deploy:
 stop:
 	docker-compose stop
 
+.PHONY: up
+up:
+	docker-compose up -d db pgadmin emulator
+
 .PHONY: down
 down:
 	docker-compose down
 
 .PHONY: reset
 reset: down dev
+
 
 .PHONY: test
 test:

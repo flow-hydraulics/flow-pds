@@ -29,7 +29,7 @@ func SignProposeAndPayAs(ctx context.Context, flowClient *client.Client, account
 	return nil
 }
 
-func SendTransactionAs(ctx context.Context, flowClient *client.Client, account *Account, referenceBlock *flow.Block, arguments []cadence.Value, txScriptPath string) error {
+func PrepareTransactionAs(ctx context.Context, flowClient *client.Client, account *Account, referenceBlock *flow.Block, arguments []cadence.Value, txScriptPath string) (*flow.Transaction, error) {
 	txScript := util.ParseCadenceTemplate(txScriptPath)
 
 	tx := flow.NewTransaction().
@@ -39,17 +39,13 @@ func SendTransactionAs(ctx context.Context, flowClient *client.Client, account *
 
 	for _, arg := range arguments {
 		if err := tx.AddArgument(arg); err != nil {
-			return err
+			return nil, err
 		}
 	}
 
 	if err := SignProposeAndPayAs(ctx, flowClient, account, tx); err != nil {
-		return err
+		return nil, err
 	}
 
-	if err := flowClient.SendTransaction(ctx, *tx); err != nil {
-		return err
-	}
-
-	return nil
+	return tx, nil
 }

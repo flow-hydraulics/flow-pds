@@ -84,3 +84,11 @@ func (app *App) CancelDistribution(ctx context.Context, id uuid.UUID) error {
 		return nil
 	})
 }
+
+func (app *App) GetPack(ctx context.Context, id uuid.UUID) (*Pack, error) {
+	pack, err := GetPack(app.db, id)
+	if err != nil {
+		return nil, err
+	}
+	return pack, nil
+}
