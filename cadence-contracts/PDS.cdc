@@ -21,7 +21,7 @@ pub contract PDS{
         pub fun hashString(): String {
             // address string is 16 characters long with 0x as prefix (for 8 bytes in hex)
             // example: ,f3fcd2c1a78f5ee.ExampleNFT.12
-            let c = ",A."
+            let c = "A."
             var a = ""
             let addrStr = self.address.toString()
             if addrStr.length < 18 {
