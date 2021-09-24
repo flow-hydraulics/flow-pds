@@ -353,7 +353,7 @@ func TestE2E(t *testing.T) {
 
 	for _, id := range randomPackCollectibleIDs {
 		if _, ok := ownerCollectibleIDs.Contains(id); !ok {
-			t.Fatalf("expected owner to have collectible NFT: %s", id)
+			t.Errorf("expected owner to have collectible NFT: %s", id)
 		}
 	}
 
