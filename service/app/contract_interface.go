@@ -148,10 +148,21 @@ func (c *Contract) StartMinting(ctx context.Context, db *gorm.DB, dist *Distribu
 	}
 
 	// Try to find one
-	if _, err := GetCirculatingPackContract(db, cpc.Name, cpc.Address); err != nil {
+	if existing, err := GetCirculatingPackContract(db, cpc.Name, cpc.Address); err != nil {
 		// Insert new if not found
 		if err := InsertCirculatingPackContract(db, &cpc); err != nil {
 			return err
+		}
+	} else {
+		if cpc.LastCheckedBlock < existing.LastCheckedBlock {
+			// Situation where a new cpc has lower blockheight (LastCheckedBlock) than an old one.
+			// Should not happen in production but can happen in tests.
+			fmt.Println("CirculatingPackContract with higher block height found in database, should not happen in production")
+			existing.LastCheckedBlock = cpc.LastCheckedBlock
+			if err := UpdateCirculatingPackContract(db, existing); err != nil {
+				return err
+			}
+			cpc = *existing
 		}
 	}
 
@@ -337,9 +348,10 @@ func (c *Contract) UpdateMintingStatus(ctx context.Context, db *gorm.DB, dist *D
 				return err
 			}
 
-			pack, err := GetMintingPack(db, dist.ID, commitmentHash)
+			pack, err := GetMintingPack(db, commitmentHash)
 			if err != nil {
-				return fmt.Errorf("unable find a minting pack with commitmentHash %v", commitmentHash.String())
+				fmt.Printf("received event: %s but unable find a pack with a missing flowId and with commitmentHash %v\n", e, commitmentHash.String())
+				continue
 			}
 
 			if err := pack.Seal(flowID); err != nil {
