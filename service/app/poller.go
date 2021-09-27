@@ -48,7 +48,7 @@ func handlePollerError(pollerName string, err error) {
 func listDistributionsByState(db *gorm.DB, state common.DistributionState) ([]Distribution, error) {
 	list := []Distribution{}
 	return list, db.
-		Clauses(clause.Locking{Strength: "UPDATE", Options: "NOWAIT"}).
+		Clauses(clause.Locking{Strength: "UPDATE", Options: "NOWAIT"}). // TODO (latenssi)
 		Where(&Distribution{State: state}).
 		Order("updated_at asc").
 		Find(&list).Error
@@ -57,7 +57,7 @@ func listDistributionsByState(db *gorm.DB, state common.DistributionState) ([]Di
 func listCirculatingPacks(db *gorm.DB) ([]CirculatingPackContract, error) {
 	list := []CirculatingPackContract{}
 	return list, db.
-		Clauses(clause.Locking{Strength: "UPDATE", Options: "NOWAIT"}).
+		Clauses(clause.Locking{Strength: "UPDATE", Options: "NOWAIT"}). // TODO (latenssi)
 		Order("updated_at asc").
 		Limit(10). // Pick 10 (arbitrary) most least recently updated
 		Find(&list).Error

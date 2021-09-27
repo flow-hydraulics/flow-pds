@@ -16,6 +16,9 @@ var accounts map[flow.Address]*Account
 var accountsLock = &sync.Mutex{} // Making sure our "accounts" var is a singleton
 var keyIndexLock = &sync.Mutex{}
 
+var seqNumLock = &sync.Mutex{}
+var seqNumMap map[flow.Address]map[int]uint64
+
 type Account struct {
 	Address           flow.Address
 	PrivateKeyInHex   string
@@ -52,6 +55,8 @@ func GetAccount(address flow.Address, privateKeyInHex string, keyIndexes []int) 
 	return new
 }
 
+// KeyIndex rotates the given indexes ('KeyIndexes') and returns the next index
+// TODO (latenssi): sync over database as this currently only works in a single instance situation
 func (a *Account) KeyIndex() int {
 	// NOTE: This won't help if having multiple instances of the PDS service running
 	keyIndexLock.Lock()
@@ -69,6 +74,7 @@ func (a Account) GetProposalKey(ctx context.Context, flowClient *client.Client) 
 	if err != nil {
 		return nil, fmt.Errorf("error in flow_helpers.Account.GetProposalKey: %w", err)
 	}
+	k.SequenceNumber = getSeqNum(a.Address, k)
 	return k, nil
 }
 
@@ -78,4 +84,29 @@ func (a Account) GetSigner() (crypto.Signer, error) {
 		return nil, fmt.Errorf("error in flow_helpers.Account.GetSigner: %w", err)
 	}
 	return crypto.NewNaiveSigner(p, crypto.SHA3_256), nil
+}
+
+// getSeqNum, is a hack around the fact that GetAccount on Flow Client returns
+// the latest SequenceNumber on-chain but it might be outdated as we may be
+// sending multiple transactions in the current block
+// TODO (latenssi): sync over database as this currently only works in a single instance situation
+func getSeqNum(address flow.Address, key *flow.AccountKey) uint64 {
+	seqNumLock.Lock()
+	defer seqNumLock.Unlock()
+
+	if seqNumMap == nil {
+		seqNumMap = make(map[flow.Address]map[int]uint64)
+	}
+
+	if seqNumMap[address] == nil {
+		seqNumMap[address] = make(map[int]uint64)
+	}
+
+	if prev, ok := seqNumMap[address][key.Index]; ok && prev >= key.SequenceNumber {
+		seqNumMap[address][key.Index]++
+	} else {
+		seqNumMap[address][key.Index] = key.SequenceNumber
+	}
+
+	return seqNumMap[address][key.Index]
 }
