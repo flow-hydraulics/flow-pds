@@ -23,6 +23,10 @@ type Config struct {
 	Host          string `env:"FLOW_PDS_HOST"`
 	Port          int    `env:"FLOW_PDS_PORT" envDefault:"3000"`
 	AccessAPIHost string `env:"FLOW_PDS_ACCESS_API_HOST" envDefault:"localhost:3569"`
+
+	// -- Testing --
+
+	TestNOCollectibles int `env:"TEST_COLLECTIBLES" envDefault:"0"`
 }
 
 type ConfigOptions struct {

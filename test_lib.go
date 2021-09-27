@@ -1,8 +1,8 @@
 package main
 
 import (
-	"os"
 	"reflect"
+	"strings"
 	"testing"
 
 	"github.com/flow-hydraulics/flow-pds/service/app"
@@ -11,7 +11,21 @@ import (
 	"github.com/flow-hydraulics/flow-pds/service/http"
 	"github.com/onflow/flow-go-sdk/client"
 	"google.golang.org/grpc"
+	"gorm.io/gorm"
 )
+
+func cleanTestDatabase(cfg *config.Config, db *gorm.DB) {
+	// Only run this if database DSN contains "test"
+	if strings.Contains(strings.ToLower(cfg.DatabaseDSN), "test") {
+		db.Delete(app.Distribution{})
+		db.Delete(app.Bucket{})
+		db.Delete(app.Pack{})
+		db.Delete(app.Settlement{})
+		db.Delete(app.SettlementCollectible{})
+		db.Delete(app.Minting{})
+		db.Delete(app.CirculatingPackContract{})
+	}
+}
 
 func getTestCfg() *config.Config {
 	cfg, err := config.ParseConfig(&config.ConfigOptions{EnvFilePath: ".env.test"})
@@ -19,8 +33,10 @@ func getTestCfg() *config.Config {
 		panic(err)
 	}
 
-	cfg.DatabaseDSN = "test.db"
-	cfg.DatabaseType = "sqlite"
+	if !strings.Contains(strings.ToLower(cfg.DatabaseDSN), "test") {
+		cfg.DatabaseDSN = "test.db"
+		cfg.DatabaseType = "sqlite"
+	}
 
 	return cfg
 }
@@ -31,14 +47,12 @@ func getTestApp(cfg *config.Config, poll bool) (*app.App, func()) {
 		panic(err)
 	}
 
-	if cfg.DatabaseType == "sqlite" {
-		os.Remove(cfg.DatabaseDSN)
-	}
-
 	db, err := common.NewGormDB(cfg)
 	if err != nil {
 		panic(err)
 	}
+
+	cleanTestDatabase(cfg, db)
 
 	// Migrate app database
 	if err := app.Migrate(db); err != nil {
@@ -50,9 +64,7 @@ func getTestApp(cfg *config.Config, poll bool) (*app.App, func()) {
 	clean := func() {
 		app.Close()
 		flowClient.Close()
-		if cfg.DatabaseType == "sqlite" {
-			os.Remove(cfg.DatabaseDSN)
-		}
+		cleanTestDatabase(cfg, db)
 	}
 
 	return app, clean

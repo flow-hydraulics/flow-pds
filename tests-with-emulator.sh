@@ -6,7 +6,7 @@ if [ ! -f "./flow.json" ]; then
   exit 1
 fi
 
-source .env
+source .env.test
 
 # errexit + xtrace
 set -ex

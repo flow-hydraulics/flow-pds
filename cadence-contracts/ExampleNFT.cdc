@@ -16,7 +16,7 @@ pub contract ExampleNFT: NonFungibleToken {
     //
     pub let CollectionStoragePath: StoragePath
     pub let CollectionPublicPath: PublicPath
-    pub let CollectionProviderPrivPath: PrivatePath 
+    pub let CollectionProviderPrivPath: PrivatePath
     pub let MinterStoragePath: StoragePath
 
     pub resource NFT: NonFungibleToken.INFT {
@@ -101,6 +101,16 @@ pub contract ExampleNFT: NonFungibleToken {
 
             ExampleNFT.totalSupply = ExampleNFT.totalSupply + UInt64(1)
         }
+
+        // mintNFT mints a new NFT with a new ID
+        // and deposit it in the recipients collection using their collection reference
+        pub fun mintNFTBatched(recipient: &{NonFungibleToken.CollectionPublic}, batchSize: Int) {
+            var i = 0
+            while i < batchSize {
+                self.mintNFT(recipient: recipient)
+                i = i + 1
+            }
+        }
     }
 
     init() {
@@ -123,12 +133,12 @@ pub contract ExampleNFT: NonFungibleToken {
             target: self.CollectionStoragePath
         )
 
-        // This needs to be used to allowed for PDS to withdraw 
+        // This needs to be used to allowed for PDS to withdraw
         self.account.link<&{NonFungibleToken.Provider}>(
             self.CollectionProviderPrivPath,
             target: self.CollectionStoragePath
         )
-        
+
         if !self.account.getCapability<&{NonFungibleToken.Provider}>(self.CollectionProviderPrivPath).check() {
             panic("not linked")
         }
