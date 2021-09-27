@@ -102,6 +102,7 @@ func TestE2ELarge(t *testing.T) {
 	}
 
 	// Mint so we have at least no_total
+	// TODO: calculate this for real
 	mintCount := (cfg.TestNOCollectibles - len(available.(cadence.Array).Values)) / 100
 
 	mintExampleNFT := "./cadence-transactions/exampleNFT/mint_exampleNFTBatched.cdc"
@@ -127,6 +128,8 @@ func TestE2ELarge(t *testing.T) {
 	t.Logf("Issuer available collectible NFTs: (%d)\n", len(issuerCollectibleNFTs.(cadence.Array).Values))
 
 	t.Log("PDS share DistCap to PackIssuer (owned by Issuer)")
+
+	start := time.Now()
 
 	setDistCap := "./cadence-transactions/pds/set_pack_issuer_cap.cdc"
 	setDistCapCode := util.ParseCadenceTemplate(setDistCap)
@@ -227,6 +230,8 @@ func TestE2ELarge(t *testing.T) {
 		}
 		time.Sleep(time.Second)
 	}
+
+	t.Logf("resolve, settle and mint took %s\n", time.Since(start))
 
 	ownerCollectibleNFTsBefore, err := g.
 		ScriptFromFile(balanceExampleNFT, balanceExampleNFTCode).

@@ -38,6 +38,13 @@ type Contract struct {
 	account    *flow_helpers.Account
 }
 
+func minInt(a int, b int) int {
+	if a > b {
+		return b
+	}
+	return a
+}
+
 func NewContract(cfg *config.Config, flowClient *client.Client) *Contract {
 	pdsAccount := flow_helpers.GetAccount(
 		flow.HexToAddress(cfg.AdminAddress),
@@ -100,27 +107,48 @@ func (c *Contract) StartSettlement(ctx context.Context, db *gorm.DB, dist *Distr
 		flowIDs[i] = cadence.UInt64(c.FlowID.Int64)
 	}
 
-	arguments := []cadence.Value{
-		cadence.UInt64(dist.DistID.Int64),
-		cadence.NewArray(flowIDs),
-	}
+	// TODO (latenssi): clean up batching
+	batchSize := 40
+	batchIndex := 0
+	for {
+		begin := batchIndex * batchSize
+		end := minInt((batchIndex+1)*batchSize, len(flowIDs))
 
-	// TODO (latenssi): this only handles ExampleNFTs currently
-	tx, err := flow_helpers.PrepareTransactionAs(
-		ctx,
-		c.flowClient,
-		c.account,
-		latestBlock,
-		arguments,
-		"./cadence-transactions/pds/settle_exampleNFT.cdc",
-	)
+		if begin > end {
+			break
+		}
 
-	if err != nil {
-		return err
-	}
+		batch := flowIDs[begin:end]
 
-	if err := c.flowClient.SendTransaction(ctx, *tx); err != nil {
-		return err
+		arguments := []cadence.Value{
+			cadence.UInt64(dist.DistID.Int64),
+			cadence.NewArray(batch),
+		}
+
+		latestBlock, err := c.flowClient.GetLatestBlock(ctx, true)
+		if err != nil {
+			return err
+		}
+
+		// TODO (latenssi): this only handles ExampleNFTs currently
+		tx, err := flow_helpers.PrepareTransactionAs(
+			ctx,
+			c.flowClient,
+			c.account,
+			latestBlock,
+			arguments,
+			"./cadence-transactions/pds/settle_exampleNFT.cdc",
+		)
+
+		if err != nil {
+			return err
+		}
+
+		if err := c.flowClient.SendTransaction(ctx, *tx); err != nil {
+			return err
+		}
+
+		batchIndex++
 	}
 
 	return nil
@@ -187,27 +215,48 @@ func (c *Contract) StartMinting(ctx context.Context, db *gorm.DB, dist *Distribu
 		commitmentHashes[i] = cadence.NewString(p.CommitmentHash.String())
 	}
 
-	arguments := []cadence.Value{
-		cadence.UInt64(dist.DistID.Int64),
-		cadence.NewArray(commitmentHashes),
-		cadence.Address(dist.Issuer),
-	}
+	// TODO (latenssi): clean up batching
+	batchSize := 40
+	batchIndex := 0
+	for {
+		begin := batchIndex * batchSize
+		end := minInt((batchIndex+1)*batchSize, len(commitmentHashes))
 
-	tx, err := flow_helpers.PrepareTransactionAs(
-		ctx,
-		c.flowClient,
-		c.account,
-		latestBlock,
-		arguments,
-		"./cadence-transactions/pds/mint_packNFT.cdc",
-	)
+		if begin > end {
+			break
+		}
 
-	if err != nil {
-		return err
-	}
+		batch := commitmentHashes[begin:end]
 
-	if err := c.flowClient.SendTransaction(ctx, *tx); err != nil {
-		return err
+		arguments := []cadence.Value{
+			cadence.UInt64(dist.DistID.Int64),
+			cadence.NewArray(batch),
+			cadence.Address(dist.Issuer),
+		}
+
+		latestBlock, err := c.flowClient.GetLatestBlock(ctx, true)
+		if err != nil {
+			return err
+		}
+
+		tx, err := flow_helpers.PrepareTransactionAs(
+			ctx,
+			c.flowClient,
+			c.account,
+			latestBlock,
+			arguments,
+			"./cadence-transactions/pds/mint_packNFT.cdc",
+		)
+
+		if err != nil {
+			return err
+		}
+
+		if err := c.flowClient.SendTransaction(ctx, *tx); err != nil {
+			return err
+		}
+
+		batchIndex++
 	}
 
 	return nil
