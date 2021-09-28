@@ -20,11 +20,11 @@ pub contract interface IPackNFT{
     /// New Pack NFT
     ///
     /// Emitted when a new PackNFT has been minted
-    pub event Mint(id: UInt64, commitHash: String) 
+    pub event Mint(distId: UInt64, id: UInt64, commitHash: String) 
     /// Revealed
     /// 
     /// Emitted when a packNFT has been revealed
-    pub event Revealed(id: UInt64, salt: String)
+    pub event Revealed(id: UInt64, nfts: String, salt: String)
     /// Opened
     ///
     /// Emitted when a packNFT has been opened
