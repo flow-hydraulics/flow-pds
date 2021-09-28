@@ -11,9 +11,9 @@ type Minting struct {
 	DistributionID uuid.UUID `gorm:"unique"`
 	Distribution   Distribution
 
-	CurrentCount     uint   `gorm:"column:current_count"`
-	TotalCount       uint   `gorm:"column:total_count"`
-	LastCheckedBlock uint64 `gorm:"column:last_checked_block"`
+	CurrentCount uint   `gorm:"column:current_count"`
+	TotalCount   uint   `gorm:"column:total_count"`
+	StartAtBlock uint64 `gorm:"column:start_at_block"`
 }
 
 func (Minting) TableName() string {

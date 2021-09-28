@@ -89,10 +89,10 @@ func (c *Contract) StartSettlement(ctx context.Context, db *gorm.DB, dist *Distr
 	}
 
 	settlement := Settlement{
-		DistributionID:   dist.ID,
-		CurrentCount:     0,
-		TotalCount:       uint(len(collectibles)),
-		LastCheckedBlock: latestBlock.Height - 1,
+		DistributionID: dist.ID,
+		CurrentCount:   0,
+		TotalCount:     uint(len(collectibles)),
+		StartAtBlock:   latestBlock.Height - 1,
 		// TODO (latenssi): Can we assume the admin is always the escrow?
 		EscrowAddress: common.FlowAddressFromString(c.cfg.AdminAddress),
 		Collectibles:  settlementCollectibles,
@@ -170,9 +170,9 @@ func (c *Contract) StartMinting(ctx context.Context, db *gorm.DB, dist *Distribu
 
 	// Add CirculatingPackContract to database
 	cpc := CirculatingPackContract{
-		Name:             dist.PackTemplate.PackReference.Name,
-		Address:          dist.PackTemplate.PackReference.Address,
-		LastCheckedBlock: latestBlock.Height - 1,
+		Name:         dist.PackTemplate.PackReference.Name,
+		Address:      dist.PackTemplate.PackReference.Address,
+		StartAtBlock: latestBlock.Height - 1,
 	}
 
 	// Try to find one
@@ -182,11 +182,11 @@ func (c *Contract) StartMinting(ctx context.Context, db *gorm.DB, dist *Distribu
 			return err
 		}
 	} else {
-		if cpc.LastCheckedBlock < existing.LastCheckedBlock {
+		if cpc.StartAtBlock < existing.StartAtBlock {
 			// Situation where a new cpc has lower blockheight (LastCheckedBlock) than an old one.
 			// Should not happen in production but can happen in tests.
 			fmt.Println("CirculatingPackContract with higher block height found in database, should not happen in production")
-			existing.LastCheckedBlock = cpc.LastCheckedBlock
+			existing.StartAtBlock = cpc.StartAtBlock
 			if err := UpdateCirculatingPackContract(db, existing); err != nil {
 				return err
 			}
@@ -200,10 +200,10 @@ func (c *Contract) StartMinting(ctx context.Context, db *gorm.DB, dist *Distribu
 	}
 
 	minting := Minting{
-		DistributionID:   dist.ID,
-		CurrentCount:     0,
-		TotalCount:       uint(len(packs)),
-		LastCheckedBlock: latestBlock.Height - 1,
+		DistributionID: dist.ID,
+		CurrentCount:   0,
+		TotalCount:     uint(len(packs)),
+		StartAtBlock:   latestBlock.Height - 1,
 	}
 
 	if err := InsertMinting(db, &minting); err != nil {
@@ -287,7 +287,7 @@ func (c *Contract) UpdateSettlementStatus(ctx context.Context, db *gorm.DB, dist
 		return err
 	}
 
-	start := settlement.LastCheckedBlock + 1
+	start := settlement.StartAtBlock + 1
 	end := min(latestBlock.Height, start+100)
 
 	if start > end {
@@ -346,7 +346,7 @@ func (c *Contract) UpdateSettlementStatus(ctx context.Context, db *gorm.DB, dist
 		}
 	}
 
-	settlement.LastCheckedBlock = end
+	settlement.StartAtBlock = end
 
 	if err := UpdateSettlement(db, settlement); err != nil {
 		return err
@@ -366,7 +366,7 @@ func (c *Contract) UpdateMintingStatus(ctx context.Context, db *gorm.DB, dist *D
 		return err
 	}
 
-	start := minting.LastCheckedBlock + 1
+	start := minting.StartAtBlock + 1
 	end := min(latestBlock.Height, start+100)
 
 	if start > end {
@@ -424,7 +424,7 @@ func (c *Contract) UpdateMintingStatus(ctx context.Context, db *gorm.DB, dist *D
 		}
 	}
 
-	minting.LastCheckedBlock = end
+	minting.StartAtBlock = end
 
 	if err := UpdateMinting(db, minting); err != nil {
 		return err
@@ -444,7 +444,7 @@ func (c *Contract) UpdateCirculatingPack(ctx context.Context, db *gorm.DB, cpc *
 		return err
 	}
 
-	start := cpc.LastCheckedBlock + 1
+	start := cpc.StartAtBlock + 1
 	end := min(latestBlock.Height, start+100)
 
 	if start > end {
@@ -585,7 +585,7 @@ func (c *Contract) UpdateCirculatingPack(ctx context.Context, db *gorm.DB, cpc *
 		}
 	}
 
-	cpc.LastCheckedBlock = end
+	cpc.StartAtBlock = end
 
 	if err := UpdateCirculatingPackContract(db, cpc); err != nil {
 		return err
