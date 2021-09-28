@@ -14,8 +14,7 @@
     },
     "ExampleNFT": "./cadence-contracts/ExampleNFT.cdc",
     "IPackNFT": "./cadence-contracts/IPackNFT.cdc",
-    "PackNFT": "./cadence-contracts/PackNFT.cdc",
-    "PDSInterface": "./cadence-contracts/PDSInterface.cdc"
+    "PackNFT": "./cadence-contracts/PackNFT.cdc"
   },
   "networks": {
     "emulator": "127.0.0.1:3569",
@@ -50,8 +49,7 @@
       ],
       "emulator-owner": [],
       "emulator-pds": [
-        "IPackNFT",
-        "PDSInterface"
+        "IPackNFT"
       ]
     }
   }
