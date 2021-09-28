@@ -16,7 +16,7 @@ pub contract ExampleNFT: NonFungibleToken {
     //
     pub let CollectionStoragePath: StoragePath
     pub let CollectionPublicPath: PublicPath
-    pub let CollectionProviderPrivPath: PrivatePath 
+    pub let CollectionProviderPrivPath: PrivatePath
     pub let MinterStoragePath: StoragePath
 
     pub resource NFT: NonFungibleToken.INFT {
@@ -123,12 +123,12 @@ pub contract ExampleNFT: NonFungibleToken {
             target: self.CollectionStoragePath
         )
 
-        // This needs to be used to allowed for PDS to withdraw 
+        // This needs to be used to allow for PDS to withdraw
         self.account.link<&{NonFungibleToken.Provider}>(
             self.CollectionProviderPrivPath,
             target: self.CollectionStoragePath
         )
-        
+
         if !self.account.getCapability<&{NonFungibleToken.Provider}>(self.CollectionProviderPrivPath).check() {
             panic("not linked")
         }

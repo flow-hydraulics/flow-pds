@@ -17,19 +17,12 @@ func poller(app *App) {
 	for {
 		select {
 		case <-ticker.C:
-			// This is safe? to run as a separate goroutine since it does not lock the distributions table.
-			go func() {
-				handlePollerError("pollCirculatingPackContractEvents", pollCirculatingPackContractEvents(ctx, app.db, app.contract))
-			}()
-
-			// These are _not_ safe to run separately as a goroutine since they lock the distributions table.
-			// If run as a goroutine, only the first function (handleResolved) will ever be run
-			// as the others will always be blocked and the goroutines will fail.
 			go func() {
 				handlePollerError("handleResolved", handleResolved(ctx, app.db, app.contract))
 				handlePollerError("handleSettling", handleSettling(ctx, app.db, app.contract))
 				handlePollerError("handleSettled", handleSettled(ctx, app.db, app.contract))
 				handlePollerError("handleMinting", handleMinting(ctx, app.db, app.contract))
+				handlePollerError("pollCirculatingPackContractEvents", pollCirculatingPackContractEvents(ctx, app.db, app.contract))
 			}()
 		case <-app.quit:
 			cancel()
@@ -55,7 +48,7 @@ func handlePollerError(pollerName string, err error) {
 func listDistributionsByState(db *gorm.DB, state common.DistributionState) ([]Distribution, error) {
 	list := []Distribution{}
 	return list, db.
-		Clauses(clause.Locking{Strength: "UPDATE", Options: "NOWAIT"}).
+		Clauses(clause.Locking{Strength: "UPDATE", Options: "NOWAIT"}). // TODO (latenssi)
 		Where(&Distribution{State: state}).
 		Order("updated_at asc").
 		Find(&list).Error
@@ -64,7 +57,7 @@ func listDistributionsByState(db *gorm.DB, state common.DistributionState) ([]Di
 func listCirculatingPacks(db *gorm.DB) ([]CirculatingPackContract, error) {
 	list := []CirculatingPackContract{}
 	return list, db.
-		Clauses(clause.Locking{Strength: "UPDATE", Options: "NOWAIT"}).
+		Clauses(clause.Locking{Strength: "UPDATE", Options: "NOWAIT"}). // TODO (latenssi)
 		Order("updated_at asc").
 		Limit(10). // Pick 10 (arbitrary) most least recently updated
 		Find(&list).Error

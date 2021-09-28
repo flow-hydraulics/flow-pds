@@ -20,12 +20,11 @@ down:
 .PHONY: reset
 reset: down dev
 
-
 .PHONY: test
 test:
-	@go test ./go-contracts/...
-	@go test ./service/...
-	@go test
+	@go test ./go-contracts/... -v
+	@go test ./service/... -v
+	@go test -v
 
 .PHONY: test-clean
 test-clean: clean-testcache test
