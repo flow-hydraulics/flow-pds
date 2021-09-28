@@ -15,6 +15,10 @@ transaction(recipient: Address, batchSize: Int) {
             .getCapability(ExampleNFT.CollectionPublicPath)!
             .borrow<&{NonFungibleToken.CollectionPublic}>()!
 
-        self.minter.mintNFTBatched(recipient: receiver, batchSize: batchSize)
+        var i = 0
+        while i < batchSize {
+            self.minter.mintNFT(recipient: receiver)
+            i = i + 1
+        }
     }
 }

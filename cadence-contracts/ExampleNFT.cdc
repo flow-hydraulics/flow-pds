@@ -101,16 +101,6 @@ pub contract ExampleNFT: NonFungibleToken {
 
             ExampleNFT.totalSupply = ExampleNFT.totalSupply + UInt64(1)
         }
-
-        // mintNFT mints a new NFT with a new ID
-        // and deposit it in the recipients collection using their collection reference
-        pub fun mintNFTBatched(recipient: &{NonFungibleToken.CollectionPublic}, batchSize: Int) {
-            var i = 0
-            while i < batchSize {
-                self.mintNFT(recipient: recipient)
-                i = i + 1
-            }
-        }
     }
 
     init() {
