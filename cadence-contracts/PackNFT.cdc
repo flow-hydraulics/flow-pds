@@ -12,31 +12,32 @@ pub contract PackNFT: NonFungibleToken, IPackNFT {
     pub let operatorStoragePath: StoragePath 
     pub let operatorPrivPath: PrivatePath 
 
+    // representation of the NFT in this contract to keep track of states
     access(contract) let packs: @{UInt64: Pack}
 
     pub event RevealRequest(id: UInt64)
     pub event OpenRequest(id: UInt64) 
-    pub event Revealed(id: UInt64, salt: String)
+    pub event Revealed(id: UInt64, salt: String, nfts: String)
     pub event Opened(id: UInt64)
-    pub event Mint(id: UInt64, commitHash: String) 
+    pub event Mint(id: UInt64, commitHash: String, distId: UInt64) 
     pub event ContractInitialized()
     pub event Withdraw(id: UInt64, from: Address?)
     pub event Deposit(id: UInt64, to: Address?)
 
     pub resource PackNFTOperator: IPackNFT.IOperator {
 
-         pub fun mint(commitHash: String, issuer: Address) {
+         pub fun mint(distId: UInt64, commitHash: String, issuer: Address) {
             let id = PackNFT.totalSupply
-            let pack <- create NFT(initID: id, commitHash: commitHash, issuer: issuer)
+            let nft <- create NFT(initID: id, commitHash: commitHash, issuer: issuer)
             PackNFT.totalSupply = id + 1
             let recvAcct = getAccount(issuer)
             let recv = recvAcct.getCapability(PackNFT.collectionPublicPath).borrow<&{NonFungibleToken.CollectionPublic}>()
                 ?? panic("Unable to borrow Collection Public reference for recipient")
 
-            recv.deposit(token: <- pack)
-            let p  <-create Pack(commitHash: commitHash, issuer: issuer, status: "Sealed")
+            recv.deposit(token: <- nft)
+            let p  <-create Pack(commitHash: commitHash, issuer: issuer)
             PackNFT.packs[id] <-! p
-            emit Mint(id: id, commitHash: commitHash)
+            emit Mint(id: id, commitHash: commitHash, distId: distId)
          }
 
         pub fun reveal(id: UInt64, nfts: [{IPackNFT.Collectible}], salt: String) {
@@ -59,17 +60,21 @@ pub contract PackNFT: NonFungibleToken, IPackNFT {
         pub let issuer: Address 
         pub var status: String
         pub var salt: String?
+        // TODO: confirm with Eric if we will remove this 
         access(self) let NFTs: [{IPackNFT.Collectible}]
         
-        pub fun getCommitHash(): String {
-            return self.commitHash
-        }
-
+        // TODO: confirm with Eric if we will remove this 
         // public verify commitHash
         pub fun verify(): Bool {
-            return self._verify(nfts: self.NFTs, salt: self.salt!, commitHash: self.commitHash)
+            let _nfts = self._verify(nfts: self.NFTs, salt: self.salt!, commitHash: self.commitHash)
+            if _nfts != nil {
+                return true
+            } else {
+                return false
+            }
         }
 
+        // TODO: confirm with Eric if we will remove this 
         pub fun getNfts():  [String]{
             let nameArr: [String] = []
             var i = 0 
@@ -79,59 +84,45 @@ pub contract PackNFT: NonFungibleToken, IPackNFT {
             }
             return nameArr 
         }
-
-        pub fun getSalt(): String? {
-            return self.salt
-        }
         
-        // TODO
-        access(self) fun _verify(nfts: [{IPackNFT.Collectible}], salt: String, commitHash: String): Bool {
+        access(self) fun _verify(nfts: [{IPackNFT.Collectible}], salt: String, commitHash: String): String? {
             var i = 0 
             var hashString = salt 
+            var nftString = ""
             while i < nfts.length {
                 let s = nfts[i].hashString()
                 log(s)
-                hashString = hashString.concat(",").concat(s) 
+                nftString = nftString.concat(",").concat(s) 
                 i = i + 1
             }
+            hashString = hashString.concat(nftString)
             let hash = HashAlgorithm.SHA2_256.hash(hashString.utf8)
-
-            log("HashString")
-            log(hashString)
-            log("given hash")
-            log(commitHash)
-            log("calc hash")
-            log(String.encodeHex(hash))
-
             if commitHash != String.encodeHex(hash) {
-                return false
+                return nftString 
             } else {
-                return true
+                return nil 
             }
         }
         
         access(contract) fun reveal(id: UInt64, nfts: [{IPackNFT.Collectible}], salt: String) {
-            let v = self._verify(nfts: nfts, salt: salt, commitHash: self.commitHash)
-            if v {
-                self.NFTs.appendAll(nfts)
-                self.salt = salt 
-                self.status = "Revealed"
-                emit Revealed(id: id, salt: salt)
-            } else {
-                panic("commitHash was not verified")
-
-            }
+            assert(self.status == "Sealed", message: "Pack status is not Sealed")
+            let v = self._verify(nfts: nfts, salt: salt, commitHash: self.commitHash) ?? panic("commitHash was not verified")
+            self.NFTs.appendAll(nfts)
+            self.salt = salt 
+            self.status = "Revealed"
+            emit Revealed(id: id, salt: salt, nfts: v)
         }
 
         access(contract) fun open(id: UInt64) {
+            assert(self.status == "Revealed", message: "Pack status is not Revealed")
             self.status = "Opened"
             emit Opened(id: id)
         }
 
-        init(commitHash: String, issuer: Address, status: String) {
+        init(commitHash: String, issuer: Address) {
             self.commitHash = commitHash
             self.issuer = issuer
-            self.status = status
+            self.status = "Sealed"  
             self.salt = nil
             self.NFTs = []
         }
@@ -223,6 +214,9 @@ pub contract PackNFT: NonFungibleToken, IPackNFT {
     }
 
     // TODO getters for packs status
+    pub fun getPackInfo (id: UInt64):  &Pack {
+        return &self.packs[id] as &Pack
+    }
     
     pub fun createEmptyCollection(): @NonFungibleToken.Collection {
         let c <- create Collection()

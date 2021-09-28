@@ -57,11 +57,11 @@ pub contract PDS{
         
         // TODO: maybe we do not need to specify the issuer here, should be the creator of the SharedCapabilities
         // this is also used in storing inside the NFT though
-        pub fun mintPackNFT(commitHashes: [String], issuer: Address){
+        pub fun mintPackNFT(distId: UInt64, commitHashes: [String], issuer: Address){
             var i = 0
             let c = self.operatorCap.borrow() ?? panic("no such cap")
             while i < commitHashes.length{
-                c.mint(commitHash: commitHashes[i], issuer: issuer)
+                c.mint(distId: distId, commitHash: commitHashes[i], issuer: issuer)
                 i = i + 1
             }
         }
@@ -74,8 +74,9 @@ pub contract PDS{
         //TODO: add pub path(s)
         pub fun openPackNFT(packId: UInt64, nftIds: [UInt64], owner: Address) {
             let c = self.operatorCap.borrow() ?? panic("no such cap")
-            PDS.releaseEscrow(nftIds: nftIds, owner: owner)
+            // This checks and sets the status of the pack before releasing escrow 
             c.open(id: packId)
+            PDS.releaseEscrow(nftIds: nftIds, owner: owner)
         }
         
 
@@ -149,7 +150,7 @@ pub contract PDS{
         pub fun mintPackNFT(distId: UInt64, commitHashes: [String], issuer: Address){
             assert(PDS.Distributions.containsKey(distId), message: "No such distribution")
             let d <- PDS.Distributions.remove(key: distId)!
-            d.mintPackNFT(commitHashes: commitHashes, issuer: issuer)
+            d.mintPackNFT(distId: distId, commitHashes: commitHashes, issuer: issuer)
             PDS.Distributions[distId] <-! d
         }
         

@@ -20,11 +20,11 @@ pub contract interface IPackNFT{
     /// New Pack NFT
     ///
     /// Emitted when a new PackNFT has been minted
-    pub event Mint(distId: UInt64, id: UInt64, commitHash: String) 
+    pub event Mint(id: UInt64, commitHash: String, distId: UInt64 ) 
     /// Revealed
     /// 
     /// Emitted when a packNFT has been revealed
-    pub event Revealed(id: UInt64, nfts: String, salt: String)
+    pub event Revealed(id: UInt64, salt: String, nfts: String)
     /// Opened
     ///
     /// Emitted when a packNFT has been opened
@@ -44,12 +44,12 @@ pub contract interface IPackNFT{
     // TODO Pack resource
     
     pub resource interface IOperator {
-        pub fun mint(commitHash: String, issuer: Address)
+        pub fun mint(distId: UInt64, commitHash: String, issuer: Address)
         pub fun reveal(id: UInt64, nfts: [{Collectible}], salt: String)
         pub fun open(id: UInt64) 
     }
     pub resource PackNFTOperator: IOperator {
-        pub fun mint(commitHash: String, issuer: Address)
+        pub fun mint(distId: UInt64, commitHash: String, issuer: Address)
         pub fun reveal(id: UInt64, nfts: [{Collectible}], salt: String)
         pub fun open(id: UInt64) 
     }
