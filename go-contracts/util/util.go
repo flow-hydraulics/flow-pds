@@ -30,7 +30,6 @@ type Addresses struct {
 	ExampleNFT       string
 	PackNFT          string
 	IPackNFT         string
-	PDSInterface     string
 	PDS              string
 }
 
@@ -53,7 +52,7 @@ func ParseCadenceTemplate(templatePath string) []byte {
 	}
 
 	// Addresss for emulator are
-	addresses = Addresses{"f8d6e0586b0a20c7", "01cf0e2f2f715450", "01cf0e2f2f715450", "f3fcd2c1a78f5eee", "f3fcd2c1a78f5eee", "f3fcd2c1a78f5eee"}
+	addresses = Addresses{"f8d6e0586b0a20c7", "01cf0e2f2f715450", "01cf0e2f2f715450", "f3fcd2c1a78f5eee", "f3fcd2c1a78f5eee"}
 	// PDS account deploys IPackNFTInterface, PDSInterface, PDS contracts
 	// addresses = Addresses{os.Getenv("NON_FUNGIBLE_TOKEN_ADDRESS"), os.Getenv("EXAMPLE_NFT_ADDRESS"), os.Getenv("PackNFT"), os.Getenv("PDS_ADDRESS"), os.Getenv("PDS_ADDRESS")}
 
@@ -82,7 +81,7 @@ func NewExpectedPackNFTEvent(name string) TestEvent {
 
 func NewExpectedPDSEvent(name string) TestEvent {
 	return TestEvent{
-		Name:   "A." + addresses.PDSInterface + ".PDS." + name,
+		Name:   "A." + addresses.PDS + ".PDS." + name,
 		Fields: make(map[string]interface{}),
 	}
 }
