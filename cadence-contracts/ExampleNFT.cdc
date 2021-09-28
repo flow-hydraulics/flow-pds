@@ -133,7 +133,7 @@ pub contract ExampleNFT: NonFungibleToken {
             target: self.CollectionStoragePath
         )
 
-        // This needs to be used to allowed for PDS to withdraw
+        // This needs to be used to allow for PDS to withdraw
         self.account.link<&{NonFungibleToken.Provider}>(
             self.CollectionProviderPrivPath,
             target: self.CollectionStoragePath
