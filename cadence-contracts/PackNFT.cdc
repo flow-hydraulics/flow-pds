@@ -71,21 +71,21 @@ pub contract PackNFT: NonFungibleToken, IPackNFT {
         }
 
         access(self) fun _verify(nfts: [{IPackNFT.Collectible}], salt: String, commitHash: String): String? {
-            var i = 0 
             var hashString = salt 
-            var nftString = ""
+            var nftString = nfts[0].hashString()
+            var i = 1 
             while i < nfts.length {
                 let s = nfts[i].hashString()
-                log(s)
                 nftString = nftString.concat(",").concat(s) 
                 i = i + 1
             }
-            hashString = hashString.concat(nftString)
+            hashString = hashString.concat(",").concat(nftString)
+            log(hashString)
             let hash = HashAlgorithm.SHA2_256.hash(hashString.utf8)
             if commitHash != String.encodeHex(hash) {
-                return nftString 
-            } else {
                 return nil 
+            } else {
+                return nftString 
             }
         }
         
@@ -185,10 +185,6 @@ pub contract PackNFT: NonFungibleToken, IPackNFT {
             let token <- nft as! @PackNFT.NFT
             let ref = &token as &IPackNFT.NFT
             self.ownedNFTs[id] <-! token as! @PackNFT.NFT
-            log("id")
-            log(id)
-            log("ref.id")
-            log(ref.id)
             return ref 
         }
 
@@ -198,15 +194,19 @@ pub contract PackNFT: NonFungibleToken, IPackNFT {
     }
     
     access(contract) fun revealRequest(id: UInt64 ) {
+        let p = PackNFT.borrowPackRepresentation(id: id) ?? panic ("No such pack")
+        assert(p.status == "Sealed", message: "Pack status must be Sealed for reveal request")
         emit RevealRequest(id: id)
     }
 
     access(contract) fun openRequest(id: UInt64) {
+        let p = PackNFT.borrowPackRepresentation(id: id) ?? panic ("No such pack")
+        assert(p.status == "Revealed", message: "Pack status must be Revealed for reveal request")
         emit OpenRequest(id: id)
     }
 
     // TODO getters for packs status
-    pub fun getPackInfo (id: UInt64):  &Pack {
+    pub fun borrowPackRepresentation(id: UInt64):  &Pack? {
         return &self.packs[id] as &Pack
     }
     
