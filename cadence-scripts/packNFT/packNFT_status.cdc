@@ -3,5 +3,5 @@ import IPackNFT from 0x{{.IPackNFT}}
 
 pub fun main(id: UInt64): String {
     let p = PackNFT.borrowPackRepresentation(id: id) 
-    return p!.commitHash
+    return p!.status
 }
