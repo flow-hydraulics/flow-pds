@@ -9,6 +9,7 @@ import (
 	"github.com/flow-hydraulics/flow-pds/service/common"
 	"github.com/flow-hydraulics/flow-pds/service/config"
 	"github.com/flow-hydraulics/flow-pds/service/http"
+	"github.com/flow-hydraulics/flow-pds/service/transactions"
 	"github.com/onflow/flow-go-sdk/client"
 	"google.golang.org/grpc"
 	"gorm.io/gorm"
@@ -17,13 +18,17 @@ import (
 func cleanTestDatabase(cfg *config.Config, db *gorm.DB) {
 	// Only run this if database DSN contains "test"
 	if strings.Contains(strings.ToLower(cfg.DatabaseDSN), "test") {
-		db.Delete(app.Distribution{})
-		db.Delete(app.Bucket{})
-		db.Delete(app.Pack{})
-		db.Delete(app.Settlement{})
-		db.Delete(app.SettlementCollectible{})
-		db.Delete(app.Minting{})
-		db.Delete(app.CirculatingPackContract{})
+		// "If you perform a batch delete without any conditions, GORM WON’T run it, and will return ErrMissingWhereClause error
+		// You have to use some conditions or use raw SQL or enable AllowGlobalUpdate"
+		// Unscoped to prevent Soft Delete
+		db.Unscoped().Where("1 = 1").Delete(&app.Distribution{})
+		db.Unscoped().Where("1 = 1").Delete(&app.Bucket{})
+		db.Unscoped().Where("1 = 1").Delete(&app.Pack{})
+		db.Unscoped().Where("1 = 1").Delete(&app.Settlement{})
+		db.Unscoped().Where("1 = 1").Delete(&app.SettlementCollectible{})
+		db.Unscoped().Where("1 = 1").Delete(&app.Minting{})
+		db.Unscoped().Where("1 = 1").Delete(&app.CirculatingPackContract{})
+		db.Unscoped().Where("1 = 1").Delete(&transactions.StorableTransaction{})
 	}
 }
 
@@ -56,6 +61,9 @@ func getTestApp(cfg *config.Config, poll bool) (*app.App, func()) {
 
 	// Migrate app database
 	if err := app.Migrate(db); err != nil {
+		panic(err)
+	}
+	if err := transactions.Migrate(db); err != nil {
 		panic(err)
 	}
 

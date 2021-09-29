@@ -6,9 +6,11 @@ import (
 	"sort"
 	"time"
 
+	"github.com/flow-hydraulics/flow-pds/go-contracts/util"
 	"github.com/flow-hydraulics/flow-pds/service/common"
 	"github.com/flow-hydraulics/flow-pds/service/config"
 	"github.com/flow-hydraulics/flow-pds/service/flow_helpers"
+	"github.com/flow-hydraulics/flow-pds/service/transactions"
 	"github.com/onflow/cadence"
 	"github.com/onflow/flow-go-sdk"
 	"github.com/onflow/flow-go-sdk/client"
@@ -48,7 +50,7 @@ func NewContract(cfg *config.Config, flowClient *client.Client) *Contract {
 		[]int{0}, // TODO (latenssi): more key indexes
 	)
 	logger := log.New()
-	logger.SetLevel(log.TraceLevel) // TODO
+	logger.SetLevel(log.InfoLevel) // TODO
 	return &Contract{cfg, flowClient, pdsAccount, logger}
 }
 
@@ -105,7 +107,9 @@ func (c *Contract) StartSettlement(ctx context.Context, db *gorm.DB, dist *Distr
 		return err
 	}
 
-	// TODO (latenssi): clean up batching
+	// TODO (latenssi): this only handles ExampleNFTs currently
+	txScript := util.ParseCadenceTemplate("./cadence-transactions/pds/settle_exampleNFT.cdc")
+
 	batchSize := 40
 	batchIndex := 0
 	for {
@@ -121,7 +125,7 @@ func (c *Contract) StartSettlement(ctx context.Context, db *gorm.DB, dist *Distr
 			"batchNumber": batchIndex + 1,
 			"batchBegin":  begin,
 			"batchEnd":    end,
-		}).Debug("Sending settle transaction")
+		}).Debug("Initiating settle transaction")
 
 		batch := settlementCollectibles[begin:end]
 
@@ -135,28 +139,12 @@ func (c *Contract) StartSettlement(ctx context.Context, db *gorm.DB, dist *Distr
 			cadence.NewArray(flowIDs),
 		}
 
-		// TODO (latenssi): this only handles ExampleNFTs currently
-		tx, err := flow_helpers.PrepareTransaction(
-			arguments,
-			"./cadence-transactions/pds/settle_exampleNFT.cdc",
-		)
-
+		t, err := transactions.NewTransaction(txScript, arguments)
 		if err != nil {
 			return err
 		}
 
-		latestBlock, err := c.flowClient.GetLatestBlock(ctx, true)
-		if err != nil {
-			return err
-		}
-
-		tx.SetReferenceBlockID(latestBlock.ID)
-
-		if err := flow_helpers.SignProposeAndPayAs(ctx, c.flowClient, c.account, tx); err != nil {
-			return err
-		}
-
-		if _, err := flow_helpers.SendAndWait(ctx, c.flowClient, TX_TIMEOUT, *tx); err != nil {
+		if err := t.Save(db); err != nil {
 			return err
 		}
 
@@ -165,7 +153,7 @@ func (c *Contract) StartSettlement(ctx context.Context, db *gorm.DB, dist *Distr
 			"batchNumber": batchIndex + 1,
 			"batchBegin":  begin,
 			"batchEnd":    end,
-		}).Trace("Settle transaction ok")
+		}).Trace("Settle transaction saved")
 
 		batchIndex++
 	}
@@ -234,7 +222,8 @@ func (c *Contract) StartMinting(ctx context.Context, db *gorm.DB, dist *Distribu
 		return err
 	}
 
-	// TODO (latenssi): clean up batching
+	txScript := util.ParseCadenceTemplate("./cadence-transactions/pds/mint_packNFT.cdc")
+
 	batchSize := 40
 	batchIndex := 0
 	for {
@@ -250,7 +239,7 @@ func (c *Contract) StartMinting(ctx context.Context, db *gorm.DB, dist *Distribu
 			"batchNumber": batchIndex + 1,
 			"batchBegin":  begin,
 			"batchEnd":    end,
-		}).Debug("Sending mint transaction")
+		}).Debug("Initiating mint transaction")
 
 		batch := packs[begin:end]
 
@@ -265,27 +254,12 @@ func (c *Contract) StartMinting(ctx context.Context, db *gorm.DB, dist *Distribu
 			cadence.Address(dist.Issuer),
 		}
 
-		tx, err := flow_helpers.PrepareTransaction(
-			arguments,
-			"./cadence-transactions/pds/mint_packNFT.cdc",
-		)
-
+		t, err := transactions.NewTransaction(txScript, arguments)
 		if err != nil {
 			return err
 		}
 
-		latestBlock, err := c.flowClient.GetLatestBlock(ctx, true)
-		if err != nil {
-			return err
-		}
-
-		tx.SetReferenceBlockID(latestBlock.ID)
-
-		if err := flow_helpers.SignProposeAndPayAs(ctx, c.flowClient, c.account, tx); err != nil {
-			return err
-		}
-
-		if _, err := flow_helpers.SendAndWait(ctx, c.flowClient, TX_TIMEOUT, *tx); err != nil {
+		if err := t.Save(db); err != nil {
 			return err
 		}
 
@@ -294,7 +268,7 @@ func (c *Contract) StartMinting(ctx context.Context, db *gorm.DB, dist *Distribu
 			"batchNumber": batchIndex + 1,
 			"batchBegin":  begin,
 			"batchEnd":    end,
-		}).Trace("Mint transaction ok")
+		}).Trace("Mint transaction saved")
 
 		batchIndex++
 	}
@@ -640,27 +614,13 @@ func (c *Contract) UpdateCirculatingPack(ctx context.Context, db *gorm.DB, cpc *
 						cadence.String(pack.Salt.String()),
 					}
 
-					tx, err := flow_helpers.PrepareTransaction(
-						arguments,
-						"./cadence-transactions/pds/reveal_packNFT.cdc",
-					)
-
+					txScript := util.ParseCadenceTemplate("./cadence-transactions/pds/reveal_packNFT.cdc")
+					t, err := transactions.NewTransaction(txScript, arguments)
 					if err != nil {
 						return err
 					}
 
-					latestBlock, err := c.flowClient.GetLatestBlock(ctx, true)
-					if err != nil {
-						return err
-					}
-
-					tx.SetReferenceBlockID(latestBlock.ID)
-
-					if err := flow_helpers.SignProposeAndPayAs(ctx, c.flowClient, c.account, tx); err != nil {
-						return err
-					}
-
-					if _, err := flow_helpers.SendAndWait(ctx, c.flowClient, TX_TIMEOUT, *tx); err != nil {
+					if err := t.Save(db); err != nil {
 						return err
 					}
 
@@ -674,11 +634,11 @@ func (c *Contract) UpdateCirculatingPack(ctx context.Context, db *gorm.DB, cpc *
 					}
 
 					// Get the owner of the pack from the transaction that emitted the open request event
-					t, err := c.flowClient.GetTransaction(ctx, e.TransactionID)
+					tx, err := c.flowClient.GetTransaction(ctx, e.TransactionID)
 					if err != nil {
 						return err
 					}
-					owner := t.Authorizers[0]
+					owner := tx.Authorizers[0]
 
 					distribution, err := GetDistribution(db, pack.DistributionID)
 					if err != nil {
@@ -698,27 +658,13 @@ func (c *Contract) UpdateCirculatingPack(ctx context.Context, db *gorm.DB, cpc *
 						cadence.Address(owner),
 					}
 
-					tx, err := flow_helpers.PrepareTransaction(
-						arguments,
-						"./cadence-transactions/pds/open_packNFT.cdc",
-					)
-
+					txScript := util.ParseCadenceTemplate("./cadence-transactions/pds/open_packNFT.cdc")
+					t, err := transactions.NewTransaction(txScript, arguments)
 					if err != nil {
 						return err
 					}
 
-					latestBlock, err := c.flowClient.GetLatestBlock(ctx, true)
-					if err != nil {
-						return err
-					}
-
-					tx.SetReferenceBlockID(latestBlock.ID)
-
-					if err := flow_helpers.SignProposeAndPayAs(ctx, c.flowClient, c.account, tx); err != nil {
-						return err
-					}
-
-					if _, err := flow_helpers.SendAndWait(ctx, c.flowClient, TX_TIMEOUT, *tx); err != nil {
+					if err := t.Save(db); err != nil {
 						return err
 					}
 				}
