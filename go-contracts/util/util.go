@@ -2,7 +2,6 @@ package util
 
 import (
 	"bytes"
-	"errors"
 	"io/ioutil"
 	"strconv"
 	"testing"
@@ -21,7 +20,7 @@ import (
 	"github.com/stretchr/testify/assert"
 )
 
-const flowPath = "../../flow.json"
+const flowPath = "../flow.json"
 
 var FlowJSON []string = []string{flowPath}
 
@@ -141,11 +140,11 @@ func ReadCadenceCode(ContractPath string) []byte {
 	return b
 }
 
-func GetTotalSupply(g *gwtf.GoWithTheFlow) (result cadence.UFix64, err error) {
-	filename := "../../../scripts/contract/get_total_supply.cdc"
+func GetHash(g *gwtf.GoWithTheFlow, toHash string) (result string, err error) {
+	filename := "../cadence-scripts/packNFT/checksum.cdc"
 	script := ParseCadenceTemplate(filename)
-	r, err := g.ScriptFromFile(filename, script).RunReturns()
-	result = r.(cadence.UFix64)
+	r, err := g.ScriptFromFile(filename, script).StringArgument(toHash).RunReturns()
+	result = r.ToGoValue().(string)
 	return
 }
 
@@ -162,31 +161,6 @@ func GetVersion(g *gwtf.GoWithTheFlow) (result string, err error) {
 	script := ParseCadenceTemplate(filename)
 	r, err := g.ScriptFromFile(filename, script).RunReturns()
 	result = r.ToGoValue().(string)
-	return
-}
-
-func GetBalance(g *gwtf.GoWithTheFlow, account string) (result cadence.UFix64, err error) {
-	filename := "../../../scripts/vault/get_balance.cdc"
-	script := ParseCadenceTemplate(filename)
-	value, err := g.ScriptFromFile(filename, script).AccountArgument(account).RunReturns()
-	if err != nil {
-		return
-	}
-	result = value.(cadence.UFix64)
-	return
-}
-
-func GetUUID(g *gwtf.GoWithTheFlow, account string, resourceName string) (r uint64, err error) {
-	filename := "../../../scripts/contract/get_resource_uuid.cdc"
-	script := ParseCadenceTemplate(filename)
-	value, err := g.ScriptFromFile(filename, script).AccountArgument(account).StringArgument(resourceName).RunReturns()
-	if err != nil {
-		return
-	}
-	r, ok := value.ToGoValue().(uint64)
-	if !ok {
-		err = errors.New("returned not uint64")
-	}
 	return
 }
 
