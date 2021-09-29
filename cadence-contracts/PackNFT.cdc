@@ -60,31 +60,16 @@ pub contract PackNFT: NonFungibleToken, IPackNFT {
         pub let issuer: Address 
         pub var status: String
         pub var salt: String?
-        // TODO: confirm with Eric if we will remove this 
-        access(self) let NFTs: [{IPackNFT.Collectible}]
         
-        // TODO: confirm with Eric if we will remove this 
-        // public verify commitHash
-        pub fun verify(): Bool {
-            let _nfts = self._verify(nfts: self.NFTs, salt: self.salt!, commitHash: self.commitHash)
-            if _nfts != nil {
-                return true
+        pub fun verify(saltAndNFTs: String): Bool {
+            let hash = HashAlgorithm.SHA2_256.hash(saltAndNFTs.utf8)
+            if self.commitHash != String.encodeHex(hash) {
+                return false 
             } else {
-                return false
+                return true 
             }
         }
 
-        // TODO: confirm with Eric if we will remove this 
-        pub fun getNfts():  [String]{
-            let nameArr: [String] = []
-            var i = 0 
-            while i < self.NFTs.length {
-                nameArr.append(self.NFTs[i].hashString()) 
-                i = i + 1
-            }
-            return nameArr 
-        }
-        
         access(self) fun _verify(nfts: [{IPackNFT.Collectible}], salt: String, commitHash: String): String? {
             var i = 0 
             var hashString = salt 
@@ -107,7 +92,6 @@ pub contract PackNFT: NonFungibleToken, IPackNFT {
         access(contract) fun reveal(id: UInt64, nfts: [{IPackNFT.Collectible}], salt: String) {
             assert(self.status == "Sealed", message: "Pack status is not Sealed")
             let v = self._verify(nfts: nfts, salt: salt, commitHash: self.commitHash) ?? panic("commitHash was not verified")
-            self.NFTs.appendAll(nfts)
             self.salt = salt 
             self.status = "Revealed"
             emit Revealed(id: id, salt: salt, nfts: v)
@@ -124,7 +108,6 @@ pub contract PackNFT: NonFungibleToken, IPackNFT {
             self.issuer = issuer
             self.status = "Sealed"  
             self.salt = nil
-            self.NFTs = []
         }
     }
 
