@@ -9,7 +9,7 @@ func GetPackCommitHash(
 	g *gwtf.GoWithTheFlow,
     id uint64,
 ) (commitHash string, err error) {
-	txScript:= "../cadence-scripts/packNFT/PackNFT_commitHash.cdc"
+	txScript:= "../cadence-scripts/packNFT/packNFT_commitHash.cdc"
 	code:= util.ParseCadenceTemplate(txScript)
 	d, err := g.ScriptFromFile(txScript, code).UInt64Argument(id).RunReturns()
 	commitHash = d.ToGoValue().(string)
@@ -20,7 +20,7 @@ func GetPackStatus(
 	g *gwtf.GoWithTheFlow,
     id uint64,
 ) (status string, err error) {
-	txScript:= "../cadence-scripts/packNFT/PackNFT_status.cdc"
+	txScript:= "../cadence-scripts/packNFT/packNFT_status.cdc"
 	code:= util.ParseCadenceTemplate(txScript)
 	d, err := g.ScriptFromFile(txScript, code).UInt64Argument(id).RunReturns()
 	status = d.ToGoValue().(string)
@@ -30,7 +30,7 @@ func GetPackStatus(
 func GetTotalPacks(
 	g *gwtf.GoWithTheFlow,
 ) (total uint64, err error) {
-	txScript:= "../cadence-scripts/packNFT/PackNFT_total_supply.cdc"
+	txScript:= "../cadence-scripts/packNFT/packNFT_total_supply.cdc"
 	code:= util.ParseCadenceTemplate(txScript)
 	d, err := g.ScriptFromFile(txScript, code).RunReturns()
 	total = d.ToGoValue().(uint64)
