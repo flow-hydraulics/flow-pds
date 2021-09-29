@@ -61,8 +61,11 @@ pub contract PackNFT: NonFungibleToken, IPackNFT {
         pub var status: String
         pub var salt: String?
         
-        pub fun verify(saltAndNFTs: String): Bool {
-            let hash = HashAlgorithm.SHA2_256.hash(saltAndNFTs.utf8)
+        pub fun verify(nftString: String): Bool {
+            assert(self.status != "Sealed", message: "Pack not revealed yet")
+            var hashString = self.salt! 
+            hashString = hashString.concat(",").concat(nftString)
+            let hash = HashAlgorithm.SHA2_256.hash(hashString.utf8)
             if self.commitHash != String.encodeHex(hash) {
                 return false 
             } else {
