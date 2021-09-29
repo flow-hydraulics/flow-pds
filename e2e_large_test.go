@@ -2,6 +2,8 @@ package main
 
 import (
 	"context"
+	"math"
+	"strings"
 	"testing"
 	"time"
 
@@ -102,17 +104,17 @@ func TestE2ELarge(t *testing.T) {
 	}
 
 	// Mint so we have at least no_total
-	// TODO: calculate this for real
-	mintCount := (cfg.TestNOCollectibles - len(available.(cadence.Array).Values)) / 100
+	mintBatchSize := 100
+	mintBatchCount := int(math.Ceil(float64(cfg.TestNOCollectibles-len(available.(cadence.Array).Values)) / float64(mintBatchSize)))
 
 	mintExampleNFT := "./cadence-transactions/exampleNFT/mint_exampleNFTBatched.cdc"
 	mintExampleNFTCode := util.ParseCadenceTemplate(mintExampleNFT)
-	for i := 0; i < mintCount; i++ {
+	for i := 0; i < mintBatchCount; i++ {
 		_, err := g.
 			TransactionFromFile(mintExampleNFT, mintExampleNFTCode).
 			SignProposeAndPayAs("issuer").
 			AccountArgument("issuer").
-			IntArgument(100).
+			IntArgument(mintBatchSize).
 			RunE()
 		if err != nil {
 			t.Fatal(err)
@@ -222,11 +224,14 @@ func TestE2ELarge(t *testing.T) {
 	for {
 		d, _, err := a.GetDistribution(context.Background(), distribution.ID)
 		if err != nil {
-			t.Fatal(err)
-		}
-		if d.State == common.DistributionStateComplete {
-			distribution = *d
-			break
+			if !strings.Contains(err.Error(), "database is locked") {
+				t.Fatal(err)
+			}
+		} else {
+			if d.State == common.DistributionStateComplete {
+				distribution = *d
+				break
+			}
 		}
 		time.Sleep(time.Second)
 	}

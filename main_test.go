@@ -15,6 +15,8 @@ import (
 )
 
 func TestCreate(t *testing.T) {
+	t.Skip("focusing on e2e test now")
+
 	cfg := getTestCfg()
 	server, cleanup := getTestServer(cfg, false)
 	defer func() {

@@ -17,7 +17,7 @@ type CirculatingPackContract struct {
 	Name    string             `gorm:"column:name;uniqueIndex:name_address"`
 	Address common.FlowAddress `gorm:"column:address;uniqueIndex:name_address"`
 
-	LastCheckedBlock uint64 `gorm:"column:last_checked_block"`
+	StartAtBlock uint64 `gorm:"column:start_at_block"`
 }
 
 func (CirculatingPackContract) TableName() string {

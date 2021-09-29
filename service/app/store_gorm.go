@@ -194,7 +194,7 @@ func InsertCirculatingPackContract(db *gorm.DB, d *CirculatingPackContract) erro
 
 // Update CirculatingPackContracts
 func UpdateCirculatingPackContract(db *gorm.DB, d *CirculatingPackContract) error {
-	return db.Save(d).Error
+	return db.Omit(clause.Associations).Save(d).Error
 }
 
 // Insert Minting

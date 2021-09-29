@@ -14,14 +14,15 @@ type Settlement struct {
 	DistributionID uuid.UUID `gorm:"unique"`
 	Distribution   Distribution
 
-	CurrentCount     uint   `gorm:"column:current_count"`
-	TotalCount       uint   `gorm:"column:total_count"`
-	LastCheckedBlock uint64 `gorm:"column:last_checked_block"`
+	CurrentCount uint   `gorm:"column:current_count"`
+	TotalCount   uint   `gorm:"column:total_count"`
+	StartAtBlock uint64 `gorm:"column:start_at_block"`
 
 	EscrowAddress common.FlowAddress `gorm:"column:escrow_address"`
 	Collectibles  []SettlementCollectible
 }
 
+// TODO (latenssi): these could be removed from database after done
 type SettlementCollectible struct {
 	gorm.Model
 	SettlementID uuid.UUID
