@@ -11,6 +11,9 @@ pub contract PDS{
     pub let distCreatorPrivPath: PrivatePath
     pub let distManagerStoragePath: StoragePath
 
+    pub var DistId: UInt64
+    access(contract) let Distributions: @{UInt64: SharedCapabilities}
+
     pub struct Collectible: IPackNFT.Collectible {
         pub let address: Address
         pub let contractName: String
@@ -88,8 +91,6 @@ pub contract PDS{
         }
     }
 
-    pub var DistId: UInt64
-    access(contract) let Distributions: @{UInt64: SharedCapabilities}
 
     /// Issuer has created a distribution 
     pub event DistributionCreated(DistId: UInt64)
