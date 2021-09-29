@@ -132,7 +132,12 @@ pub contract PackNFT: NonFungibleToken, IPackNFT {
 
     }
     
-       pub resource Collection: NonFungibleToken.Provider, NonFungibleToken.Receiver, NonFungibleToken.CollectionPublic, IPackNFT.IPackNFTCollection {
+    pub resource Collection: 
+        NonFungibleToken.Provider, 
+        NonFungibleToken.Receiver, 
+        NonFungibleToken.CollectionPublic, 
+        IPackNFT.IPackNFTCollectionPublic 
+    {
         // dictionary of NFT conforming tokens
         // NFT is a resource type with an `UInt64` ID field
         pub var ownedNFTs: @{UInt64: NonFungibleToken.NFT}
@@ -175,11 +180,15 @@ pub contract PackNFT: NonFungibleToken, IPackNFT {
             return &self.ownedNFTs[id] as &NonFungibleToken.NFT
         }
         
-        pub fun borrowPackNFT(id: UInt64): &IPackNFT.NFT {
+        pub fun borrowPackNFT(id: UInt64): &IPackNFT.NFT? {
             let nft<- self.ownedNFTs.remove(key: id) ?? panic("missing NFT")
             let token <- nft as! @PackNFT.NFT
             let ref = &token as &IPackNFT.NFT
             self.ownedNFTs[id] <-! token as! @PackNFT.NFT
+            log("id")
+            log(id)
+            log("ref.id")
+            log(ref.id)
             return ref 
         }
 
@@ -228,7 +237,7 @@ pub contract PackNFT: NonFungibleToken, IPackNFT {
         let collection <- create Collection()
         adminAccount.save(<-collection, to: self.collectionStoragePath)
         adminAccount.link<&Collection{NonFungibleToken.CollectionPublic}>(self.collectionPublicPath, target: self.collectionStoragePath)
-        adminAccount.link<&Collection{IPackNFT.IPackNFTCollection}>(self.collectionIPackNFTPublicPath, target: self.collectionStoragePath)
+        adminAccount.link<&Collection{IPackNFT.IPackNFTCollectionPublic}>(self.collectionIPackNFTPublicPath, target: self.collectionStoragePath)
 
         // Create a operator to share mint capability with proxy 
         let operator <- create PackNFTOperator()
