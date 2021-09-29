@@ -3,6 +3,7 @@ package app
 import (
 	"context"
 	"fmt"
+	"strings"
 	"time"
 
 	"github.com/flow-hydraulics/flow-pds/service/common"
@@ -41,6 +42,10 @@ func min(x, y uint64) uint64 {
 
 func handlePollerError(pollerName string, err error) {
 	if err != nil {
+		// Ignore database locked errors as they are part of the control flow
+		if strings.Contains(err.Error(), "database is locked") {
+			return
+		}
 		fmt.Printf("error while runnig poller \"%s\": %s\n", pollerName, err)
 	}
 }
@@ -63,7 +68,7 @@ func listCirculatingPacks(db *gorm.DB) ([]CirculatingPackContract, error) {
 		Find(&list).Error
 }
 
-func handleResolved(ctx context.Context, db *gorm.DB, contract IContract) error {
+func handleResolved(ctx context.Context, db *gorm.DB, contract *Contract) error {
 	return db.Transaction(func(tx *gorm.DB) error {
 		resolved, err := listDistributionsByState(tx, common.DistributionStateResolved)
 		if err != nil {
@@ -80,7 +85,7 @@ func handleResolved(ctx context.Context, db *gorm.DB, contract IContract) error 
 	})
 }
 
-func handleSettling(ctx context.Context, db *gorm.DB, contract IContract) error {
+func handleSettling(ctx context.Context, db *gorm.DB, contract *Contract) error {
 	return db.Transaction(func(tx *gorm.DB) error {
 		settling, err := listDistributionsByState(tx, common.DistributionStateSettling)
 		if err != nil {
@@ -96,7 +101,7 @@ func handleSettling(ctx context.Context, db *gorm.DB, contract IContract) error 
 	})
 }
 
-func handleSettled(ctx context.Context, db *gorm.DB, contract IContract) error {
+func handleSettled(ctx context.Context, db *gorm.DB, contract *Contract) error {
 	return db.Transaction(func(tx *gorm.DB) error {
 		settled, err := listDistributionsByState(tx, common.DistributionStateSettled)
 		if err != nil {
@@ -113,7 +118,7 @@ func handleSettled(ctx context.Context, db *gorm.DB, contract IContract) error {
 	})
 }
 
-func handleMinting(ctx context.Context, db *gorm.DB, contract IContract) error {
+func handleMinting(ctx context.Context, db *gorm.DB, contract *Contract) error {
 	return db.Transaction(func(tx *gorm.DB) error {
 		minting, err := listDistributionsByState(tx, common.DistributionStateMinting)
 		if err != nil {
@@ -129,7 +134,7 @@ func handleMinting(ctx context.Context, db *gorm.DB, contract IContract) error {
 	})
 }
 
-func pollCirculatingPackContractEvents(ctx context.Context, db *gorm.DB, contract IContract) error {
+func pollCirculatingPackContractEvents(ctx context.Context, db *gorm.DB, contract *Contract) error {
 	return db.Transaction(func(tx *gorm.DB) error {
 		cc, err := listCirculatingPacks(tx)
 		if err != nil {

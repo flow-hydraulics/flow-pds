@@ -1,3 +1,8 @@
+Deployment
+
+    cp env.example .env # edit according to your setup
+    docker run -p 3000:3000 --env-file .env ghcr.io/flow-hydraulics/flow-pds:latest
+
 Dev environment
 
     cp env.example .env

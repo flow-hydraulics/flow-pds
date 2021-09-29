@@ -22,6 +22,7 @@ type Settlement struct {
 	Collectibles  []SettlementCollectible
 }
 
+// TODO (latenssi): these could be removed from database after done
 type SettlementCollectible struct {
 	gorm.Model
 	SettlementID uuid.UUID

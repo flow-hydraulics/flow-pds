@@ -14,7 +14,7 @@ type App struct {
 	cfg        *config.Config
 	db         *gorm.DB
 	flowClient *client.Client
-	contract   IContract
+	contract   *Contract
 	quit       chan bool // Chan type does not matter as we only use this to 'close'
 }
 

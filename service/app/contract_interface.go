@@ -4,6 +4,7 @@ import (
 	"context"
 	"fmt"
 	"sort"
+	"time"
 
 	"github.com/flow-hydraulics/flow-pds/service/common"
 	"github.com/flow-hydraulics/flow-pds/service/config"
@@ -11,6 +12,7 @@ import (
 	"github.com/onflow/cadence"
 	"github.com/onflow/flow-go-sdk"
 	"github.com/onflow/flow-go-sdk/client"
+	log "github.com/sirupsen/logrus"
 	"gorm.io/gorm"
 )
 
@@ -19,14 +21,7 @@ const (
 	OPEN_REQUEST   = "OpenRequest"
 )
 
-type IContract interface {
-	StartSettlement(context.Context, *gorm.DB, *Distribution) error
-	StartMinting(context.Context, *gorm.DB, *Distribution) error
-	Cancel(context.Context, *gorm.DB, *Distribution) error
-	UpdateSettlementStatus(ctx context.Context, db *gorm.DB, dist *Distribution) error
-	UpdateMintingStatus(ctx context.Context, db *gorm.DB, dist *Distribution) error
-	UpdateCirculatingPack(ctx context.Context, db *gorm.DB, cpc *CirculatingPackContract) error
-}
+const TX_TIMEOUT = time.Second * 10
 
 // TODO (latenssi):
 // - Timeout for settling and minting?
@@ -36,6 +31,7 @@ type Contract struct {
 	cfg        *config.Config
 	flowClient *client.Client
 	account    *flow_helpers.Account
+	logger     *log.Logger
 }
 
 func minInt(a int, b int) int {
@@ -51,10 +47,17 @@ func NewContract(cfg *config.Config, flowClient *client.Client) *Contract {
 		cfg.AdminPrivateKey,
 		[]int{0}, // TODO (latenssi): more key indexes
 	)
-	return &Contract{cfg, flowClient, pdsAccount}
+	logger := log.New()
+	logger.SetLevel(log.TraceLevel) // TODO
+	return &Contract{cfg, flowClient, pdsAccount, logger}
 }
 
 func (c *Contract) StartSettlement(ctx context.Context, db *gorm.DB, dist *Distribution) error {
+	c.logger.WithFields(log.Fields{
+		"method": "StartSettlement",
+		"ID":     dist.ID,
+	}).Trace("Start settlement")
+
 	if err := dist.SetSettling(); err != nil {
 		return err
 	}
@@ -102,40 +105,38 @@ func (c *Contract) StartSettlement(ctx context.Context, db *gorm.DB, dist *Distr
 		return err
 	}
 
-	flowIDs := make([]cadence.Value, len(collectibles))
-	for i, c := range collectibles {
-		flowIDs[i] = cadence.UInt64(c.FlowID.Int64)
-	}
-
 	// TODO (latenssi): clean up batching
 	batchSize := 40
 	batchIndex := 0
 	for {
 		begin := batchIndex * batchSize
-		end := minInt((batchIndex+1)*batchSize, len(flowIDs))
+		end := minInt((batchIndex+1)*batchSize, len(settlementCollectibles))
 
 		if begin > end {
 			break
 		}
 
-		batch := flowIDs[begin:end]
+		c.logger.WithFields(log.Fields{
+			"method":      "StartSettlement",
+			"batchNumber": batchIndex + 1,
+			"batchBegin":  begin,
+			"batchEnd":    end,
+		}).Debug("Sending settle transaction")
+
+		batch := settlementCollectibles[begin:end]
+
+		flowIDs := make([]cadence.Value, len(batch))
+		for i, c := range batch {
+			flowIDs[i] = cadence.UInt64(c.FlowID.Int64)
+		}
 
 		arguments := []cadence.Value{
 			cadence.UInt64(dist.DistID.Int64),
-			cadence.NewArray(batch),
-		}
-
-		latestBlock, err := c.flowClient.GetLatestBlock(ctx, true)
-		if err != nil {
-			return err
+			cadence.NewArray(flowIDs),
 		}
 
 		// TODO (latenssi): this only handles ExampleNFTs currently
-		tx, err := flow_helpers.PrepareTransactionAs(
-			ctx,
-			c.flowClient,
-			c.account,
-			latestBlock,
+		tx, err := flow_helpers.PrepareTransaction(
 			arguments,
 			"./cadence-transactions/pds/settle_exampleNFT.cdc",
 		)
@@ -144,9 +145,27 @@ func (c *Contract) StartSettlement(ctx context.Context, db *gorm.DB, dist *Distr
 			return err
 		}
 
-		if err := c.flowClient.SendTransaction(ctx, *tx); err != nil {
+		latestBlock, err := c.flowClient.GetLatestBlock(ctx, true)
+		if err != nil {
 			return err
 		}
+
+		tx.SetReferenceBlockID(latestBlock.ID)
+
+		if err := flow_helpers.SignProposeAndPayAs(ctx, c.flowClient, c.account, tx); err != nil {
+			return err
+		}
+
+		if _, err := flow_helpers.SendAndWait(ctx, c.flowClient, TX_TIMEOUT, *tx); err != nil {
+			return err
+		}
+
+		c.logger.WithFields(log.Fields{
+			"method":      "StartMinting",
+			"batchNumber": batchIndex + 1,
+			"batchBegin":  begin,
+			"batchEnd":    end,
+		}).Trace("Settle transaction ok")
 
 		batchIndex++
 	}
@@ -155,6 +174,11 @@ func (c *Contract) StartSettlement(ctx context.Context, db *gorm.DB, dist *Distr
 }
 
 func (c *Contract) StartMinting(ctx context.Context, db *gorm.DB, dist *Distribution) error {
+	c.logger.WithFields(log.Fields{
+		"method": "StartMinting",
+		"ID":     dist.ID,
+	}).Trace("Start minting")
+
 	if err := dist.SetMinting(); err != nil {
 		return err
 	}
@@ -210,40 +234,38 @@ func (c *Contract) StartMinting(ctx context.Context, db *gorm.DB, dist *Distribu
 		return err
 	}
 
-	commitmentHashes := make([]cadence.Value, len(packs))
-	for i, p := range packs {
-		commitmentHashes[i] = cadence.NewString(p.CommitmentHash.String())
-	}
-
 	// TODO (latenssi): clean up batching
 	batchSize := 40
 	batchIndex := 0
 	for {
 		begin := batchIndex * batchSize
-		end := minInt((batchIndex+1)*batchSize, len(commitmentHashes))
+		end := minInt((batchIndex+1)*batchSize, len(packs))
 
 		if begin > end {
 			break
 		}
 
-		batch := commitmentHashes[begin:end]
+		c.logger.WithFields(log.Fields{
+			"method":      "StartMinting",
+			"batchNumber": batchIndex + 1,
+			"batchBegin":  begin,
+			"batchEnd":    end,
+		}).Debug("Sending mint transaction")
+
+		batch := packs[begin:end]
+
+		commitmentHashes := make([]cadence.Value, len(batch))
+		for i, p := range batch {
+			commitmentHashes[i] = cadence.NewString(p.CommitmentHash.String())
+		}
 
 		arguments := []cadence.Value{
 			cadence.UInt64(dist.DistID.Int64),
-			cadence.NewArray(batch),
+			cadence.NewArray(commitmentHashes),
 			cadence.Address(dist.Issuer),
 		}
 
-		latestBlock, err := c.flowClient.GetLatestBlock(ctx, true)
-		if err != nil {
-			return err
-		}
-
-		tx, err := flow_helpers.PrepareTransactionAs(
-			ctx,
-			c.flowClient,
-			c.account,
-			latestBlock,
+		tx, err := flow_helpers.PrepareTransaction(
 			arguments,
 			"./cadence-transactions/pds/mint_packNFT.cdc",
 		)
@@ -252,9 +274,27 @@ func (c *Contract) StartMinting(ctx context.Context, db *gorm.DB, dist *Distribu
 			return err
 		}
 
-		if err := c.flowClient.SendTransaction(ctx, *tx); err != nil {
+		latestBlock, err := c.flowClient.GetLatestBlock(ctx, true)
+		if err != nil {
 			return err
 		}
+
+		tx.SetReferenceBlockID(latestBlock.ID)
+
+		if err := flow_helpers.SignProposeAndPayAs(ctx, c.flowClient, c.account, tx); err != nil {
+			return err
+		}
+
+		if _, err := flow_helpers.SendAndWait(ctx, c.flowClient, TX_TIMEOUT, *tx); err != nil {
+			return err
+		}
+
+		c.logger.WithFields(log.Fields{
+			"method":      "StartMinting",
+			"batchNumber": batchIndex + 1,
+			"batchBegin":  begin,
+			"batchEnd":    end,
+		}).Trace("Mint transaction ok")
 
 		batchIndex++
 	}
@@ -263,6 +303,11 @@ func (c *Contract) StartMinting(ctx context.Context, db *gorm.DB, dist *Distribu
 }
 
 func (c *Contract) Cancel(ctx context.Context, db *gorm.DB, dist *Distribution) error {
+	c.logger.WithFields(log.Fields{
+		"method": "Cancel",
+		"ID":     dist.ID,
+	}).Trace("Cancel")
+
 	if err := dist.SetCancelled(); err != nil {
 		return err
 	}
@@ -277,6 +322,11 @@ func (c *Contract) Cancel(ctx context.Context, db *gorm.DB, dist *Distribution) 
 }
 
 func (c *Contract) UpdateSettlementStatus(ctx context.Context, db *gorm.DB, dist *Distribution) error {
+	c.logger.WithFields(log.Fields{
+		"method": "UpdateSettlementStatus",
+		"ID":     dist.ID,
+	}).Trace("Update settlement status")
+
 	settlement, err := GetDistributionSettlement(db, dist.ID)
 	if err != nil {
 		return err
@@ -292,6 +342,12 @@ func (c *Contract) UpdateSettlementStatus(ctx context.Context, db *gorm.DB, dist
 
 	if start > end {
 		// Nothing to update
+		c.logger.WithFields(log.Fields{
+			"method":     "UpdateSettlementStatus",
+			"ID":         dist.ID,
+			"blockStart": start,
+			"blockEnd":   end,
+		}).Trace("No blocks to handle")
 		return nil
 	}
 
@@ -312,6 +368,14 @@ func (c *Contract) UpdateSettlementStatus(ctx context.Context, db *gorm.DB, dist
 
 		for _, be := range arr {
 			for _, e := range be.Events {
+				c.logger.WithFields(log.Fields{
+					"method":     "UpdateSettlementStatus",
+					"ID":         dist.ID,
+					"blockStart": start,
+					"blockEnd":   end,
+					"eventType":  e.Type,
+				}).Debug("Handling event")
+
 				flowID, err := common.FlowIDFromCadence(e.Value.Fields[0])
 				if err != nil {
 					return err
@@ -333,6 +397,14 @@ func (c *Contract) UpdateSettlementStatus(ctx context.Context, db *gorm.DB, dist
 						settlement.IncrementCount()
 					}
 				}
+
+				c.logger.WithFields(log.Fields{
+					"method":     "UpdateSettlementStatus",
+					"ID":         dist.ID,
+					"blockStart": start,
+					"blockEnd":   end,
+					"eventType":  e.Type,
+				}).Trace("Handling event complete")
 			}
 		}
 	}
@@ -356,6 +428,11 @@ func (c *Contract) UpdateSettlementStatus(ctx context.Context, db *gorm.DB, dist
 }
 
 func (c *Contract) UpdateMintingStatus(ctx context.Context, db *gorm.DB, dist *Distribution) error {
+	c.logger.WithFields(log.Fields{
+		"method": "UpdateMintingStatus",
+		"ID":     dist.ID,
+	}).Trace("Update minting status")
+
 	minting, err := GetDistributionMinting(db, dist.ID)
 	if err != nil {
 		return err
@@ -371,6 +448,12 @@ func (c *Contract) UpdateMintingStatus(ctx context.Context, db *gorm.DB, dist *D
 
 	if start > end {
 		// Nothing to update
+		c.logger.WithFields(log.Fields{
+			"method":     "UpdateMintingStatus",
+			"ID":         dist.ID,
+			"blockStart": start,
+			"blockEnd":   end,
+		}).Trace("No blocks to handle")
 		return nil
 	}
 
@@ -387,6 +470,14 @@ func (c *Contract) UpdateMintingStatus(ctx context.Context, db *gorm.DB, dist *D
 
 	for _, be := range arr {
 		for _, e := range be.Events {
+			c.logger.WithFields(log.Fields{
+				"method":     "UpdateMintingStatus",
+				"ID":         dist.ID,
+				"blockStart": start,
+				"blockEnd":   end,
+				"eventType":  e.Type,
+			}).Debug("Handling event")
+
 			flowID, err := common.FlowIDFromCadence(e.Value.Fields[0])
 			if err != nil {
 				return err
@@ -399,7 +490,16 @@ func (c *Contract) UpdateMintingStatus(ctx context.Context, db *gorm.DB, dist *D
 
 			pack, err := GetMintingPack(db, commitmentHash)
 			if err != nil {
-				fmt.Printf("received event: %s but unable find a pack with a missing flowId and with commitmentHash %v\n", e, commitmentHash.String())
+				c.logger.WithFields(log.Fields{
+					"method":         "UpdateMintingStatus",
+					"ID":             dist.ID,
+					"blockStart":     start,
+					"blockEnd":       end,
+					"eventType":      e.Type,
+					"flowID":         flowID,
+					"commitmentHash": commitmentHash,
+					"error":          "unable to find matching pack from database",
+				}).Errorf("Error while handling event")
 				continue
 			}
 
@@ -412,6 +512,14 @@ func (c *Contract) UpdateMintingStatus(ctx context.Context, db *gorm.DB, dist *D
 			}
 
 			minting.IncrementCount()
+
+			c.logger.WithFields(log.Fields{
+				"method":     "UpdateMintingStatus",
+				"ID":         dist.ID,
+				"blockStart": start,
+				"blockEnd":   end,
+				"eventType":  e.Type,
+			}).Trace("Handling event complete")
 		}
 	}
 
@@ -434,6 +542,11 @@ func (c *Contract) UpdateMintingStatus(ctx context.Context, db *gorm.DB, dist *D
 }
 
 func (c *Contract) UpdateCirculatingPack(ctx context.Context, db *gorm.DB, cpc *CirculatingPackContract) error {
+	c.logger.WithFields(log.Fields{
+		"method": "UpdateCirculatingPack",
+		"ID":     cpc.ID,
+	}).Trace("Update circulating pack")
+
 	eventNames := []string{
 		REVEAL_REQUEST,
 		OPEN_REQUEST,
@@ -448,6 +561,12 @@ func (c *Contract) UpdateCirculatingPack(ctx context.Context, db *gorm.DB, cpc *
 	end := min(latestBlock.Height, start+100)
 
 	if start > end {
+		c.logger.WithFields(log.Fields{
+			"method":     "UpdateCirculatingPack",
+			"ID":         cpc.ID,
+			"blockStart": start,
+			"blockEnd":   end,
+		}).Trace("No blocks to handle")
 		return nil
 	}
 
@@ -465,6 +584,14 @@ func (c *Contract) UpdateCirculatingPack(ctx context.Context, db *gorm.DB, cpc *
 
 		for _, be := range arr {
 			for _, e := range be.Events {
+				c.logger.WithFields(log.Fields{
+					"method":     "UpdateCirculatingPack",
+					"ID":         cpc.ID,
+					"blockStart": start,
+					"blockEnd":   end,
+					"eventType":  e.Type,
+				}).Debug("Handling event")
+
 				// TODO (latenssi): consider separating this one db transaction ("db")
 
 				flowID, err := common.FlowIDFromCadence(e.Value.Fields[0])
@@ -480,6 +607,10 @@ func (c *Contract) UpdateCirculatingPack(ctx context.Context, db *gorm.DB, cpc *
 				switch eventName {
 				case REVEAL_REQUEST:
 					if err := pack.Reveal(); err != nil {
+						return err
+					}
+
+					if err := UpdatePack(db, pack); err != nil {
 						return err
 					}
 
@@ -509,11 +640,7 @@ func (c *Contract) UpdateCirculatingPack(ctx context.Context, db *gorm.DB, cpc *
 						cadence.String(pack.Salt.String()),
 					}
 
-					tx, err := flow_helpers.PrepareTransactionAs(
-						ctx,
-						c.flowClient,
-						c.account,
-						latestBlock,
+					tx, err := flow_helpers.PrepareTransaction(
 						arguments,
 						"./cadence-transactions/pds/reveal_packNFT.cdc",
 					)
@@ -522,16 +649,27 @@ func (c *Contract) UpdateCirculatingPack(ctx context.Context, db *gorm.DB, cpc *
 						return err
 					}
 
-					if err := c.flowClient.SendTransaction(ctx, *tx); err != nil {
+					latestBlock, err := c.flowClient.GetLatestBlock(ctx, true)
+					if err != nil {
 						return err
 					}
 
-					if err := UpdatePack(db, pack); err != nil {
+					tx.SetReferenceBlockID(latestBlock.ID)
+
+					if err := flow_helpers.SignProposeAndPayAs(ctx, c.flowClient, c.account, tx); err != nil {
+						return err
+					}
+
+					if _, err := flow_helpers.SendAndWait(ctx, c.flowClient, TX_TIMEOUT, *tx); err != nil {
 						return err
 					}
 
 				case OPEN_REQUEST:
 					if err := pack.Open(); err != nil {
+						return err
+					}
+
+					if err := UpdatePack(db, pack); err != nil {
 						return err
 					}
 
@@ -560,11 +698,7 @@ func (c *Contract) UpdateCirculatingPack(ctx context.Context, db *gorm.DB, cpc *
 						cadence.Address(owner),
 					}
 
-					tx, err := flow_helpers.PrepareTransactionAs(
-						ctx,
-						c.flowClient,
-						c.account,
-						latestBlock,
+					tx, err := flow_helpers.PrepareTransaction(
 						arguments,
 						"./cadence-transactions/pds/open_packNFT.cdc",
 					)
@@ -573,14 +707,29 @@ func (c *Contract) UpdateCirculatingPack(ctx context.Context, db *gorm.DB, cpc *
 						return err
 					}
 
-					if err := c.flowClient.SendTransaction(ctx, *tx); err != nil {
+					latestBlock, err := c.flowClient.GetLatestBlock(ctx, true)
+					if err != nil {
 						return err
 					}
 
-					if err := UpdatePack(db, pack); err != nil {
+					tx.SetReferenceBlockID(latestBlock.ID)
+
+					if err := flow_helpers.SignProposeAndPayAs(ctx, c.flowClient, c.account, tx); err != nil {
+						return err
+					}
+
+					if _, err := flow_helpers.SendAndWait(ctx, c.flowClient, TX_TIMEOUT, *tx); err != nil {
 						return err
 					}
 				}
+
+				c.logger.WithFields(log.Fields{
+					"method":     "UpdateCirculatingPack",
+					"ID":         cpc.ID,
+					"blockStart": start,
+					"blockEnd":   end,
+					"eventType":  e.Type,
+				}).Trace("Handling event complete")
 			}
 		}
 	}

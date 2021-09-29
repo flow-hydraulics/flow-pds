@@ -13,6 +13,7 @@ require (
 	github.com/joho/godotenv v1.3.0
 	github.com/onflow/cadence v0.18.1-0.20210621144040-64e6b6fb2337
 	github.com/onflow/flow-go-sdk v0.20.1-0.20210623043139-533a95abf071
+	github.com/sirupsen/logrus v1.8.1
 	github.com/stretchr/testify v1.7.0
 	google.golang.org/grpc v1.38.0
 	gorm.io/driver/mysql v1.1.2
