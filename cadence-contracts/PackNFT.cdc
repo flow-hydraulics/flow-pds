@@ -26,18 +26,14 @@ pub contract PackNFT: NonFungibleToken, IPackNFT {
 
     pub resource PackNFTOperator: IPackNFT.IOperator {
 
-         pub fun mint(distId: UInt64, commitHash: String, issuer: Address) {
+         pub fun mint(distId: UInt64, commitHash: String, issuer: Address): @NFT{
             let id = PackNFT.totalSupply
             let nft <- create NFT(initID: id, commitHash: commitHash, issuer: issuer)
             PackNFT.totalSupply = id + 1
-            let recvAcct = getAccount(issuer)
-            let recv = recvAcct.getCapability(PackNFT.collectionPublicPath).borrow<&{NonFungibleToken.CollectionPublic}>()
-                ?? panic("Unable to borrow Collection Public reference for recipient")
-
-            recv.deposit(token: <- nft)
             let p  <-create Pack(commitHash: commitHash, issuer: issuer)
             PackNFT.packs[id] <-! p
             emit Mint(id: id, commitHash: commitHash, distId: distId)
+            return <- nft
          }
 
         pub fun reveal(id: UInt64, nfts: [{IPackNFT.Collectible}], salt: String) {
@@ -66,14 +62,11 @@ pub contract PackNFT: NonFungibleToken, IPackNFT {
             var hashString = self.salt! 
             hashString = hashString.concat(",").concat(nftString)
             let hash = HashAlgorithm.SHA2_256.hash(hashString.utf8)
-            if self.commitHash != String.encodeHex(hash) {
-                return false 
-            } else {
-                return true 
-            }
+            assert(self.commitHash == String.encodeHex(hash), message: "CommitHash was not verified")
+            return true 
         }
 
-        access(self) fun _verify(nfts: [{IPackNFT.Collectible}], salt: String, commitHash: String): String? {
+        access(self) fun _verify(nfts: [{IPackNFT.Collectible}], salt: String, commitHash: String): String {
             var hashString = salt 
             var nftString = nfts[0].hashString()
             var i = 1 
@@ -85,16 +78,13 @@ pub contract PackNFT: NonFungibleToken, IPackNFT {
             hashString = hashString.concat(",").concat(nftString)
             log(hashString)
             let hash = HashAlgorithm.SHA2_256.hash(hashString.utf8)
-            if commitHash != String.encodeHex(hash) {
-                return nil 
-            } else {
-                return nftString 
-            }
+            assert(self.commitHash == String.encodeHex(hash), message: "CommitHash was not verified")
+            return nftString 
         }
         
         access(contract) fun reveal(id: UInt64, nfts: [{IPackNFT.Collectible}], salt: String) {
             assert(self.status == "Sealed", message: "Pack status is not Sealed")
-            let v = self._verify(nfts: nfts, salt: salt, commitHash: self.commitHash) ?? panic("commitHash was not verified")
+            let v = self._verify(nfts: nfts, salt: salt, commitHash: self.commitHash)
             self.salt = salt 
             self.status = "Revealed"
             emit Revealed(id: id, salt: salt, nfts: v)
@@ -153,9 +143,7 @@ pub contract PackNFT: NonFungibleToken, IPackNFT {
         pub fun withdraw(withdrawID: UInt64): @NonFungibleToken.NFT {
             let token <- self.ownedNFTs.remove(key: withdrawID) ?? panic("missing NFT")
             emit Withdraw(id: token.id, from: self.owner?.address)
-            let nonfungibleToken <- token
-
-            return <- nonfungibleToken
+            return <- token 
         }
 
         // deposit takes a NFT and adds it to the collections dictionary
@@ -214,12 +202,10 @@ pub contract PackNFT: NonFungibleToken, IPackNFT {
     }
     
     pub fun createEmptyCollection(): @NonFungibleToken.Collection {
-        let c <- create Collection()
-        return <- c
+        return <- create Collection()
     }  
     
     init(
-        adminAccount: AuthAccount, 
         collectionStoragePath: StoragePath,
         collectionPublicPath: PublicPath,
         collectionIPackNFTPublicPath: PublicPath,
@@ -238,14 +224,14 @@ pub contract PackNFT: NonFungibleToken, IPackNFT {
 
         // Create a collection to receive Pack NFTs
         let collection <- create Collection()
-        adminAccount.save(<-collection, to: self.collectionStoragePath)
-        adminAccount.link<&Collection{NonFungibleToken.CollectionPublic}>(self.collectionPublicPath, target: self.collectionStoragePath)
-        adminAccount.link<&Collection{IPackNFT.IPackNFTCollectionPublic}>(self.collectionIPackNFTPublicPath, target: self.collectionStoragePath)
+        self.account.save(<-collection, to: self.collectionStoragePath)
+        self.account.link<&Collection{NonFungibleToken.CollectionPublic}>(self.collectionPublicPath, target: self.collectionStoragePath)
+        self.account.link<&Collection{IPackNFT.IPackNFTCollectionPublic}>(self.collectionIPackNFTPublicPath, target: self.collectionStoragePath)
 
         // Create a operator to share mint capability with proxy 
         let operator <- create PackNFTOperator()
-        adminAccount.save(<-operator, to: self.operatorStoragePath)
-        adminAccount.link<&PackNFTOperator{IPackNFT.IOperator}>(self.operatorPrivPath, target: self.operatorStoragePath)
+        self.account.save(<-operator, to: self.operatorStoragePath)
+        self.account.link<&PackNFTOperator{IPackNFT.IOperator}>(self.operatorPrivPath, target: self.operatorStoragePath)
     }
 
 }

@@ -18,7 +18,6 @@ transaction(
             owner.contracts.add(
                 name: contractName, 
                 code: code.decodeHex(), 
-                owner,
                 collectionStoragePath: collectionStoragePath,
                 collectionPublicPath: collectionPublicPath,
                 collectionIPackNFTPublicPath: collectionIPackNFTPublicPath,

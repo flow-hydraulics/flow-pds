@@ -153,7 +153,7 @@ func TestPDSMintPackNFTs(t *testing.T){
         AddField("id", strconv.Itoa(int(expectedId))).
         AddField("commitHash", hash).
         AddField("distId", strconv.Itoa(int(nextDistId - 1))).
-        AssertEqual(t, events[1])
+        AssertEqual(t, events[0])
 
     nextPackNFTId, err := packnft.GetTotalPacks(g)
     assert.NoError(t, err)
@@ -419,6 +419,5 @@ func TestPublicVerify(t *testing.T) {
 
     notNfts:= "A." + addr + ".ExampleNFT.2,A."+ addr +".ExampleNFT.4"
     v, err = packnft.Verify(g, currentPack, notNfts)
-    assert.NoError(t, err)
-    assert.Equal(t, false, v)
+    assert.Error(t, err)
 }
