@@ -5,7 +5,7 @@ ifneq (,$(wildcard ./.env.test))
 endif
 
 .PHONY: dev
-dev: up deploy
+dev: up wait deploy
 
 .PHONY: deploy
 deploy:
@@ -25,6 +25,10 @@ down:
 
 .PHONY: reset
 reset: down dev
+
+wait:
+	@echo "waiting..."
+	@sleep 2
 
 .PHONY: test
 test:

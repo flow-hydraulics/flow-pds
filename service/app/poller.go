@@ -60,7 +60,7 @@ func handlePollerError(pollerName string, err error) {
 		if strings.Contains(err.Error(), "database is locked") {
 			return
 		}
-		fmt.Printf("error while runnig poller \"%s\": %s\n", pollerName, err)
+		fmt.Printf("error while running poller \"%s\": %s\n", pollerName, err)
 	}
 }
 

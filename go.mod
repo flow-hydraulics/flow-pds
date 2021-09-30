@@ -15,6 +15,7 @@ require (
 	github.com/onflow/flow-go-sdk v0.20.1-0.20210623043139-533a95abf071
 	github.com/sirupsen/logrus v1.8.1
 	github.com/stretchr/testify v1.7.0
+	go.uber.org/ratelimit v0.2.0
 	google.golang.org/grpc v1.38.0
 	gorm.io/datatypes v1.0.2
 	gorm.io/driver/mysql v1.1.2
@@ -101,7 +102,6 @@ require (
 	github.com/x448/float16 v0.8.4 // indirect
 	go.opencensus.io v0.23.0 // indirect
 	go.uber.org/atomic v1.7.0 // indirect
-	go.uber.org/ratelimit v0.2.0 // indirect
 	golang.org/x/crypto v0.0.0-20210817164053-32db794688a5 // indirect
 	golang.org/x/net v0.0.0-20210423184538-5f58ad60dda6 // indirect
 	golang.org/x/oauth2 v0.0.0-20200107190931-bf48bf16ab8d // indirect
