@@ -63,7 +63,8 @@ func NewContract(cfg *config.Config, logger *log.Logger, flowClient *client.Clie
 	pdsAccount := flow_helpers.GetAccount(
 		flow.HexToAddress(cfg.AdminAddress),
 		cfg.AdminPrivateKey,
-		[]int{0}, // TODO (latenssi): more key indexes
+		cfg.AdminPrivateKeyType,
+		cfg.AdminPrivateKeyIndexes,
 	)
 	return &Contract{cfg, logger, flowClient, pdsAccount}
 }

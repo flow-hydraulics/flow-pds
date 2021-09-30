@@ -9,9 +9,10 @@ import (
 type Config struct {
 	// -- Admin (or the PDS) account --
 
-	AdminAddress    string `env:"FLOW_PDS_ADMIN_ADDRESS,notEmpty"`
-	AdminPrivateKey string `env:"FLOW_PDS_ADMIN_PRIVATE_KEY,notEmpty"`
-	// TODO AdminPrivateKeyIndexes
+	AdminAddress           string `env:"FLOW_PDS_ADMIN_ADDRESS,notEmpty"`
+	AdminPrivateKey        string `env:"FLOW_PDS_ADMIN_PRIVATE_KEY,notEmpty"`
+	AdminPrivateKeyIndexes []int  `env:"FLOW_PDS_ADMIN_PRIVATE_KEY_INDEXES,notEmpty" envDefault:"0" envSeparator:","`
+	AdminPrivateKeyType    string `env:"FLOW_PDS_ADMIN_PRIVATE_KEY_TYPE,notEmpty" envDefault:"local"`
 
 	// -- Database --
 
