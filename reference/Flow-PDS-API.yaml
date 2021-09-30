@@ -51,12 +51,12 @@ paths:
                     packReference:
                       name: string
                       address: '0x1'
-                    collectibleReference:
-                      name: string
-                      address: '0x1'
                     packCount: 3
                     buckets:
-                      - collectibleCount: 2
+                      - collectibleReference:
+                          name: string
+                          address: '0x1'
+                        collectibleCount: 2
                         collectibleCollection:
                           - 1
                           - 2
