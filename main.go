@@ -11,6 +11,7 @@ import (
 	"github.com/flow-hydraulics/flow-pds/service/config"
 	"github.com/flow-hydraulics/flow-pds/service/errors"
 	"github.com/flow-hydraulics/flow-pds/service/http"
+	"github.com/flow-hydraulics/flow-pds/service/transactions"
 	"github.com/onflow/flow-go-sdk/client"
 	"google.golang.org/grpc"
 )
@@ -86,6 +87,9 @@ func runServer(cfg *config.Config) error {
 
 	// Migrate app database
 	if err := app.Migrate(db); err != nil {
+		return err
+	}
+	if err := transactions.Migrate(db); err != nil {
 		return err
 	}
 

@@ -7,8 +7,8 @@ import (
 	"time"
 
 	"github.com/flow-hydraulics/flow-pds/service/common"
+	"github.com/flow-hydraulics/flow-pds/service/transactions"
 	"gorm.io/gorm"
-	"gorm.io/gorm/clause"
 )
 
 func poller(app *App) {
@@ -18,13 +18,13 @@ func poller(app *App) {
 	for {
 		select {
 		case <-ticker.C:
-			go func() {
-				handlePollerError("handleResolved", handleResolved(ctx, app.db, app.contract))
-				handlePollerError("handleSettling", handleSettling(ctx, app.db, app.contract))
-				handlePollerError("handleSettled", handleSettled(ctx, app.db, app.contract))
-				handlePollerError("handleMinting", handleMinting(ctx, app.db, app.contract))
-				handlePollerError("pollCirculatingPackContractEvents", pollCirculatingPackContractEvents(ctx, app.db, app.contract))
-			}()
+			handlePollerError("handleResolved", handleResolved(ctx, app.db, app.contract))
+			handlePollerError("handleSettling", handleSettling(ctx, app.db, app.contract))
+			handlePollerError("handleSettled", handleSettled(ctx, app.db, app.contract))
+			handlePollerError("handleMinting", handleMinting(ctx, app.db, app.contract))
+			handlePollerError("pollCirculatingPackContractEvents", pollCirculatingPackContractEvents(ctx, app.db, app.contract))
+			handlePollerError("handleSendableTransactions", handleSendableTransactions(ctx, app.db, app.contract))
+			handlePollerError("handleSentTransactions", handleSentTransactions(ctx, app.db, app.contract))
 		case <-app.quit:
 			cancel()
 			ticker.Stop()
@@ -53,7 +53,6 @@ func handlePollerError(pollerName string, err error) {
 func listDistributionsByState(db *gorm.DB, state common.DistributionState) ([]Distribution, error) {
 	list := []Distribution{}
 	return list, db.
-		Clauses(clause.Locking{Strength: "UPDATE", Options: "NOWAIT"}). // TODO (latenssi)
 		Where(&Distribution{State: state}).
 		Order("updated_at asc").
 		Find(&list).Error
@@ -62,7 +61,6 @@ func listDistributionsByState(db *gorm.DB, state common.DistributionState) ([]Di
 func listCirculatingPacks(db *gorm.DB) ([]CirculatingPackContract, error) {
 	list := []CirculatingPackContract{}
 	return list, db.
-		Clauses(clause.Locking{Strength: "UPDATE", Options: "NOWAIT"}). // TODO (latenssi)
 		Order("updated_at asc").
 		Limit(10). // Pick 10 (arbitrary) most least recently updated
 		Find(&list).Error
@@ -149,4 +147,73 @@ func pollCirculatingPackContractEvents(ctx context.Context, db *gorm.DB, contrac
 
 		return nil
 	})
+}
+
+// handleSendableTransactions sends all transactions which are sendable (state is init or retry)
+// with no regard to account proposal key sequence number
+// TODO (latenssi): this is basically brute forcing the sequence numbering
+func handleSendableTransactions(ctx context.Context, db *gorm.DB, contract *Contract) error {
+	sendableIDs, err := transactions.SendableIDs(db)
+	if err != nil {
+		return err
+	}
+
+	for _, id := range sendableIDs {
+		err := db.Transaction(func(dbTx *gorm.DB) error {
+			t, err := transactions.GetTransaction(dbTx, id)
+			if err != nil {
+				return err
+			}
+
+			if err := t.Send(ctx, contract.flowClient, contract.account); err != nil {
+				return err
+			}
+
+			if err := t.Save(dbTx); err != nil {
+				return err
+			}
+
+			return nil
+		})
+
+		if err != nil {
+			return err
+		}
+	}
+
+	return nil
+}
+
+// handleSentTransactions checks the results of sent transactions and updates
+// the state in database accordingly
+func handleSentTransactions(ctx context.Context, db *gorm.DB, contract *Contract) error {
+	sentIDs, err := transactions.SentIDs(db)
+	if err != nil {
+		return err
+	}
+
+	for _, id := range sentIDs {
+		err := db.Transaction(func(dbTx *gorm.DB) error {
+			t, err := transactions.GetTransaction(dbTx, id)
+			if err != nil {
+				return err
+			}
+
+			if err := t.HandleResult(ctx, contract.flowClient); err != nil {
+				return err
+			}
+
+			if err := t.Save(dbTx); err != nil {
+				return err
+			}
+
+			return nil
+		})
+
+		if err != nil {
+			return err
+		}
+	}
+
+	return nil
 }
