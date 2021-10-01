@@ -4,6 +4,7 @@ description: Way of referencing a contract on Flow.
 properties:
   name:
     type: string
+    example: ExampleNFT
   address:
     $ref: ./Flow-Address.yaml
 required:

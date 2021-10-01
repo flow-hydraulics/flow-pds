@@ -1,6 +1,6 @@
 type: object
 title: Bucket
-description: A bucket from which to pick collectibles into a pack.
+description: ''
 examples:
   - collectibleCount: 1
     collectibleCollection:
@@ -13,13 +13,5 @@ properties:
     $ref: ./Contract-Reference.yaml
   collectibleCount:
     type: integer
-    format: int64
     minimum: 1
-  collectibleCollection:
-    type: array
-    uniqueItems: true
-    minItems: 1
-    items:
-      type: integer
-      format: int64
-      minimum: 1
+    example: 4
