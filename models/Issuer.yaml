@@ -1,0 +1,2 @@
+$ref: ./Flow-Address.yaml
+description: Issuer of a distribution. Should provide capabilities for the service to withdraw and return collectible NFTs and receive Pack NFTs from the service.

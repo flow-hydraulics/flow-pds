@@ -21,25 +21,25 @@ paths:
             schema:
               type: object
               properties:
-                distId:
+                distFlowID:
                   type: integer
-                  format: int64
                   minimum: 0
                   example: 1
                 issuer:
-                  $ref: ../models/Distribution-Issuer.yaml
+                  $ref: ../models/Issuer.yaml
                 meta:
                   $ref: ../models/Distribution-Meta.yaml
                 packTemplate:
-                  $ref: ../models/Pack-Template.yaml
+                  $ref: ../models/Pack-Template-Create.yaml
               required:
+                - distFlowID
                 - issuer
                 - meta
                 - packTemplate
             examples:
               example-1:
                 value:
-                  distId: 12
+                  distFlowID: 12
                   issuer: '0x1'
                   meta:
                     title: string
@@ -68,7 +68,8 @@ paths:
                           - 8
                           - 9
                           - 10
-      description: 'Create a distribution. If template is valid, a distribution is created in database and the id is returned. All the related tasks are started asynchronously (settling and minting).'
+        description: ''
+      description: 'Create a distribution. If template is valid, a distribution is created in database and both the offchain (distID) and the onchain (distFlowID) IDs are returned. All the related tasks are started asynchronously (settling and minting).'
     parameters: []
     get:
       summary: List distributions
@@ -81,7 +82,7 @@ paths:
               schema:
                 type: array
                 items:
-                  $ref: ../models/DistributionListItem.yaml
+                  $ref: ../models/Distribution-List.yaml
       description: List all distributions in the database.
       parameters:
         - schema:
@@ -112,7 +113,7 @@ paths:
           content:
             application/json:
               schema:
-                $ref: ../models/Distribution.yaml
+                $ref: ../models/Distribution-Get.yaml
       description: Returns the details for a distribution.
   '/distributions/{distributionId}/cancel':
     parameters:
@@ -127,7 +128,10 @@ paths:
       responses:
         '200':
           description: OK
-      description: Cancel a distribution which is not in "complete" state. PDS should return all withdrawn NFTs and once all have been returned revoke all capabilities created during this distribution and delete the distribution from database.
+      description: |-
+        THIS ENDOINT IS NOT IMPLEMENTED
+
+        Cancel a distribution which is not in "complete" state. PDS should return all withdrawn NFTs and once all have been returned revoke all capabilities created during this distribution and delete the distribution from database.
 components:
   schemas: {}
   responses:
@@ -138,8 +142,11 @@ components:
           schema:
             type: object
             properties:
-              distributionId:
+              distID:
                 type: string
+                format: uuid
+              distFlowID:
+                type: integer
     Distribution-Create-Error:
       description: Example response
       content:

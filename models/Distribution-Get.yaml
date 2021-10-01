@@ -1,0 +1,31 @@
+title: Distribution
+type: object
+description: ''
+properties:
+  distID:
+    type: string
+    format: uuid
+  distFlowID:
+    type: integer
+    minimum: 0
+    example: 1
+  createdAt:
+    type: string
+    format: date-time
+  updatedAt:
+    type: string
+    format: date-time
+  issuer:
+    $ref: ./Flow-Address.yaml
+  state:
+    type: string
+    enum:
+      - init
+      - resolved
+      - settling
+      - settled
+      - complete
+  meta:
+    $ref: ./Distribution-Meta.yaml
+  packTemplate:
+    $ref: ./Pack-Template-Get.yaml

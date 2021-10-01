@@ -1,0 +1,17 @@
+type: object
+title: Bucket
+description: ''
+examples:
+  - collectibleCount: 1
+    collectibleCollection:
+      - 1
+      - 2
+      - 3
+      - 4
+properties:
+  collectibleReference:
+    $ref: ./Contract-Reference.yaml
+  collectibleCount:
+    type: integer
+    minimum: 1
+    example: 4

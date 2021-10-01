@@ -1,0 +1,14 @@
+type: object
+title: Pack Template
+description: A template from which to generate packs.
+properties:
+  packReference:
+    $ref: ./Contract-Reference.yaml
+  packCount:
+    type: integer
+    minimum: 1
+    format: int64
+  buckets:
+    type: array
+    items:
+      $ref: ./Bucket-Create.yaml
