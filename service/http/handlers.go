@@ -80,13 +80,13 @@ func HandleGetDistribution(logger *log.Logger, app *app.App) http.HandlerFunc {
 			return
 		}
 
-		dist, settlement, err := app.GetDistribution(r.Context(), id)
+		dist, err := app.GetDistribution(r.Context(), id)
 		if err != nil {
 			handleError(rw, logger, err)
 			return
 		}
 
-		res := ResGetDistributionFromApp(dist, settlement)
+		res := ResGetDistributionFromApp(dist)
 
 		handleJsonResponse(rw, http.StatusOK, res)
 	}

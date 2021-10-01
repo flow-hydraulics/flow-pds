@@ -209,7 +209,7 @@ func TestE2E(t *testing.T) {
 	t.Log("Wait for the distribution to complete")
 
 	for {
-		d, _, err := a.GetDistribution(context.Background(), distribution.ID)
+		d, err := a.GetDistribution(context.Background(), distribution.ID)
 		if err != nil {
 			t.Fatal(err)
 		}

@@ -222,7 +222,7 @@ func TestE2ELarge(t *testing.T) {
 	t.Log("Wait for the distribution to complete")
 
 	for {
-		d, _, err := a.GetDistribution(context.Background(), distribution.ID)
+		d, err := a.GetDistribution(context.Background(), distribution.ID)
 		if err != nil {
 			if !strings.Contains(err.Error(), "database is locked") {
 				t.Fatal(err)

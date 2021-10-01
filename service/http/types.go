@@ -79,7 +79,7 @@ type AddressLocation struct {
 	Address common.FlowAddress `json:"address"`
 }
 
-func ResGetDistributionFromApp(d *app.Distribution, s *app.Settlement) ResGetDistribution {
+func ResGetDistributionFromApp(d *app.Distribution) ResGetDistribution {
 	return ResGetDistribution{
 		ID:           d.ID,
 		FlowID:       d.FlowID,
