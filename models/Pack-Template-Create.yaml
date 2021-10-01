@@ -11,4 +11,4 @@ properties:
   buckets:
     type: array
     items:
-      $ref: ./Bucket.yaml
+      $ref: ./Bucket-Create.yaml

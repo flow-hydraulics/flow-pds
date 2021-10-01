@@ -27,7 +27,7 @@ func TestDistributionValidation(t *testing.T) {
 	}
 
 	d := Distribution{
-		DistID: common.FlowID{Int64: int64(1), Valid: true},
+		FlowID: common.FlowID{Int64: int64(1), Valid: true},
 		Issuer: common.FlowAddress(flow.HexToAddress("0x1")),
 		PackTemplate: PackTemplate{
 			PackReference: AddressLocation{
@@ -68,7 +68,7 @@ func TestDistributionResolution(t *testing.T) {
 	}
 
 	d := Distribution{
-		DistID: common.FlowID{Int64: int64(1), Valid: true},
+		FlowID: common.FlowID{Int64: int64(1), Valid: true},
 		Issuer: common.FlowAddress(flow.HexToAddress("0x1")),
 		PackTemplate: PackTemplate{
 			PackReference: AddressLocation{

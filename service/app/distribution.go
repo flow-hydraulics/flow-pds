@@ -21,7 +21,7 @@ type Distribution struct {
 	gorm.Model
 	ID uuid.UUID `gorm:"column:id;primary_key;type:uuid;"`
 
-	DistID       common.FlowID            `gorm:"column:dist_id"` // A reference on the PDS Contract to this distribution
+	FlowID       common.FlowID            `gorm:"column:flow_id"` // A reference on the PDS Contract to this distribution
 	Issuer       common.FlowAddress       `gorm:"column:issuer"`
 	State        common.DistributionState `gorm:"column:state"`
 	MetaData     DistributionMetaData     `gorm:"embedded;embeddedPrefix:meta_"`

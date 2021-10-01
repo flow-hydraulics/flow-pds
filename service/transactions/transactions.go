@@ -11,9 +11,15 @@ import (
 	c_json "github.com/onflow/cadence/encoding/json"
 	"github.com/onflow/flow-go-sdk"
 	"github.com/onflow/flow-go-sdk/client"
+	log "github.com/sirupsen/logrus"
 	"gorm.io/datatypes"
 	"gorm.io/gorm"
 )
+
+// TODO (latenssi): move this to main and use an application wide logger
+func init() {
+	log.SetLevel(log.InfoLevel)
+}
 
 type TransactionState int
 
@@ -21,7 +27,8 @@ const (
 	TransactionStateInit = iota
 	TransactionStateRetry
 	TransactionStateSent
-	TransactionStateSealed
+	TransactionStateError
+	TransactionStateOk
 )
 
 type StorableTransaction struct {
@@ -29,6 +36,7 @@ type StorableTransaction struct {
 	ID uuid.UUID `gorm:"column:id;primary_key;type:uuid;"`
 
 	State         TransactionState `gorm:"column:state"`
+	Error         string           `gorm:"column:error"`
 	RetryCount    uint             `gorm:"column:retry_count"`
 	TransactionID string           `gorm:"column:transaction_id"`
 
@@ -124,20 +132,32 @@ func (t *StorableTransaction) HandleResult(ctx context.Context, flowClient *clie
 		return err
 	}
 
+	t.Error = ""
+
 	if result.Error != nil {
+		t.Error = result.Error.Error()
 		if strings.Contains(result.Error.Error(), "invalid proposal key") {
 			t.State = TransactionStateRetry
-			return nil
+
+			log.WithFields(log.Fields{
+				"transactionID": t.TransactionID,
+			}).Warn("Invalid proposal key in transaction, retrying later")
 		} else {
-			return result.Error
+			t.State = TransactionStateError
+
+			log.WithFields(log.Fields{
+				"transactionID": t.TransactionID,
+				"error":         result.Error.Error(),
+			}).Warn("Error in transaction")
 		}
+		return nil
 	}
 
 	switch result.Status {
 	case flow.TransactionStatusExpired:
 		t.State = TransactionStateRetry
 	case flow.TransactionStatusSealed:
-		t.State = TransactionStateSealed
+		t.State = TransactionStateOk
 	}
 
 	return nil

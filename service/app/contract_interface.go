@@ -148,7 +148,7 @@ func (c *Contract) StartSettlement(ctx context.Context, db *gorm.DB, dist *Distr
 		}
 
 		arguments := []cadence.Value{
-			cadence.UInt64(dist.DistID.Int64),
+			cadence.UInt64(dist.FlowID.Int64),
 			cadence.NewArray(flowIDs),
 		}
 
@@ -261,7 +261,7 @@ func (c *Contract) StartMinting(ctx context.Context, db *gorm.DB, dist *Distribu
 		}
 
 		arguments := []cadence.Value{
-			cadence.UInt64(dist.DistID.Int64),
+			cadence.UInt64(dist.FlowID.Int64),
 			cadence.NewArray(commitmentHashes),
 			cadence.Address(dist.Issuer),
 		}
@@ -631,7 +631,7 @@ func (c *Contract) UpdateCirculatingPack(ctx context.Context, db *gorm.DB, cpc *
 					}
 
 					arguments := []cadence.Value{
-						cadence.UInt64(distribution.DistID.Int64),
+						cadence.UInt64(distribution.FlowID.Int64),
 						cadence.UInt64(pack.FlowID.Int64),
 						cadence.NewArray(collectibleContractAddresses),
 						cadence.NewArray(collectibleContractNames),
@@ -684,7 +684,7 @@ func (c *Contract) UpdateCirculatingPack(ctx context.Context, db *gorm.DB, cpc *
 					}
 
 					arguments := []cadence.Value{
-						cadence.UInt64(distribution.DistID.Int64),
+						cadence.UInt64(distribution.FlowID.Int64),
 						cadence.UInt64(pack.FlowID.Int64),
 						cadence.NewArray(collectibleIDs),
 						cadence.Address(owner),

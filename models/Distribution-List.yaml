@@ -1,19 +1,19 @@
 title: Distribution List Item
 type: object
 properties:
-  id:
+  distID:
     type: string
+    format: uuid
+  distFlowID:
+    type: integer
+    minimum: 0
+    example: 1
   createdAt:
     type: string
     format: date-time
   updatedAt:
     type: string
     format: date-time
-  distId:
-    type: integer
-    format: int64
-    minimum: 0
-    example: 1
   issuer:
     $ref: ./Flow-Address.yaml
   state:

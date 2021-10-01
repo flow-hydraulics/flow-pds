@@ -35,8 +35,10 @@ func HandleCreateDistribution(logger *log.Logger, app *app.App) http.HandlerFunc
 			return
 		}
 
-		// TODO (latenssi): respond with the distribution instead of ID
-		res := ResCreateDistribution{DistributionId: appDist.ID}
+		res := ResCreateDistribution{
+			ID:     appDist.ID,
+			FlowID: appDist.FlowID,
+		}
 
 		handleJsonResponse(rw, http.StatusCreated, res)
 	}
@@ -78,13 +80,13 @@ func HandleGetDistribution(logger *log.Logger, app *app.App) http.HandlerFunc {
 			return
 		}
 
-		dist, settlement, err := app.GetDistribution(r.Context(), id)
+		dist, err := app.GetDistribution(r.Context(), id)
 		if err != nil {
 			handleError(rw, logger, err)
 			return
 		}
 
-		res := ResDistributionFromApp(dist, settlement)
+		res := ResGetDistributionFromApp(dist)
 
 		handleJsonResponse(rw, http.StatusOK, res)
 	}

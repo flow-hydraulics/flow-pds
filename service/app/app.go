@@ -2,7 +2,6 @@ package app
 
 import (
 	"context"
-	"strings"
 
 	"github.com/flow-hydraulics/flow-pds/service/config"
 	"github.com/google/uuid"
@@ -56,18 +55,13 @@ func (app *App) ListDistributions(ctx context.Context, limit, offset int) ([]Dis
 	return ListDistributions(app.db, opt)
 }
 
-func (app *App) GetDistribution(ctx context.Context, id uuid.UUID) (*Distribution, *Settlement, error) {
+func (app *App) GetDistribution(ctx context.Context, id uuid.UUID) (*Distribution, error) {
 	distribution, err := GetDistribution(app.db, id)
 	if err != nil {
-		return nil, nil, err
+		return nil, err
 	}
 
-	settlement, err := GetDistributionSettlement(app.db, id)
-	if err != nil && !strings.Contains(err.Error(), "record not found") {
-		return nil, nil, err
-	}
-
-	return distribution, settlement, nil
+	return distribution, nil
 }
 
 func (app *App) CancelDistribution(ctx context.Context, id uuid.UUID) error {
