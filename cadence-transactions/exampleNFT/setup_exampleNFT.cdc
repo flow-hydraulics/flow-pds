@@ -15,6 +15,7 @@ transaction {
         signer.save(<-collection, to: ExampleNFT.CollectionStoragePath)
 
         // create a public capability for the collection
-        signer.link<&NonFungibleToken.Collection>(ExampleNFT.CollectionPublicPath, target: ExampleNFT.CollectionStoragePath)
+        signer.link<&NonFungibleToken.Collection{NonFungibleToken.CollectionPublic}>(ExampleNFT.CollectionPublicPath, target: ExampleNFT.CollectionStoragePath)
+        signer.link<&NonFungibleToken.Collection{NonFungibleToken.Provider}>(ExampleNFT.CollectionProviderPrivPath, target: ExampleNFT.CollectionStoragePath)
     }
 }

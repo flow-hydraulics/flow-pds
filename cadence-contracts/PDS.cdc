@@ -1,5 +1,4 @@
 import NonFungibleToken from 0x{{.NonFungibleToken}} 
-import ExampleNFT from 0x{{.ExampleNFT}}
 import IPackNFT from 0x{{.IPackNFT}} 
 
 pub contract PDS{
@@ -11,6 +10,9 @@ pub contract PDS{
     pub let distCreatorStoragePath: StoragePath
     pub let distCreatorPrivPath: PrivatePath
     pub let distManagerStoragePath: StoragePath
+
+    pub var DistId: UInt64
+    access(contract) let Distributions: @{UInt64: SharedCapabilities}
 
     pub struct Collectible: IPackNFT.Collectible {
         pub let address: Address
@@ -57,11 +59,11 @@ pub contract PDS{
         
         // TODO: maybe we do not need to specify the issuer here, should be the creator of the SharedCapabilities
         // this is also used in storing inside the NFT though
-        pub fun mintPackNFT(commitHashes: [String], issuer: Address){
+        pub fun mintPackNFT(distId: UInt64, commitHashes: [String], issuer: Address){
             var i = 0
             let c = self.operatorCap.borrow() ?? panic("no such cap")
             while i < commitHashes.length{
-                c.mint(commitHash: commitHashes[i], issuer: issuer)
+                c.mint(distId: distId, commitHash: commitHashes[i], issuer: issuer)
                 i = i + 1
             }
         }
@@ -71,11 +73,11 @@ pub contract PDS{
             c.reveal(id: packId, nfts: nfts, salt: salt)
         }
 
-        //TODO: add pub path(s)
-        pub fun openPackNFT(packId: UInt64, nftIds: [UInt64], owner: Address) {
+        pub fun openPackNFT(packId: UInt64, nftIds: [UInt64], owner: Address, collectionProviderPath: PrivatePath, recvCollectionPublicPath: PublicPath) {
             let c = self.operatorCap.borrow() ?? panic("no such cap")
-            PDS.releaseEscrow(nftIds: nftIds, owner: owner)
+            // This checks and sets the status of the pack before releasing escrow 
             c.open(id: packId)
+            PDS.releaseEscrow(nftIds: nftIds, owner: owner, collectionProviderPath: collectionProviderPath, recvCollectionPublicPath: recvCollectionPublicPath)
         }
         
 
@@ -89,8 +91,6 @@ pub contract PDS{
         }
     }
 
-    pub var DistId: UInt64
-    access(contract) let Distributions: @{UInt64: SharedCapabilities}
 
     /// Issuer has created a distribution 
     pub event DistributionCreated(DistId: UInt64)
@@ -149,7 +149,7 @@ pub contract PDS{
         pub fun mintPackNFT(distId: UInt64, commitHashes: [String], issuer: Address){
             assert(PDS.Distributions.containsKey(distId), message: "No such distribution")
             let d <- PDS.Distributions.remove(key: distId)!
-            d.mintPackNFT(commitHashes: commitHashes, issuer: issuer)
+            d.mintPackNFT(distId: distId, commitHashes: commitHashes, issuer: issuer)
             PDS.Distributions[distId] <-! d
         }
         
@@ -172,10 +172,10 @@ pub contract PDS{
             PDS.Distributions[distId] <-! d
         }
 
-        pub fun openPackNFT(distId: UInt64, packId: UInt64, nftIds: [UInt64], owner: Address){
+        pub fun openPackNFT(distId: UInt64, packId: UInt64, nftIds: [UInt64], owner: Address, collectionProviderPath: PrivatePath, recvCollectionPublicPath: PublicPath){
             assert(PDS.Distributions.containsKey(distId), message: "No such distribution")
             let d <- PDS.Distributions.remove(key: distId)!
-            d.openPackNFT(packId: packId, nftIds: nftIds, owner: owner)
+            d.openPackNFT(packId: packId, nftIds: nftIds, owner: owner, collectionProviderPath: collectionProviderPath, recvCollectionPublicPath: recvCollectionPublicPath)
             PDS.Distributions[distId] <-! d
         }
 
@@ -189,11 +189,11 @@ pub contract PDS{
         return pdsCollection
     }
     
-    // TODO remove ExampleNFT
-    access(contract) fun releaseEscrow(nftIds: [UInt64], owner: Address) {
-        let pdsCollection = self.account.borrow<&ExampleNFT.Collection>(from: ExampleNFT.CollectionStoragePath) ?? panic("cannot find escrow collection")
+    access(contract) fun releaseEscrow(nftIds: [UInt64], owner: Address, collectionProviderPath: PrivatePath, recvCollectionPublicPath: PublicPath) {
+        let pdsCollection = self.account.getCapability(collectionProviderPath).borrow<&{NonFungibleToken.Provider}>()
+            ?? panic("Unable to borrow PDS collection provider capability from private path")
         let recvAcct = getAccount(owner)
-        let recv = recvAcct.getCapability(ExampleNFT.CollectionPublicPath).borrow<&{NonFungibleToken.CollectionPublic}>()
+        let recv = recvAcct.getCapability(recvCollectionPublicPath).borrow<&{NonFungibleToken.CollectionPublic}>()
             ?? panic("Unable to borrow Collection Public reference for recipient")
         log("releasing escrow")
         log(nftIds)

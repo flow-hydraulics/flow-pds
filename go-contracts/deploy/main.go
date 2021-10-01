@@ -69,7 +69,7 @@ func main() {
 		fmt.Println(ferr)
 		return
 	} else {
-		fmt.Print("deployed packNFT ")
+		fmt.Print("deployed PDS")
 		fmt.Println(e)
 	}
 }

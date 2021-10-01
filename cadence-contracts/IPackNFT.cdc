@@ -20,11 +20,11 @@ pub contract interface IPackNFT{
     /// New Pack NFT
     ///
     /// Emitted when a new PackNFT has been minted
-    pub event Mint(id: UInt64, commitHash: String) 
+    pub event Mint(id: UInt64, commitHash: String, distId: UInt64 ) 
     /// Revealed
     /// 
     /// Emitted when a packNFT has been revealed
-    pub event Revealed(id: UInt64, salt: String)
+    pub event Revealed(id: UInt64, salt: String, nfts: String)
     /// Opened
     ///
     /// Emitted when a packNFT has been opened
@@ -44,12 +44,12 @@ pub contract interface IPackNFT{
     // TODO Pack resource
     
     pub resource interface IOperator {
-        pub fun mint(commitHash: String, issuer: Address)
+        pub fun mint(distId: UInt64, commitHash: String, issuer: Address)
         pub fun reveal(id: UInt64, nfts: [{Collectible}], salt: String)
         pub fun open(id: UInt64) 
     }
     pub resource PackNFTOperator: IOperator {
-        pub fun mint(commitHash: String, issuer: Address)
+        pub fun mint(distId: UInt64, commitHash: String, issuer: Address)
         pub fun reveal(id: UInt64, nfts: [{Collectible}], salt: String)
         pub fun open(id: UInt64) 
     }
@@ -60,10 +60,12 @@ pub contract interface IPackNFT{
         pub let issuer: Address
     }
 
-    pub resource NFT: NonFungibleToken.INFT, IPackNFTToken {
+    pub resource NFT: NonFungibleToken.INFT, IPackNFTToken, IPackNFTOwnerOperator{
         pub let id: UInt64
         pub let commitHash: String
         pub let issuer: Address
+        pub fun reveal()
+        pub fun open() 
     }
     
     pub resource interface IPackNFTOwnerOperator{
@@ -71,7 +73,17 @@ pub contract interface IPackNFT{
         pub fun open() 
     }
     
-    pub resource interface IPackNFTCollection {
-        pub fun borrowPackNFT(id: UInt64): &NFT
+    pub resource interface IPackNFTCollectionPublic {
+        pub fun deposit(token: @NonFungibleToken.NFT)
+        pub fun getIDs(): [UInt64]
+        pub fun borrowNFT(id: UInt64): &NonFungibleToken.NFT
+        pub fun borrowPackNFT(id: UInt64): &IPackNFT.NFT? {
+            // If the result isn't nil, the id of the returned reference
+            // should be the same as the argument to the function
+            post {
+                (result == nil) || (result!.id == id):
+                    "Cannot borrow PackNFT reference: The ID of the returned reference is incorrect"
+            }
+        }
     }
 }
