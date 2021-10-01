@@ -7,12 +7,12 @@ import (
 )
 
 func (dist Distribution) Validate() error {
-	if !dist.DistID.Valid {
-		return fmt.Errorf("distId must be defined")
+	if !dist.FlowID.Valid {
+		return fmt.Errorf("distribution flowID must be defined")
 	}
 
 	if flow.Address(dist.Issuer) == flow.EmptyAddress {
-		return fmt.Errorf("issuer must be defined")
+		return fmt.Errorf("distribution issuer must be defined")
 	}
 
 	if err := dist.PackTemplate.Validate(); err != nil {

@@ -30,15 +30,15 @@ func TestCreate(t *testing.T) {
 	collection := makeTestCollection(packs * slotsPerBucket)
 
 	dReq := pds_http.ReqCreateDistribution{
-		DistID: common.FlowID{Int64: int64(1), Valid: true},
+		FlowID: common.FlowID{Int64: int64(1), Valid: true},
 		Issuer: addr,
-		PackTemplate: pds_http.PackTemplate{
+		PackTemplate: pds_http.ReqPackTemplate{
 			PackReference: pds_http.AddressLocation{
 				Name:    "TestPackNFT",
 				Address: addr,
 			},
 			PackCount: uint(packs),
-			Buckets: []pds_http.Bucket{
+			Buckets: []pds_http.ReqBucket{
 				{
 					CollectibleReference: pds_http.AddressLocation{
 						Name:    "TestCollectibleNFT",
@@ -79,13 +79,13 @@ func TestCreate(t *testing.T) {
 		t.Fatal(err)
 	}
 
-	AssertNotEqual(t, createRes.DistributionId, uuid.Nil)
+	AssertNotEqual(t, createRes.ID, uuid.Nil)
 
 	// Get
 
 	rr2 := httptest.NewRecorder()
 
-	getReq, err := http.NewRequest("GET", fmt.Sprintf("/v1/distributions/%s", createRes.DistributionId), nil)
+	getReq, err := http.NewRequest("GET", fmt.Sprintf("/v1/distributions/%s", createRes.ID), nil)
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -97,14 +97,11 @@ func TestCreate(t *testing.T) {
 		t.Fatalf("handler returned wrong status code: got %v want %v, error: %s", status, http.StatusOK, rr2.Body)
 	}
 
-	getRes := pds_http.ResDistribution{}
+	getRes := pds_http.ResGetDistribution{}
 	if err := json.NewDecoder(rr2.Body).Decode(&getRes); err != nil {
 		t.Fatal(err)
 	}
 
-	AssertEqual(t, getRes.ID, createRes.DistributionId)
+	AssertEqual(t, getRes.ID, createRes.ID)
 	AssertEqual(t, getRes.Issuer, addr)
-	AssertEqual(t, len(getRes.ResolvedCollection), len(collection))
-	AssertEqual(t, len(getRes.Packs), packs)
-	AssertEqual(t, getRes.Packs[0].CommitmentHash.IsEmpty(), false)
 }

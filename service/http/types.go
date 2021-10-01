@@ -8,39 +8,62 @@ import (
 	"github.com/google/uuid"
 )
 
-type ResCreateDistribution struct {
-	DistributionId uuid.UUID `json:"distributionId"`
-}
+// TODO (latenssi): represent states as strings
 
 type ReqCreateDistribution struct {
-	DistID       common.FlowID        `json:"distId"`
+	FlowID       common.FlowID        `json:"distFlowID"`
 	Issuer       common.FlowAddress   `json:"issuer"`
 	MetaData     DistributionMetaData `json:"meta"`
-	PackTemplate PackTemplate         `json:"packTemplate"`
+	PackTemplate ReqPackTemplate      `json:"packTemplate"`
 }
 
-type ResDistribution struct {
-	ID                 uuid.UUID                `json:"id"`
-	CreatedAt          time.Time                `json:"createdAt"`
-	UpdatedAt          time.Time                `json:"updatedAt"`
-	DistID             common.FlowID            `json:"distId"`
-	Issuer             common.FlowAddress       `json:"issuer"`
-	State              common.DistributionState `json:"state"`
-	MetaData           DistributionMetaData     `json:"meta"`
-	PackTemplate       PackTemplate             `json:"packTemplate"`
-	Packs              []Pack                   `json:"packs"`
-	ResolvedCollection []string                 `json:"resolvedCollection"`
-	SettlementStatus   SettlementStatus         `json:"settlementStatuts"`
+type ReqPackTemplate struct {
+	PackReference AddressLocation `json:"packReference"`
+	PackCount     uint            `json:"packCount"`
+	Buckets       []ReqBucket     `json:"buckets"`
 }
 
-type ResDistributionListItem struct {
-	ID        uuid.UUID                `json:"id"`
+type ReqBucket struct {
+	CollectibleReference  AddressLocation   `json:"collectibleReference"`
+	CollectibleCount      uint              `json:"collectibleCount"`
+	CollectibleCollection common.FlowIDList `json:"collectibleCollection"`
+}
+
+type ResCreateDistribution struct {
+	ID     uuid.UUID     `json:"distID"`
+	FlowID common.FlowID `json:"distFlowID"`
+}
+
+type ResGetDistribution struct {
+	ID           uuid.UUID                `json:"distID"`
+	FlowID       common.FlowID            `json:"distFlowID"`
+	CreatedAt    time.Time                `json:"createdAt"`
+	UpdatedAt    time.Time                `json:"updatedAt"`
+	Issuer       common.FlowAddress       `json:"issuer"`
+	State        common.DistributionState `json:"state"`
+	MetaData     DistributionMetaData     `json:"meta"`
+	PackTemplate ResPackTemplate          `json:"packTemplate"`
+}
+
+type ResListDistribution struct {
+	ID        uuid.UUID                `json:"distID"`
+	FlowID    common.FlowID            `json:"distFlowID"`
 	CreatedAt time.Time                `json:"createdAt"`
 	UpdatedAt time.Time                `json:"updatedAt"`
-	DistID    common.FlowID            `json:"distId"`
 	Issuer    common.FlowAddress       `json:"issuer"`
 	State     common.DistributionState `json:"state"`
 	MetaData  DistributionMetaData     `json:"meta"`
+}
+
+type ResPackTemplate struct {
+	PackReference AddressLocation `json:"packReference"`
+	PackCount     uint            `json:"packCount"`
+	Buckets       []ResBucket     `json:"buckets"`
+}
+
+type ResBucket struct {
+	CollectibleReference AddressLocation `json:"collectibleReference"`
+	CollectibleCount     uint            `json:"collectibleCount"`
 }
 
 type DistributionMetaData struct {
@@ -51,69 +74,32 @@ type DistributionMetaData struct {
 	EndDate     time.Time `json:"endDate"`
 }
 
-type PackTemplate struct {
-	PackReference AddressLocation `json:"packReference"`
-	PackCount     uint            `json:"packCount"`
-	Buckets       []Bucket        `json:"buckets"`
-}
-
-type Bucket struct {
-	CollectibleReference  AddressLocation   `json:"collectibleReference"`
-	CollectibleCount      uint              `json:"collectibleCount"`
-	CollectibleCollection common.FlowIDList `json:"collectibleCollection"`
-}
-
-type Pack struct {
-	FlowID         common.FlowID      `json:"flowID"`
-	State          common.PackState   `json:"state"`
-	CommitmentHash common.BinaryValue `json:"commitmentHash"`
-}
-
-type SettlementStatus struct {
-	Settled uint `json:"settled"`
-	Total   uint `json:"total"`
-}
-
 type AddressLocation struct {
 	Name    string             `json:"name"`
 	Address common.FlowAddress `json:"address"`
 }
 
-func ResDistributionFromApp(d *app.Distribution, s *app.Settlement) ResDistribution {
-	resolvedCollection := make([]string, d.SlotCount())
-	for i, c := range d.ResolvedCollection() {
-		resolvedCollection[i] = c.String()
-	}
-
-	settlement := SettlementStatus{}
-	if s != nil {
-		settlement.Settled = s.CurrentCount
-		settlement.Total = s.TotalCount
-	}
-
-	return ResDistribution{
-		ID:                 d.ID,
-		CreatedAt:          d.CreatedAt,
-		UpdatedAt:          d.UpdatedAt,
-		DistID:             d.DistID,
-		Issuer:             d.Issuer,
-		State:              d.State,
-		MetaData:           DistributionMetaData(d.MetaData),
-		PackTemplate:       PackTemplateFromApp(d.PackTemplate),
-		Packs:              PacksFromApp(d),
-		ResolvedCollection: resolvedCollection,
-		SettlementStatus:   settlement,
+func ResGetDistributionFromApp(d *app.Distribution, s *app.Settlement) ResGetDistribution {
+	return ResGetDistribution{
+		ID:           d.ID,
+		FlowID:       d.FlowID,
+		CreatedAt:    d.CreatedAt,
+		UpdatedAt:    d.UpdatedAt,
+		Issuer:       d.Issuer,
+		State:        d.State,
+		MetaData:     DistributionMetaData(d.MetaData),
+		PackTemplate: ResPackTemplateFromApp(d.PackTemplate),
 	}
 }
 
-func ResDistributionListFromApp(dd []app.Distribution) []ResDistributionListItem {
-	res := make([]ResDistributionListItem, len(dd))
+func ResDistributionListFromApp(dd []app.Distribution) []ResListDistribution {
+	res := make([]ResListDistribution, len(dd))
 	for i, d := range dd {
-		res[i] = ResDistributionListItem{
+		res[i] = ResListDistribution{
 			ID:        d.ID,
+			FlowID:    d.FlowID,
 			CreatedAt: d.CreatedAt,
 			UpdatedAt: d.UpdatedAt,
-			DistID:    d.DistID,
 			Issuer:    d.Issuer,
 			State:     d.State,
 			MetaData:  DistributionMetaData(d.MetaData),
@@ -122,48 +108,35 @@ func ResDistributionListFromApp(dd []app.Distribution) []ResDistributionListItem
 	return res
 }
 
-func PackTemplateFromApp(pt app.PackTemplate) PackTemplate {
-	return PackTemplate{
+func ResPackTemplateFromApp(pt app.PackTemplate) ResPackTemplate {
+	return ResPackTemplate{
 		PackReference: AddressLocation(pt.PackReference),
 		PackCount:     pt.PackCount,
-		Buckets:       BucketsFromApp(pt),
+		Buckets:       ResBucketsFromApp(pt),
 	}
 }
 
-func BucketsFromApp(pt app.PackTemplate) []Bucket {
-	buckets := make([]Bucket, len(pt.Buckets))
+func ResBucketsFromApp(pt app.PackTemplate) []ResBucket {
+	buckets := make([]ResBucket, len(pt.Buckets))
 	for i, b := range pt.Buckets {
-		buckets[i] = Bucket{
-			CollectibleReference:  AddressLocation(b.CollectibleReference),
-			CollectibleCount:      b.CollectibleCount,
-			CollectibleCollection: b.CollectibleCollection,
+		buckets[i] = ResBucket{
+			CollectibleReference: AddressLocation(b.CollectibleReference),
+			CollectibleCount:     b.CollectibleCount,
 		}
 	}
 	return buckets
 }
 
-func PacksFromApp(d *app.Distribution) []Pack {
-	packs := make([]Pack, len(d.Packs))
-	for i, p := range d.Packs {
-		packs[i] = Pack{
-			FlowID:         p.FlowID,
-			State:          p.State,
-			CommitmentHash: p.CommitmentHash,
-		}
-	}
-	return packs
-}
-
 func (d ReqCreateDistribution) ToApp() app.Distribution {
 	return app.Distribution{
-		DistID:       d.DistID,
+		FlowID:       d.FlowID,
 		Issuer:       d.Issuer,
 		MetaData:     app.DistributionMetaData(d.MetaData),
 		PackTemplate: d.PackTemplate.ToApp(),
 	}
 }
 
-func (pt PackTemplate) ToApp() app.PackTemplate {
+func (pt ReqPackTemplate) ToApp() app.PackTemplate {
 	buckets := make([]app.Bucket, len(pt.Buckets))
 	for i, b := range pt.Buckets {
 		buckets[i] = app.Bucket{

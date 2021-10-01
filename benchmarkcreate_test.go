@@ -23,15 +23,15 @@ func benchmarkCreate(packs, slots uint, b *testing.B) {
 	collection := makeTestCollection(int(packs * slots))
 
 	dReq := pds_http.ReqCreateDistribution{
-		DistID: common.FlowID{Int64: int64(1), Valid: true},
+		FlowID: common.FlowID{Int64: int64(1), Valid: true},
 		Issuer: addr,
-		PackTemplate: pds_http.PackTemplate{
+		PackTemplate: pds_http.ReqPackTemplate{
 			PackReference: pds_http.AddressLocation{
 				Name:    "TestPackNFT",
 				Address: addr,
 			},
 			PackCount: packs,
-			Buckets: []pds_http.Bucket{
+			Buckets: []pds_http.ReqBucket{
 				{
 					CollectibleReference: pds_http.AddressLocation{
 						Name:    "TestCollectibleNFT",

@@ -172,7 +172,7 @@ func TestE2E(t *testing.T) {
 	}
 
 	distribution := app.Distribution{
-		DistID: distId,
+		FlowID: distId,
 		Issuer: issuer,
 		PackTemplate: app.PackTemplate{
 			PackReference: app.AddressLocation{

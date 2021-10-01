@@ -5,7 +5,7 @@ POST  http://localhost:3000/v1/distributions HTTP/1.1
 content-type: application/json
 
 {
-  "distId": 1,
+  "distFlowID": 1,
   "issuer":"0x1",
   "meta": {
     "title": "Test",
