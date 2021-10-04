@@ -1,4 +1,8 @@
-Deployment
+# Flow Pack Distribution Service
+
+## Running the PDS backend service
+
+Docker
 
     cp env.example .env # edit according to your setup
     docker run -p 3000:3000 --env-file .env ghcr.io/flow-hydraulics/flow-pds:latest
@@ -6,12 +10,13 @@ Deployment
 Dev environment
 
     cp env.example .env
-    cp env.example .env.test
 
-    # If docker-compose installed
+    # Needs docker-compose installed
     make dev
 
-Test
+## Testing
+
+    cp env.example .env.test
 
     # Standalone (can NOT have emulator running in docker)
     ./tests-with-emulator.sh
