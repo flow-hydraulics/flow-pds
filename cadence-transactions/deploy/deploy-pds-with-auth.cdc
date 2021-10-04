@@ -18,7 +18,6 @@ transaction(
             owner.contracts.add(
                 name: contractName, 
                 code: code.decodeHex(), 
-                owner,
                 packIssuerStoragePath: packIssuerStoragePath,
                 packIssuerCapRecv: packIssuerCapRecv,
                 distCreatorStoragePath: distCreatorStoragePath,

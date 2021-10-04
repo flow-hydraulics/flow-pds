@@ -45,6 +45,9 @@ func Verify(
 	txScript:= "../cadence-scripts/packNFT/verify.cdc"
 	code:= util.ParseCadenceTemplate(txScript)
 	d, err := g.ScriptFromFile(txScript, code).UInt64Argument(id).StringArgument(nftString).RunReturns()
+    if err != nil {
+        return
+    } 
 	verified = d.ToGoValue().(bool)
 	return
 }
