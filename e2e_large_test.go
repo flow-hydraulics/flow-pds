@@ -291,11 +291,9 @@ func TestE2ELarge(t *testing.T) {
 	}
 
 	events = util.ParseTestEvents(e)
-	ownerAddr := util.GetAccountAddr(g, "owner")
-	// Onwer withdraw PackNFT from the collection, calls reveal on it and deposits back into their collection
-	util.NewExpectedPackNFTEvent("Withdraw").AddField("id", randomPackID.String()).AddField("from", ownerAddr).AssertEqual(t, events[0])
-	util.NewExpectedPackNFTEvent("RevealRequest").AddField("id", randomPackID.String()).AssertEqual(t, events[1])
-	util.NewExpectedPackNFTEvent("Deposit").AddField("id", randomPackID.String()).AddField("to", ownerAddr).AssertEqual(t, events[2])
+
+	// Owner calls reveal on the specific PackNFT, a RevealRequest event is expected
+	util.NewExpectedPackNFTEvent("RevealRequest").AddField("id", randomPackID.String()).AssertEqual(t, events[0])
 
 	t.Log("PDS backend submits reveal transaction")
 
@@ -327,10 +325,9 @@ func TestE2ELarge(t *testing.T) {
 	}
 
 	events = util.ParseTestEvents(e)
-	// Onwer withdraw PackNFT from the collection, calls open on it and deposits back into their collection
-	util.NewExpectedPackNFTEvent("Withdraw").AddField("id", randomPackID.String()).AddField("from", ownerAddr).AssertEqual(t, events[0])
-	util.NewExpectedPackNFTEvent("OpenRequest").AddField("id", randomPackID.String()).AssertEqual(t, events[1])
-	util.NewExpectedPackNFTEvent("Deposit").AddField("id", randomPackID.String()).AddField("to", ownerAddr).AssertEqual(t, events[2])
+
+	// Owner call open on a PackNFT that triggers an OpenRequest
+	util.NewExpectedPackNFTEvent("OpenRequest").AddField("id", randomPackID.String()).AssertEqual(t, events[0])
 
 	t.Log("PDS backend submits open transaction")
 
