@@ -11,6 +11,9 @@ import (
 	"gorm.io/gorm"
 )
 
+// TODO: instead of running everything in one transaction, separate them by the
+// parent object or something suitable
+
 func poller(app *App) {
 	ctx := context.Background()
 	ctx, cancel := context.WithCancel(ctx)
