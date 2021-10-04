@@ -43,6 +43,6 @@ const (
 	TransactionStateInit = iota
 	TransactionStateRetry
 	TransactionStateSent
-	TransactionStateError
+	TransactionStateFailed
 	TransactionStateOk
 )

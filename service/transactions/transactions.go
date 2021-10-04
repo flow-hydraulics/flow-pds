@@ -129,7 +129,7 @@ func (t *StorableTransaction) HandleResult(ctx context.Context, flowClient *clie
 				"transactionID": t.TransactionID,
 			}).Warn("Invalid proposal key in transaction, retrying later")
 		} else {
-			t.State = common.TransactionStateError
+			t.State = common.TransactionStateFailed
 
 			log.WithFields(log.Fields{
 				"transactionID": t.TransactionID,
