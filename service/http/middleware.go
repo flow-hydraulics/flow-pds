@@ -4,11 +4,11 @@ import (
 	"encoding/json"
 	"fmt"
 	"io"
-	"log"
 	"net/http"
 	"strings"
 
 	gorilla "github.com/gorilla/handlers"
+	log "github.com/sirupsen/logrus"
 )
 
 func UseCors(h http.Handler) http.Handler {

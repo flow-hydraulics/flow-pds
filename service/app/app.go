@@ -6,21 +6,27 @@ import (
 	"github.com/flow-hydraulics/flow-pds/service/config"
 	"github.com/google/uuid"
 	"github.com/onflow/flow-go-sdk/client"
+	log "github.com/sirupsen/logrus"
 	"gorm.io/gorm"
 )
 
 type App struct {
 	cfg        *config.Config
+	logger     *log.Logger
 	db         *gorm.DB
 	flowClient *client.Client
 	contract   *Contract
 	quit       chan bool // Chan type does not matter as we only use this to 'close'
 }
 
-func New(cfg *config.Config, db *gorm.DB, flowClient *client.Client, poll bool) *App {
-	contract := NewContract(cfg, flowClient)
+func New(cfg *config.Config, logger *log.Logger, db *gorm.DB, flowClient *client.Client, poll bool) *App {
+	if logger == nil {
+		panic("no logger")
+	}
+
+	contract := NewContract(cfg, logger, flowClient)
 	quit := make(chan bool)
-	app := &App{cfg, db, flowClient, contract, quit}
+	app := &App{cfg, logger, db, flowClient, contract, quit}
 
 	if poll {
 		go poller(app)

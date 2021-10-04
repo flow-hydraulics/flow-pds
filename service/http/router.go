@@ -1,11 +1,11 @@
 package http
 
 import (
-	"log"
 	"net/http"
 
 	"github.com/flow-hydraulics/flow-pds/service/app"
 	"github.com/gorilla/mux"
+	log "github.com/sirupsen/logrus"
 )
 
 func NewRouter(logger *log.Logger, app *app.App) http.Handler {

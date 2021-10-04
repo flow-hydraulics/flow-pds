@@ -46,9 +46,9 @@ const (
 
 type Contract struct {
 	cfg        *config.Config
+	logger     *log.Logger
 	flowClient *client.Client
 	account    *flow_helpers.Account
-	logger     *log.Logger
 }
 
 func minInt(a int, b int) int {
@@ -58,15 +58,13 @@ func minInt(a int, b int) int {
 	return a
 }
 
-func NewContract(cfg *config.Config, flowClient *client.Client) *Contract {
+func NewContract(cfg *config.Config, logger *log.Logger, flowClient *client.Client) *Contract {
 	pdsAccount := flow_helpers.GetAccount(
 		flow.HexToAddress(cfg.AdminAddress),
 		cfg.AdminPrivateKey,
 		[]int{0}, // TODO (latenssi): more key indexes
 	)
-	logger := log.New()
-	logger.SetLevel(log.InfoLevel) // TODO
-	return &Contract{cfg, flowClient, pdsAccount, logger}
+	return &Contract{cfg, logger, flowClient, pdsAccount}
 }
 
 func (c *Contract) StartSettlement(ctx context.Context, db *gorm.DB, dist *Distribution) error {
