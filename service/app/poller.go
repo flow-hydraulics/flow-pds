@@ -94,6 +94,7 @@ func handleSettling(ctx context.Context, db *gorm.DB, contract *Contract) error 
 		}
 
 		for _, dist := range settling {
+			// TODO: separate db transaction?
 			if err := contract.UpdateSettlementStatus(ctx, tx, &dist); err != nil {
 				return err
 			}
@@ -127,6 +128,7 @@ func handleMinting(ctx context.Context, db *gorm.DB, contract *Contract) error {
 		}
 
 		for _, dist := range minting {
+			// TODO: separate db transaction?
 			if err := contract.UpdateMintingStatus(ctx, tx, &dist); err != nil {
 				return err
 			}

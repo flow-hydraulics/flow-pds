@@ -5,6 +5,7 @@ import (
 	"gorm.io/gorm"
 )
 
+// Minting represents the minting status of a distribution.
 type Minting struct {
 	gorm.Model
 	ID             uuid.UUID `gorm:"column:id;primary_key;type:uuid;"`

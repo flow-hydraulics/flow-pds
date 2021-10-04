@@ -17,6 +17,8 @@ import (
 	"gorm.io/gorm"
 )
 
+// StorableTransaction represents a Flow transaction.
+// It stores the script and arguments of a transaction.
 type StorableTransaction struct {
 	gorm.Model
 	ID uuid.UUID `gorm:"column:id;primary_key;type:uuid;"`
@@ -53,6 +55,7 @@ func NewTransaction(script []byte, arguments []cadence.Value) (*StorableTransact
 	return &transaction, nil
 }
 
+// Prepare parses the transaction into a sendable state.
 func (t *StorableTransaction) Prepare() (*flow.Transaction, error) {
 	argsBytes := [][]byte{}
 	if err := json.Unmarshal(t.Arguments, &argsBytes); err != nil {
@@ -81,6 +84,8 @@ func (t *StorableTransaction) Prepare() (*flow.Transaction, error) {
 	return tx, nil
 }
 
+// Send prepares a Flow transaction, signs it and then sends it.
+// Updates the TransactionID each time.
 func (t *StorableTransaction) Send(ctx context.Context, flowClient *client.Client, account *flow_helpers.Account) error {
 	if t.State == common.TransactionStateRetry {
 		t.RetryCount++
@@ -106,12 +111,17 @@ func (t *StorableTransaction) Send(ctx context.Context, flowClient *client.Clien
 		return err
 	}
 
+	// Update TransactionID
 	t.TransactionID = tx.ID().Hex()
+
+	// Update state
 	t.State = common.TransactionStateSent
 
 	return nil
 }
 
+// HandleResult checks the results of a transaction onchain and updates the
+// StorableTransaction accordingly.
 func (t *StorableTransaction) HandleResult(ctx context.Context, flowClient *client.Client) error {
 	result, err := flowClient.GetTransactionResult(ctx, flow.HexToID(t.TransactionID))
 	if err != nil {

@@ -11,6 +11,7 @@ type Config struct {
 
 	AdminAddress    string `env:"FLOW_PDS_ADMIN_ADDRESS,notEmpty"`
 	AdminPrivateKey string `env:"FLOW_PDS_ADMIN_PRIVATE_KEY,notEmpty"`
+	// TODO AdminPrivateKeyIndexes
 
 	// -- Database --
 

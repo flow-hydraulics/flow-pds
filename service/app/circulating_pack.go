@@ -8,7 +8,8 @@ import (
 	"gorm.io/gorm"
 )
 
-// CirculatingPackContract represents the contract of a pack NFT that has been put into circulation.
+// CirculatingPackContract represents the contract of a pack NFT that has been
+// put into circulation.
 // We need to monitor each circulating packs events.
 type CirculatingPackContract struct {
 	gorm.Model

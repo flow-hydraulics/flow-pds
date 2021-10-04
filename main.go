@@ -9,7 +9,6 @@ import (
 	"github.com/flow-hydraulics/flow-pds/service/app"
 	"github.com/flow-hydraulics/flow-pds/service/common"
 	"github.com/flow-hydraulics/flow-pds/service/config"
-	"github.com/flow-hydraulics/flow-pds/service/errors"
 	"github.com/flow-hydraulics/flow-pds/service/http"
 	"github.com/flow-hydraulics/flow-pds/service/transactions"
 	"github.com/onflow/flow-go-sdk/client"
@@ -63,7 +62,7 @@ func main() {
 
 func runServer(cfg *config.Config) error {
 	if cfg == nil {
-		return &errors.NilConfigError{}
+		return fmt.Errorf("config not provided")
 	}
 
 	logger := log.New()

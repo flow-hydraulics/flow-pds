@@ -10,6 +10,7 @@ import (
 	"gorm.io/gorm"
 )
 
+// App handles all the application logic and interfaces directly with the database
 type App struct {
 	cfg        *config.Config
 	logger     *log.Logger
@@ -35,10 +36,12 @@ func New(cfg *config.Config, logger *log.Logger, db *gorm.DB, flowClient *client
 	return app
 }
 
+// Closes allows the poller to close controllably
 func (app *App) Close() {
 	close(app.quit)
 }
 
+// CreateDistribution validates a distribution, resolves it and stores it in database
 func (app *App) CreateDistribution(ctx context.Context, distribution *Distribution) error {
 	if err := distribution.Validate(); err != nil {
 		return err
@@ -55,12 +58,15 @@ func (app *App) CreateDistribution(ctx context.Context, distribution *Distributi
 	return nil
 }
 
+// ListDistributions lists all distributions in the database. Uses 'limit' and 'offset' to
+// limit the fetched slice size.
 func (app *App) ListDistributions(ctx context.Context, limit, offset int) ([]Distribution, error) {
 	opt := ParseListOptions(limit, offset)
 
 	return ListDistributions(app.db, opt)
 }
 
+// GetDistribution returns a distribution from database based on its offchain ID (uuid).
 func (app *App) GetDistribution(ctx context.Context, id uuid.UUID) (*Distribution, error) {
 	distribution, err := GetDistribution(app.db, id)
 	if err != nil {
@@ -70,6 +76,8 @@ func (app *App) GetDistribution(ctx context.Context, id uuid.UUID) (*Distributio
 	return distribution, nil
 }
 
+// CancelDistribution cancels a distribution. Spec and implementation for
+// distribution cancelling is not finished yet.
 func (app *App) CancelDistribution(ctx context.Context, id uuid.UUID) error {
 	return app.db.Transaction(func(tx *gorm.DB) error {
 		distribution, err := GetDistribution(tx, id)
@@ -85,6 +93,7 @@ func (app *App) CancelDistribution(ctx context.Context, id uuid.UUID) error {
 	})
 }
 
+// GetPack returns a pack from database based on its offchain ID (uuid).
 func (app *App) GetPack(ctx context.Context, id uuid.UUID) (*Pack, error) {
 	pack, err := GetPack(app.db, id)
 	if err != nil {

@@ -9,13 +9,17 @@ import (
 	"github.com/onflow/flow-go-sdk"
 )
 
+// Collectible is a reference to an NFT which can be included in a pack.
 type Collectible struct {
-	FlowID            common.FlowID   // ID of the collectible NFT
+	FlowID            common.FlowID   // Flow ID of the collectible NFT
 	ContractReference AddressLocation // Reference to the collectible NFT contract
 }
 
+// Collectibles slice type. Allows storing collectibles of a pack
+// embedded (as a text column of 'distribution_packs' table) in database.
 type Collectibles []Collectible
 
+// CollectibleFromString returns a collectible from the string representation.
 func CollectibleFromString(s string) (Collectible, error) {
 	split := strings.Split(string(s), ".")
 	address := common.FlowAddress(flow.HexToAddress(split[1]))
@@ -37,6 +41,8 @@ func (c Collectible) String() string {
 	return fmt.Sprintf("A.%s.%s.%d", c.ContractReference.Address, c.ContractReference.Name, c.FlowID.Int64)
 }
 
+// HashString returns the string representation of a collectible used to
+// construct a packs commitmentHash.
 func (c Collectible) HashString() string {
 	return c.String()
 }
@@ -50,6 +56,7 @@ func (Collectibles) GormDataType() string {
 	return "text"
 }
 
+// Scan a collectibles slice from database.
 func (cc *Collectibles) Scan(value interface{}) error {
 	str, ok := value.(string)
 	if !ok {
@@ -68,6 +75,7 @@ func (cc *Collectibles) Scan(value interface{}) error {
 	return nil
 }
 
+// Convert a collectibles slice to database storable format.
 func (cc Collectibles) Value() (driver.Value, error) {
 	return strings.Trim(strings.Join(strings.Fields(fmt.Sprint(cc)), ","), "[]"), nil
 }

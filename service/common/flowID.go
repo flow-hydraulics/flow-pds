@@ -16,7 +16,7 @@ import (
 // 									For reference:
 //									https://www.reddit.com/r/golang/comments/7eycli/why_is_there_no_sqlnulluint64/
 
-type FlowID sql.NullInt64
+type FlowID sql.NullInt64 // Nullable int 64
 type FlowIDList []FlowID
 
 func (i FlowID) LessThan(j FlowID) bool {
