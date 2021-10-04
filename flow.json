@@ -37,6 +37,18 @@
     "emulator-pds": {
       "address": "f3fcd2c1a78f5eee",
       "key": "9c687961e7a1abe1e445830e7ec118ffd1e2a0449cf705f5476b3f100e94dc29"
+    },
+    "testnet-issuer" : {
+      "address": "f534d89914579e09",
+      "key" : "${TESTNET_ISSUER}"
+    },
+    "testnet-owner" : {
+      "address": "1153614405ad9ed6",
+      "key" : "${TESTNET_OWNER}"
+    },
+    "testnet-pds" : {
+      "address": "070704779ca994b7",
+      "key" : "${TESTNET_PDS}"
     }
   },
   "deployments": {
@@ -49,6 +61,15 @@
       ],
       "emulator-owner": [],
       "emulator-pds": [
+        "IPackNFT"
+      ]
+    },
+    "testnet": {
+      "testnet-issuer": [
+        "ExampleNFT"
+      ],
+      "testnet-owner": [],
+      "testnet-pds": [
         "IPackNFT"
       ]
     }

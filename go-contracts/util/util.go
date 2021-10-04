@@ -3,11 +3,10 @@ package util
 import (
 	"bytes"
 	"io/ioutil"
+	"os"
 	"strconv"
 	"testing"
 	"time"
-
-	// "os"
 
 	"text/template"
 
@@ -51,9 +50,8 @@ func ParseCadenceTemplate(templatePath string) []byte {
 	}
 
 	// Addresss for emulator are
-	addresses = Addresses{"f8d6e0586b0a20c7", "01cf0e2f2f715450", "01cf0e2f2f715450", "f3fcd2c1a78f5eee", "f3fcd2c1a78f5eee"}
-	// PDS account deploys IPackNFTInterface, PDSInterface, PDS contracts
-	// addresses = Addresses{os.Getenv("NON_FUNGIBLE_TOKEN_ADDRESS"), os.Getenv("EXAMPLE_NFT_ADDRESS"), os.Getenv("PackNFT"), os.Getenv("PDS_ADDRESS"), os.Getenv("PDS_ADDRESS")}
+	// addresses = Addresses{"f8d6e0586b0a20c7", "01cf0e2f2f715450", "01cf0e2f2f715450", "f3fcd2c1a78f5eee", "f3fcd2c1a78f5eee"}
+	addresses = Addresses{os.Getenv("NON_FUNGIBLE_TOKEN_ADDRESS"), os.Getenv("EXAMPLE_NFT_ADDRESS"), os.Getenv("PACKNFT_ADDRESS"), os.Getenv("PDS_ADDRESS"), os.Getenv("PDS_ADDRESS")}
 
 	buf := &bytes.Buffer{}
 	err = tmpl.Execute(buf, addresses)

@@ -1,3 +1,9 @@
+# export vars from root env file
+ifneq (,$(wildcard ./.env.test))
+	include .env.test
+	export
+endif
+
 .PHONY: dev
 dev: up deploy
 
@@ -25,6 +31,14 @@ test:
 	@go test ./go-contracts/... -v
 	@go test ./service/... -v
 	@go test -v
+
+.PHONY: test-contracts
+test-contracts:
+	@go test ./go-contracts/contracts_test.go -v
+
+.PHONY: tests-with-emulator
+tests-with-emulator:
+	./tests-with-emulator.sh
 
 .PHONY: test-clean
 test-clean: clean-testcache test

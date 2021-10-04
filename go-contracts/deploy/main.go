@@ -3,6 +3,7 @@ package main
 import (
 	"encoding/hex"
 	"fmt"
+    "os"
 
 	"github.com/bjartek/go-with-the-flow/v2/gwtf"
 	"github.com/flow-hydraulics/flow-pds/go-contracts/util"
@@ -15,8 +16,7 @@ func main() {
 	jsonPath := "../flow.json"
 	var flowJSON []string = []string{jsonPath}
 
-	// g := gwtf.NewGoWithTheFlow(flowJSON, os.Getenv("NETWORK"), false, 3)
-	g := gwtf.NewGoWithTheFlow(flowJSON, "emulator", false, 3)
+	g := gwtf.NewGoWithTheFlow(flowJSON, os.Getenv("NETWORK"), false, 3)
 
 	packNFT := util.ParseCadenceTemplate("../cadence-contracts/PackNFT.cdc")
 	txFilename := "../cadence-transactions/deploy/deploy-packNFT-with-auth.cdc"
