@@ -53,7 +53,7 @@ func GetAccount(address flow.Address, privateKeyInHex string, keyIndexes []int) 
 }
 
 // KeyIndex rotates the given indexes ('KeyIndexes') and returns the next index
-// TODO (latenssi): sync over database as this currently only works in a single instance situation
+// TODO (latenssi): sync over database as this currently only works in a single instance situation?
 func (a *Account) KeyIndex() int {
 	// NOTE: This won't help if having multiple instances of the PDS service running
 	keyIndexLock.Lock()

@@ -3,16 +3,16 @@ package main
 import (
 	"flag"
 	"fmt"
-	"log"
+
 	"os"
 
 	"github.com/flow-hydraulics/flow-pds/service/app"
 	"github.com/flow-hydraulics/flow-pds/service/common"
 	"github.com/flow-hydraulics/flow-pds/service/config"
-	"github.com/flow-hydraulics/flow-pds/service/errors"
 	"github.com/flow-hydraulics/flow-pds/service/http"
 	"github.com/flow-hydraulics/flow-pds/service/transactions"
 	"github.com/onflow/flow-go-sdk/client"
+	log "github.com/sirupsen/logrus"
 	"google.golang.org/grpc"
 )
 
@@ -22,6 +22,10 @@ var (
 	sha1ver   string // sha1 revision used to build the program
 	buildTime string // when the executable was built
 )
+
+func init() {
+	log.SetLevel(log.InfoLevel)
+}
 
 func main() {
 	var (
@@ -58,13 +62,12 @@ func main() {
 
 func runServer(cfg *config.Config) error {
 	if cfg == nil {
-		return &errors.NilConfigError{}
+		return fmt.Errorf("config not provided")
 	}
 
-	// Application wide loggers
-	logServer := log.New(os.Stdout, "[SERVER] ", log.LstdFlags|log.Lshortfile)
+	logger := log.New()
 
-	logServer.Printf("Starting server (v%s)...\n", version)
+	logger.Printf("Starting server (v%s)...\n", version)
 
 	// Flow client
 	// TODO: WithInsecure()?
@@ -74,7 +77,7 @@ func runServer(cfg *config.Config) error {
 	}
 	defer func() {
 		if err := flowClient.Close(); err != nil {
-			logServer.Println(err)
+			logger.Println(err)
 		}
 	}()
 
@@ -94,11 +97,11 @@ func runServer(cfg *config.Config) error {
 	}
 
 	// Application
-	app := app.New(cfg, db, flowClient, true)
+	app := app.New(cfg, logger, db, flowClient, true)
 	defer app.Close()
 
 	// HTTP server
-	server := http.NewServer(cfg, logServer, app)
+	server := http.NewServer(cfg, logger, app)
 
 	server.ListenAndServe()
 

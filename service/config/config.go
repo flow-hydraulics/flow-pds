@@ -1,10 +1,9 @@
 package config
 
 import (
-	"log"
-
 	"github.com/caarlos0/env/v6"
 	"github.com/joho/godotenv"
+	log "github.com/sirupsen/logrus"
 )
 
 type Config struct {
@@ -12,6 +11,7 @@ type Config struct {
 
 	AdminAddress    string `env:"FLOW_PDS_ADMIN_ADDRESS,notEmpty"`
 	AdminPrivateKey string `env:"FLOW_PDS_ADMIN_PRIVATE_KEY,notEmpty"`
+	// TODO AdminPrivateKeyIndexes
 
 	// -- Database --
 

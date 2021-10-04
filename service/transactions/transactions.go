@@ -5,6 +5,7 @@ import (
 	"encoding/json"
 	"strings"
 
+	"github.com/flow-hydraulics/flow-pds/service/common"
 	"github.com/flow-hydraulics/flow-pds/service/flow_helpers"
 	"github.com/google/uuid"
 	"github.com/onflow/cadence"
@@ -16,29 +17,16 @@ import (
 	"gorm.io/gorm"
 )
 
-// TODO (latenssi): move this to main and use an application wide logger
-func init() {
-	log.SetLevel(log.InfoLevel)
-}
-
-type TransactionState int
-
-const (
-	TransactionStateInit = iota
-	TransactionStateRetry
-	TransactionStateSent
-	TransactionStateError
-	TransactionStateOk
-)
-
+// StorableTransaction represents a Flow transaction.
+// It stores the script and arguments of a transaction.
 type StorableTransaction struct {
 	gorm.Model
 	ID uuid.UUID `gorm:"column:id;primary_key;type:uuid;"`
 
-	State         TransactionState `gorm:"column:state"`
-	Error         string           `gorm:"column:error"`
-	RetryCount    uint             `gorm:"column:retry_count"`
-	TransactionID string           `gorm:"column:transaction_id"`
+	State         common.TransactionState `gorm:"column:state"`
+	Error         string                  `gorm:"column:error"`
+	RetryCount    uint                    `gorm:"column:retry_count"`
+	TransactionID string                  `gorm:"column:transaction_id"`
 
 	Script    string         `gorm:"column:script"`
 	Arguments datatypes.JSON `gorm:"column:arguments"`
@@ -67,6 +55,7 @@ func NewTransaction(script []byte, arguments []cadence.Value) (*StorableTransact
 	return &transaction, nil
 }
 
+// Prepare parses the transaction into a sendable state.
 func (t *StorableTransaction) Prepare() (*flow.Transaction, error) {
 	argsBytes := [][]byte{}
 	if err := json.Unmarshal(t.Arguments, &argsBytes); err != nil {
@@ -95,8 +84,10 @@ func (t *StorableTransaction) Prepare() (*flow.Transaction, error) {
 	return tx, nil
 }
 
+// Send prepares a Flow transaction, signs it and then sends it.
+// Updates the TransactionID each time.
 func (t *StorableTransaction) Send(ctx context.Context, flowClient *client.Client, account *flow_helpers.Account) error {
-	if t.State == TransactionStateRetry {
+	if t.State == common.TransactionStateRetry {
 		t.RetryCount++
 	}
 
@@ -120,12 +111,17 @@ func (t *StorableTransaction) Send(ctx context.Context, flowClient *client.Clien
 		return err
 	}
 
+	// Update TransactionID
 	t.TransactionID = tx.ID().Hex()
-	t.State = TransactionStateSent
+
+	// Update state
+	t.State = common.TransactionStateSent
 
 	return nil
 }
 
+// HandleResult checks the results of a transaction onchain and updates the
+// StorableTransaction accordingly.
 func (t *StorableTransaction) HandleResult(ctx context.Context, flowClient *client.Client) error {
 	result, err := flowClient.GetTransactionResult(ctx, flow.HexToID(t.TransactionID))
 	if err != nil {
@@ -137,13 +133,13 @@ func (t *StorableTransaction) HandleResult(ctx context.Context, flowClient *clie
 	if result.Error != nil {
 		t.Error = result.Error.Error()
 		if strings.Contains(result.Error.Error(), "invalid proposal key") {
-			t.State = TransactionStateRetry
+			t.State = common.TransactionStateRetry
 
 			log.WithFields(log.Fields{
 				"transactionID": t.TransactionID,
 			}).Warn("Invalid proposal key in transaction, retrying later")
 		} else {
-			t.State = TransactionStateError
+			t.State = common.TransactionStateFailed
 
 			log.WithFields(log.Fields{
 				"transactionID": t.TransactionID,
@@ -155,9 +151,9 @@ func (t *StorableTransaction) HandleResult(ctx context.Context, flowClient *clie
 
 	switch result.Status {
 	case flow.TransactionStatusExpired:
-		t.State = TransactionStateRetry
+		t.State = common.TransactionStateRetry
 	case flow.TransactionStatusSealed:
-		t.State = TransactionStateOk
+		t.State = common.TransactionStateOk
 	}
 
 	return nil

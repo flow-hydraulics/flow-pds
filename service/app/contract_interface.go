@@ -44,11 +44,12 @@ const (
 // - Timeout for settling and minting?
 // - Cancel?
 
+// Contract handles all the onchain logic and functions
 type Contract struct {
 	cfg        *config.Config
+	logger     *log.Logger
 	flowClient *client.Client
 	account    *flow_helpers.Account
-	logger     *log.Logger
 }
 
 func minInt(a int, b int) int {
@@ -58,17 +59,22 @@ func minInt(a int, b int) int {
 	return a
 }
 
-func NewContract(cfg *config.Config, flowClient *client.Client) *Contract {
+func NewContract(cfg *config.Config, logger *log.Logger, flowClient *client.Client) *Contract {
 	pdsAccount := flow_helpers.GetAccount(
 		flow.HexToAddress(cfg.AdminAddress),
 		cfg.AdminPrivateKey,
 		[]int{0}, // TODO (latenssi): more key indexes
 	)
-	logger := log.New()
-	logger.SetLevel(log.InfoLevel) // TODO
-	return &Contract{cfg, flowClient, pdsAccount, logger}
+	return &Contract{cfg, logger, flowClient, pdsAccount}
 }
 
+// StartSettlement sets the given distributions state to 'settling' and starts the settlement
+// phase onchain.
+// It lists all collectible NFTs in the distribution and creates batches
+// of 'SETTLE_BATCH_SIZE' from them.
+// It then creates and stores the settlement Flow transactions (PDS account withdraw from issuer to escrow) in
+// database to be later processed by a poller.
+// Batching needs to be done to control the transaction size.
 func (c *Contract) StartSettlement(ctx context.Context, db *gorm.DB, dist *Distribution) error {
 	c.logger.WithFields(log.Fields{
 		"method": "StartSettlement",
@@ -174,6 +180,15 @@ func (c *Contract) StartSettlement(ctx context.Context, db *gorm.DB, dist *Distr
 	return nil
 }
 
+// StartMinting sets the given distributions state to 'minting' and starts the settlement
+// phase onchain.
+// It creates a CirculatingPackContract to allow onchain monitoring
+// (listening for events) of any pack that has been put to circulation.
+// It then lists all Pack NFTs in the distribution and creates batches
+// of 'MINT_BATCH_SIZE' from them.
+// It then creates and stores the minting Flow transactions in database to be
+// later processed by a poller.
+// Batching needs to be done to control the transaction size.
 func (c *Contract) StartMinting(ctx context.Context, db *gorm.DB, dist *Distribution) error {
 	c.logger.WithFields(log.Fields{
 		"method": "StartMinting",
@@ -288,25 +303,31 @@ func (c *Contract) StartMinting(ctx context.Context, db *gorm.DB, dist *Distribu
 	return nil
 }
 
+// Cancel needs to be specced and implemented.
 func (c *Contract) Cancel(ctx context.Context, db *gorm.DB, dist *Distribution) error {
+	// TODO (latenssi)
+
 	c.logger.WithFields(log.Fields{
 		"method": "Cancel",
 		"ID":     dist.ID,
 	}).Info("Cancel")
 
-	if err := dist.SetCancelled(); err != nil {
-		return err
-	}
+	return fmt.Errorf("cancel is not yet implemented")
 
-	if err := UpdateDistribution(db, dist); err != nil {
-		return err
-	}
+	// if err := dist.SetCancelled(); err != nil {
+	// 	return err
+	// }
 
-	// TODO (latenssi)
+	// if err := UpdateDistribution(db, dist); err != nil {
+	// 	return err
+	// }
 
-	return nil
+	// return nil
 }
 
+// UpdateSettlementStatus polls for 'Deposit' events regarding the given distributions
+// collectible NFTs.
+// It updates the settelement status in database accordingly.
 func (c *Contract) UpdateSettlementStatus(ctx context.Context, db *gorm.DB, dist *Distribution) error {
 	c.logger.WithFields(log.Fields{
 		"method": "UpdateSettlementStatus",
@@ -396,6 +417,7 @@ func (c *Contract) UpdateSettlementStatus(ctx context.Context, db *gorm.DB, dist
 	}
 
 	if settlement.IsComplete() {
+		// TODO: consider updating the distribution separately
 		if err := dist.SetSettled(); err != nil {
 			return err
 		}
@@ -420,6 +442,9 @@ func (c *Contract) UpdateSettlementStatus(ctx context.Context, db *gorm.DB, dist
 	return nil
 }
 
+// UpdateMintingStatus polls for 'Mint' events regarding the given distributions
+// Pack NFTs.
+// It updates the minting status in database accordingly.
 func (c *Contract) UpdateMintingStatus(ctx context.Context, db *gorm.DB, dist *Distribution) error {
 	c.logger.WithFields(log.Fields{
 		"method": "UpdateMintingStatus",
@@ -517,6 +542,7 @@ func (c *Contract) UpdateMintingStatus(ctx context.Context, db *gorm.DB, dist *D
 	}
 
 	if minting.IsComplete() {
+		// TODO: consider updating the distribution separately
 		if err := dist.SetComplete(); err != nil {
 			return err
 		}
@@ -540,6 +566,10 @@ func (c *Contract) UpdateMintingStatus(ctx context.Context, db *gorm.DB, dist *D
 	return nil
 }
 
+// UpdateCirculatingPack polls for 'REVEAL_REQUEST' and 'OPEN_REQUEST' events
+// regarding the given CirculatingPackContract.
+// It handles each event by creating and storing an appropriate Flow transaction
+// in database to be later processed by a poller.
 func (c *Contract) UpdateCirculatingPack(ctx context.Context, db *gorm.DB, cpc *CirculatingPackContract) error {
 	c.logger.WithFields(log.Fields{
 		"method": "UpdateCirculatingPack",
@@ -604,7 +634,7 @@ func (c *Contract) UpdateCirculatingPack(ctx context.Context, db *gorm.DB, cpc *
 				}
 
 				switch eventName {
-				case REVEAL_REQUEST:
+				case REVEAL_REQUEST: // Reveal a pack
 					if err := pack.Reveal(); err != nil {
 						return err
 					}
@@ -656,7 +686,7 @@ func (c *Contract) UpdateCirculatingPack(ctx context.Context, db *gorm.DB, cpc *
 						"packFlowID": flowID,
 					}).Info("Pack reveal transaction created")
 
-				case OPEN_REQUEST:
+				case OPEN_REQUEST: // Open a pack
 					if err := pack.Open(); err != nil {
 						return err
 					}

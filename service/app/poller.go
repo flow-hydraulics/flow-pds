@@ -11,6 +11,9 @@ import (
 	"gorm.io/gorm"
 )
 
+// TODO: instead of running everything in one transaction, separate them by the
+// parent object or something suitable
+
 func poller(app *App) {
 	ctx := context.Background()
 	ctx, cancel := context.WithCancel(ctx)
@@ -91,6 +94,7 @@ func handleSettling(ctx context.Context, db *gorm.DB, contract *Contract) error 
 		}
 
 		for _, dist := range settling {
+			// TODO: separate db transaction?
 			if err := contract.UpdateSettlementStatus(ctx, tx, &dist); err != nil {
 				return err
 			}
@@ -124,6 +128,7 @@ func handleMinting(ctx context.Context, db *gorm.DB, contract *Contract) error {
 		}
 
 		for _, dist := range minting {
+			// TODO: separate db transaction?
 			if err := contract.UpdateMintingStatus(ctx, tx, &dist); err != nil {
 				return err
 			}

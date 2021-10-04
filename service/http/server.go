@@ -3,8 +3,6 @@ package http
 import (
 	"context"
 	"fmt"
-	"io"
-	"log"
 	"net/http"
 	"os"
 	"os/signal"
@@ -12,6 +10,7 @@ import (
 
 	"github.com/flow-hydraulics/flow-pds/service/app"
 	"github.com/flow-hydraulics/flow-pds/service/config"
+	log "github.com/sirupsen/logrus"
 )
 
 type Server struct {
@@ -22,8 +21,7 @@ type Server struct {
 
 func NewServer(cfg *config.Config, logger *log.Logger, app *app.App) *Server {
 	if logger == nil {
-		// A discarding logger
-		logger = log.New(io.Discard, "", log.LstdFlags|log.Lshortfile)
+		panic("no logger")
 	}
 
 	r := NewRouter(logger, app)

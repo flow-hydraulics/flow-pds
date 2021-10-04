@@ -8,8 +8,6 @@ import (
 	"github.com/google/uuid"
 )
 
-// TODO (latenssi): represent states as strings
-
 type ReqCreateDistribution struct {
 	FlowID       common.FlowID        `json:"distFlowID"`
 	Issuer       common.FlowAddress   `json:"issuer"`

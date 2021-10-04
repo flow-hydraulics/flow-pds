@@ -8,6 +8,7 @@ import (
 	"gorm.io/gorm"
 )
 
+// Settlement represents the settlement status of a distribution.
 type Settlement struct {
 	gorm.Model
 	ID             uuid.UUID `gorm:"column:id;primary_key;type:uuid;"`

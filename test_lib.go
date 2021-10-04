@@ -11,9 +11,12 @@ import (
 	"github.com/flow-hydraulics/flow-pds/service/http"
 	"github.com/flow-hydraulics/flow-pds/service/transactions"
 	"github.com/onflow/flow-go-sdk/client"
+	log "github.com/sirupsen/logrus"
 	"google.golang.org/grpc"
 	"gorm.io/gorm"
 )
+
+var testLogger *log.Logger
 
 func cleanTestDatabase(cfg *config.Config, db *gorm.DB) {
 	// Only run this if database DSN contains "test"
@@ -47,6 +50,10 @@ func getTestCfg() *config.Config {
 }
 
 func getTestApp(cfg *config.Config, poll bool) (*app.App, func()) {
+	if testLogger == nil {
+		testLogger = log.New()
+	}
+
 	flowClient, err := client.New(cfg.AccessAPIHost, grpc.WithInsecure())
 	if err != nil {
 		panic(err)
@@ -67,7 +74,7 @@ func getTestApp(cfg *config.Config, poll bool) (*app.App, func()) {
 		panic(err)
 	}
 
-	app := app.New(cfg, db, flowClient, poll)
+	app := app.New(cfg, testLogger, db, flowClient, poll)
 
 	clean := func() {
 		app.Close()
@@ -79,11 +86,16 @@ func getTestApp(cfg *config.Config, poll bool) (*app.App, func()) {
 }
 
 func getTestServer(cfg *config.Config, poll bool) (*http.Server, func()) {
+	if testLogger == nil {
+		testLogger = log.New()
+	}
+
 	app, cleanupApp := getTestApp(cfg, poll)
 	clean := func() {
 		cleanupApp()
 	}
-	return http.NewServer(cfg, nil, app), clean
+
+	return http.NewServer(cfg, testLogger, app), clean
 }
 
 func makeTestCollection(size int) []common.FlowID {

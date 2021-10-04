@@ -2,13 +2,13 @@ package http
 
 import (
 	"encoding/json"
-	"log"
 	"net/http"
 	"strconv"
 
 	"github.com/flow-hydraulics/flow-pds/service/app"
 	"github.com/google/uuid"
 	"github.com/gorilla/mux"
+	log "github.com/sirupsen/logrus"
 )
 
 // Create a distribution
