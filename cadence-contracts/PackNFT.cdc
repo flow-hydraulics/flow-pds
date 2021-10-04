@@ -76,7 +76,6 @@ pub contract PackNFT: NonFungibleToken, IPackNFT {
                 i = i + 1
             }
             hashString = hashString.concat(",").concat(nftString)
-            log(hashString)
             let hash = HashAlgorithm.SHA2_256.hash(hashString.utf8)
             assert(self.commitHash == String.encodeHex(hash), message: "CommitHash was not verified")
             return nftString 
@@ -194,6 +193,13 @@ pub contract PackNFT: NonFungibleToken, IPackNFT {
         let p = PackNFT.borrowPackRepresentation(id: id) ?? panic ("No such pack")
         assert(p.status == "Revealed", message: "Pack status must be Revealed for reveal request")
         emit OpenRequest(id: id)
+    }
+
+    pub fun publicReveal(id: UInt64, nfts: [{IPackNFT.Collectible}], salt: String) {
+        log("SALT_PUBLIC_REVEAL")
+        log(salt)
+        let p = PackNFT.borrowPackRepresentation(id: id) ?? panic ("No such pack")
+        p.reveal(id: id, nfts: nfts, salt: salt)
     }
 
     // TODO getters for packs status

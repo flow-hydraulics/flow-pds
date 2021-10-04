@@ -2,7 +2,8 @@ package packnft
 
 import (
 	"github.com/bjartek/go-with-the-flow/v2/gwtf"
-	"github.com/flow-hydraulics/flow-pds/go-contracts/util"
+    "github.com/flow-hydraulics/flow-pds/go-contracts/util"
+    "github.com/onflow/cadence"
 )
 
 func GetPackCommitHash(
@@ -78,3 +79,26 @@ func OwnerOpenReq(
     return
 }
 
+func PublicRevealPackNFT(
+	g *gwtf.GoWithTheFlow,
+    packId uint64,
+    nftContractAddrs cadence.Value,
+    nftContractNames cadence.Value,
+    nftIds cadence.Value,
+    salt string,
+	account string,
+) (events []*gwtf.FormatedEvent, err error) {
+	txScript:= "../cadence-transactions/packNFT/public_reveal_packNFT.cdc"
+	code:= util.ParseCadenceTemplate(txScript)
+    e, err := g.
+		TransactionFromFile(txScript, code).
+		SignProposeAndPayAs("pds").
+        UInt64Argument(packId).
+        Argument(nftContractAddrs).
+        Argument(nftContractNames).
+        Argument(nftIds).
+        StringArgument(salt).
+		RunE()
+	events = util.ParseTestEvents(e)
+    return
+}
