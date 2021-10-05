@@ -46,12 +46,12 @@ pub contract interface IPackNFT{
     pub resource interface IOperator {
         pub fun mint(distId: UInt64, commitHash: String, issuer: Address): @NFT
         pub fun reveal(id: UInt64, nfts: [{Collectible}], salt: String)
-        pub fun open(id: UInt64) 
+        pub fun open(id: UInt64, nfts: [{IPackNFT.Collectible}]) 
     }
     pub resource PackNFTOperator: IOperator {
         pub fun mint(distId: UInt64, commitHash: String, issuer: Address): @NFT
         pub fun reveal(id: UInt64, nfts: [{Collectible}], salt: String)
-        pub fun open(id: UInt64) 
+        pub fun open(id: UInt64, nfts: [{IPackNFT.Collectible}]) 
     }
 
     pub resource interface IPackNFTToken {

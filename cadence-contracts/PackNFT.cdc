@@ -42,9 +42,9 @@ pub contract PackNFT: NonFungibleToken, IPackNFT {
             PackNFT.packs[id] <-! p
         }
 
-        pub fun open(id: UInt64) {
+        pub fun open(id: UInt64, nfts: [{IPackNFT.Collectible}]) {
             let p <- PackNFT.packs.remove(key: id) ?? panic("no such pack")
-            p.open(id: id)
+            p.open(id: id, nfts: nfts)
             PackNFT.packs[id] <-! p
         }
 
@@ -76,7 +76,6 @@ pub contract PackNFT: NonFungibleToken, IPackNFT {
                 i = i + 1
             }
             hashString = hashString.concat(",").concat(nftString)
-            log(hashString)
             let hash = HashAlgorithm.SHA2_256.hash(hashString.utf8)
             assert(self.commitHash == String.encodeHex(hash), message: "CommitHash was not verified")
             return nftString 
@@ -90,8 +89,9 @@ pub contract PackNFT: NonFungibleToken, IPackNFT {
             emit Revealed(id: id, salt: salt, nfts: v)
         }
 
-        access(contract) fun open(id: UInt64) {
+        access(contract) fun open(id: UInt64, nfts: [{IPackNFT.Collectible}]) {
             assert(self.status == "Revealed", message: "Pack status is not Revealed")
+            self._verify(nfts: nfts, salt: self.salt!, commitHash: self.commitHash)
             self.status = "Opened"
             emit Opened(id: id)
         }
@@ -194,6 +194,11 @@ pub contract PackNFT: NonFungibleToken, IPackNFT {
         let p = PackNFT.borrowPackRepresentation(id: id) ?? panic ("No such pack")
         assert(p.status == "Revealed", message: "Pack status must be Revealed for reveal request")
         emit OpenRequest(id: id)
+    }
+
+    pub fun publicReveal(id: UInt64, nfts: [{IPackNFT.Collectible}], salt: String) {
+        let p = PackNFT.borrowPackRepresentation(id: id) ?? panic ("No such pack")
+        p.reveal(id: id, nfts: nfts, salt: salt)
     }
 
     // TODO getters for packs status

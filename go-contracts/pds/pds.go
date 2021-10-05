@@ -38,14 +38,19 @@ func SetPackIssuerCap(
 func CreateDistribution(
 	g *gwtf.GoWithTheFlow,
 	account string,
+    title string,
+    metadata cadence.Value,
 ) (events []*gwtf.FormatedEvent, err error) {
 	createDist := "../cadence-transactions/pds/create_distribution.cdc"
 	createDistCode := util.ParseCadenceTemplate(createDist)
+
 	// Private path must match the PackNFT contract
 	e, err := g.
 		TransactionFromFile(createDist, createDistCode).
 		SignProposeAndPayAs("issuer").
 		Argument(cadence.Path{Domain: "private", Identifier: "exampleNFTCollectionProvider"}).
+        StringArgument(title).
+        Argument(metadata).
 		RunE()
 	events = util.ParseTestEvents(e)
     return
@@ -58,6 +63,39 @@ func GetDistID(
 	pdsDistIdCode := util.ParseCadenceTemplate(pdsDistId)
     d, err := g.ScriptFromFile(pdsDistId, pdsDistIdCode).RunReturns()
     distId = d.ToGoValue().(uint64)
+    return
+}
+
+func GetDistTitle(
+    g *gwtf.GoWithTheFlow,
+    distId uint64,
+) (title string, err error) {
+	script:= "../cadence-scripts/pds/get_dist_title.cdc"
+	code:= util.ParseCadenceTemplate(script)
+    r, err := g.ScriptFromFile(script, code).UInt64Argument(distId).RunReturns()
+    title = r.ToGoValue().(string)
+    return
+}
+
+func GetDistState(
+    g *gwtf.GoWithTheFlow,
+    distId uint64,
+) (state string, err error) {
+	script:= "../cadence-scripts/pds/get_dist_state.cdc"
+	code:= util.ParseCadenceTemplate(script)
+    r, err := g.ScriptFromFile(script, code).UInt64Argument(distId).RunReturns()
+    state = r.ToGoValue().(string)
+    return
+}
+
+func GetDistMetadata(
+    g *gwtf.GoWithTheFlow,
+    distId uint64,
+) (metadata string, err error) {
+	script:= "../cadence-scripts/pds/get_dist_metadata.cdc"
+	code:= util.ParseCadenceTemplate(script)
+    r, err := g.ScriptFromFile(script, code).UInt64Argument(distId).RunReturns()
+    metadata = r.String()
     return
 }
 
@@ -102,6 +140,23 @@ func PDSMintPackNFT(
     return
 }
 
+func PDSUpdateDistState(
+	g *gwtf.GoWithTheFlow,
+    distId uint64,
+    state string,
+) (events []*gwtf.FormatedEvent, err error) {
+	txScript:= "../cadence-transactions/pds/update_dist_state.cdc"
+	code:= util.ParseCadenceTemplate(txScript)
+    e, err := g.
+		TransactionFromFile(txScript, code).
+		SignProposeAndPayAs("pds").
+        UInt64Argument(distId).
+        StringArgument(state).
+		RunE()
+	events = util.ParseTestEvents(e)
+    return
+}
+
 func PDSRevealPackNFT(
 	g *gwtf.GoWithTheFlow,
     distId uint64,
@@ -132,6 +187,8 @@ func PDSOpenPackNFT(
 	g *gwtf.GoWithTheFlow,
     distId uint64,
     packId uint64,
+    nftContractAddrs cadence.Value,
+    nftContractNames cadence.Value,
     nftIds cadence.Value,
     owner string,
 	account string,
@@ -143,6 +200,8 @@ func PDSOpenPackNFT(
 		SignProposeAndPayAs("pds").
         UInt64Argument(distId).
         UInt64Argument(packId).
+        Argument(nftContractAddrs).
+        Argument(nftContractNames).
         Argument(nftIds).
         AccountArgument(owner).
 		RunE()
