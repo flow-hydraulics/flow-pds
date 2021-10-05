@@ -77,7 +77,11 @@ func TestCanCreatePackIssuer(t *testing.T) {
 
 func TestCannotCreateDistWithoutCap(t *testing.T) {
     g := gwtf.NewGoWithTheFlow(util.FlowJSON, os.Getenv("NETWORK"), false, 3)
-    _, err := pds.CreateDistribution(g, "issuer")
+    keyPair := cadence.KeyValuePair{Key: cadence.NewString("metadataKey"), Value: cadence.NewString("metadataValue")}
+    var keypairArr []cadence.KeyValuePair
+    keypairArr = append(keypairArr, keyPair)
+    metadata := cadence.NewDictionary(keypairArr)
+    _, err := pds.CreateDistribution(g, "issuer", "title", metadata)
     assert.Error(t, err)
 }
 
@@ -93,15 +97,39 @@ func TestCreateDistWithCap(t *testing.T) {
     g := gwtf.NewGoWithTheFlow(util.FlowJSON, os.Getenv("NETWORK"), false, 3)
     currentDistId, err := pds.GetDistID(g)
     assert.NoError(t, err)
-    events, err := pds.CreateDistribution(g, "issuer")
+
+    keyPair := cadence.KeyValuePair{Key: cadence.NewString("metadataKey"), Value: cadence.NewString("metadataValue")}
+    stringifiedKeyPair := "{\"metadataKey\": \"metadataValue\"}"
+    var keypairArr []cadence.KeyValuePair
+    keypairArr = append(keypairArr, keyPair)
+    expMetadata := cadence.NewDictionary(keypairArr)
+    expTitle := "ExampleDistTitle"
+
+    events, err := pds.CreateDistribution(g, "issuer", expTitle, expMetadata)
     assert.NoError(t, err)
 
-    util.NewExpectedPDSEvent("DistributionCreated").AddField("DistId", strconv.Itoa(int(currentDistId))).AssertEqual(t, events[0])
+    util.NewExpectedPDSEvent("DistributionCreated").
+        AddField("DistId", strconv.Itoa(int(currentDistId))).
+        AddField("state", "initialized").
+        AddField("title", expTitle).
+        AddField("metadata", stringifiedKeyPair).
+        AssertEqual(t, events[0])
 
     nextDistId, err := pds.GetDistID(g)
     assert.NoError(t, err)
     assert.Equal(t, currentDistId+1, nextDistId)
 
+    title, err := pds.GetDistTitle(g, currentDistId)
+    assert.NoError(t, err)
+    assert.Equal(t, title, title)
+
+    state, err := pds.GetDistState(g, currentDistId)
+    assert.NoError(t, err)
+    assert.Equal(t, "initialized", state)
+
+    metadata, err := pds.GetDistMetadata(g, currentDistId)
+    assert.NoError(t, err)
+    assert.Equal(t, stringifiedKeyPair, metadata)
 }
 
 func TestPDSEscrowNFTs(t *testing.T) {
@@ -143,8 +171,6 @@ func TestPDSMintPackNFTs(t *testing.T) {
     events, err := pds.PDSMintPackNFT(g, nextDistId-1, hash, "issuer", "pds")
     assert.NoError(t, err)
 
-    fmt.Print(events)
-
     util.NewExpectedPackNFTEvent("Mint").
         AddField("id", strconv.Itoa(int(expectedId))).
         AddField("commitHash", hash).
@@ -165,15 +191,29 @@ func TestPDSMintPackNFTs(t *testing.T) {
 
     // Mint a second pack to be revealed via the public function
     toHash2 := "g24dfdf9911df152,A." + addr + ".ExampleNFT.2,A." + addr + ".ExampleNFT.4"
-    fmt.Printf("nft: %s", toHash2)
     hash2, err := util.GetHash(g, toHash2)
     assert.NoError(t, err)
     _, err = pds.PDSMintPackNFT(g, nextDistId-1, hash2, "issuer", "pds")
     assert.NoError(t, err)
 }
 
-// Sold Pack Transfer to Owner
+func TestUpdateDistState(t *testing.T) {
+    g := gwtf.NewGoWithTheFlow(util.FlowJSON, os.Getenv("NETWORK"), false, 3)
 
+    nextDistId, err := pds.GetDistID(g)
+    currentDistId := nextDistId - 1
+    assert.NoError(t, err)
+
+    stateToUpdate := "completed"
+    events, err := pds.PDSUpdateDistState(g, currentDistId, stateToUpdate)
+
+    util.NewExpectedPDSEvent("DistributionStateUpdated").
+        AddField("DistId", strconv.Itoa(int(currentDistId))).
+        AddField("state", stateToUpdate).
+        AssertEqual(t, events[0])
+}
+
+// Sold Pack Transfer to Owner
 func TestTransfeToOwner(t *testing.T) {
     g := gwtf.NewGoWithTheFlow(util.FlowJSON, os.Getenv("NETWORK"), false, 3)
     nextPackNFTId, err := packnft.GetTotalPacks(g)
@@ -361,7 +401,6 @@ func TestPublicRevealPackNFTs(t *testing.T) {
     salt := "g24dfdf9911df152"
     addr := g.Account("issuer").Address().String()
     nftString := "A." + addr + ".ExampleNFT.2,A." + addr + ".ExampleNFT.4"
-    fmt.Printf("nft: %s", nftString)
     var addrs []cadence.Value
     var name []cadence.Value
     var ids []cadence.Value
@@ -431,8 +470,6 @@ func TestPDSOpenPackNFTs(t *testing.T) {
     assert.NoError(t, err)
 
     gonfts := nfts.ToGoValue().([]interface{})
-
-    fmt.Print(events)
 
     util.NewExpectedPackNFTEvent("Opened").
         AddField("id", strconv.Itoa(int(currentPack))).

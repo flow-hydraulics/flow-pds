@@ -12,7 +12,31 @@ pub contract PDS{
     pub let distManagerStoragePath: StoragePath
 
     pub var nextDistId: UInt64
-    access(contract) let Distributions: @{UInt64: SharedCapabilities}
+    access(contract) let Distributions: {UInt64: DistInfo}
+    access(contract) let DistSharedCap: @{UInt64: SharedCapabilities}
+
+    /// Issuer has created a distribution 
+    pub event DistributionCreated(DistId: UInt64, title: String, metadata: {String: String}, state: String)
+    
+    /// Distribution manager has updated a distribution state
+    pub event DistributionStateUpdated(DistId: UInt64, state: String)
+
+    pub struct DistInfo {
+        pub let title: String
+        pub let metadata: {String: String}
+        pub var state: String
+        
+        pub fun setState(newState: String) {
+            self.state = newState
+        }
+        
+        init(title: String, metadata: {String: String}, state: String) {
+            self.title = title
+            self.metadata = metadata
+            self.state = state
+        }
+    }
+    
 
     pub struct Collectible: IPackNFT.Collectible {
         pub let address: Address
@@ -92,9 +116,6 @@ pub contract PDS{
     }
 
 
-    /// Issuer has created a distribution 
-    pub event DistributionCreated(DistId: UInt64)
-    
     pub resource interface PackIssuerCapReciever {
         pub fun setDistCap(cap: Capability<&DistributionCreator{IDistCreator}>) 
     }
@@ -109,9 +130,10 @@ pub contract PDS{
             self.cap = cap 
         }
 
-        pub fun create(sharedCap: @SharedCapabilities) {
+        pub fun create(sharedCap: @SharedCapabilities, title: String, metadata: {String: String}) {
+            assert(title.length > 0, message: "Title must not be empty")
             let c = self.cap!.borrow()!
-            c.createNewDist(sharedCap: <- sharedCap)
+            c.createNewDist(sharedCap: <- sharedCap, title: title, metadata: metadata)
         }
         init() {
             self.cap = nil
@@ -120,22 +142,31 @@ pub contract PDS{
 
     // DistCap to be shared
     pub resource interface  IDistCreator {
-        pub fun createNewDist(sharedCap: @SharedCapabilities) 
+        pub fun createNewDist(sharedCap: @SharedCapabilities, title: String, metadata: {String: String}) 
     }
 
     pub resource DistributionCreator: IDistCreator {
-        pub fun createNewDist(sharedCap: @SharedCapabilities) {
+        pub fun createNewDist(sharedCap: @SharedCapabilities, title: String, metadata: {String: String}) {
             let currentId = PDS.nextDistId
-            PDS.Distributions[currentId] <-! sharedCap
+            let initState = "initialized"
+            PDS.DistSharedCap[currentId] <-! sharedCap
+            PDS.Distributions[currentId] = DistInfo(title: title, metadata: metadata, state: initState)
             PDS.nextDistId = currentId + 1 
-            emit DistributionCreated(DistId: currentId)
+            emit DistributionCreated(DistId: currentId, title: title, metadata: metadata, state: initState)
         }
     }
     
     pub resource DistributionManager {
+        pub fun updateDistState(distId: UInt64, state: String) {
+            let d = PDS.Distributions.remove(key: distId) ?? panic ("No such distribution")
+            d.setState(newState: state)
+            PDS.Distributions.insert(key: distId, d)
+            emit DistributionStateUpdated(DistId: distId, state: state)
+        }
+
         pub fun withdraw(distId: UInt64, nftIDs: [UInt64], escrowCollectionPublic: PublicPath) {
-            assert(PDS.Distributions.containsKey(distId), message: "No such distribution")
-            let d <- PDS.Distributions.remove(key: distId)!
+            assert(PDS.DistSharedCap.containsKey(distId), message: "No such distribution")
+            let d <- PDS.DistSharedCap.remove(key: distId)!
             let pdsCollection = PDS.getManagerCollectionCap(escrowCollectionPublic: escrowCollectionPublic).borrow()!
             var i = 0
             while i < nftIDs.length {
@@ -143,24 +174,24 @@ pub contract PDS{
                 pdsCollection.deposit(token:<-nft)
                 i = i + 1
             } 
-            PDS.Distributions[distId] <-! d
+            PDS.DistSharedCap[distId] <-! d
         }
         
         pub fun mintPackNFT(distId: UInt64, commitHashes: [String], issuer: Address, recvCap: &{NonFungibleToken.CollectionPublic}){
-            assert(PDS.Distributions.containsKey(distId), message: "No such distribution")
-            let d <- PDS.Distributions.remove(key: distId)!
+            assert(PDS.DistSharedCap.containsKey(distId), message: "No such distribution")
+            let d <- PDS.DistSharedCap.remove(key: distId)!
             d.mintPackNFT(distId: distId, commitHashes: commitHashes, issuer: issuer, recvCap: recvCap)
-            PDS.Distributions[distId] <-! d
+            PDS.DistSharedCap[distId] <-! d
         }
         
         pub fun revealPackNFT(distId: UInt64, packId: UInt64, nftContractAddrs: [Address], nftContractName: [String], nftIds: [UInt64], salt: String){
-            assert(PDS.Distributions.containsKey(distId), message: "No such distribution")
+            assert(PDS.DistSharedCap.containsKey(distId), message: "No such distribution")
             assert(
                 nftContractAddrs.length == nftContractName.length && 
                 nftContractName.length == nftIds.length, 
                 message: "NFTs must be fully described"
             )
-            let d <- PDS.Distributions.remove(key: distId)!
+            let d <- PDS.DistSharedCap.remove(key: distId)!
             let arr: [{IPackNFT.Collectible}] = []
             var i = 0
             while i < nftContractAddrs.length {
@@ -169,14 +200,14 @@ pub contract PDS{
                 i = i + 1
             }
             d.revealPackNFT(packId: packId, nfts: arr, salt: salt)
-            PDS.Distributions[distId] <-! d
+            PDS.DistSharedCap[distId] <-! d
         }
 
         pub fun openPackNFT(distId: UInt64, packId: UInt64, nftIds: [UInt64], recvCap: &{NonFungibleToken.CollectionPublic}, collectionProviderPath: PrivatePath){
-            assert(PDS.Distributions.containsKey(distId), message: "No such distribution")
-            let d <- PDS.Distributions.remove(key: distId)!
+            assert(PDS.DistSharedCap.containsKey(distId), message: "No such distribution")
+            let d <- PDS.DistSharedCap.remove(key: distId)!
             d.openPackNFT(packId: packId, nftIds: nftIds, recvCap: recvCap, collectionProviderPath: collectionProviderPath)
-            PDS.Distributions[distId] <-! d
+            PDS.DistSharedCap[distId] <-! d
         }
 
     }
@@ -210,6 +241,10 @@ pub contract PDS{
             operatorCap: operatorCap
         )
     }
+    
+    pub fun getDistInfo(distId: UInt64): DistInfo? {
+        return PDS.Distributions[distId]
+    }
 
     
     init(
@@ -221,7 +256,8 @@ pub contract PDS{
         version: String
     ) {
         self.nextDistId = 0
-        self.Distributions <- {}
+        self.DistSharedCap <- {}
+        self.Distributions = {} 
         self.packIssuerStoragePath = packIssuerStoragePath
         self.packIssuerCapRecv = packIssuerCapRecv
         self.distCreatorStoragePath = distCreatorStoragePath

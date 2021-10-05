@@ -3,7 +3,7 @@ import PackNFT from 0x{{.PackNFT}}
 import IPackNFT from 0x{{.IPackNFT}}
 import NonFungibleToken from 0x{{.NonFungibleToken}}
 
-transaction(NFTProviderPath: PrivatePath) {
+transaction(NFTProviderPath: PrivatePath, title: String, metadata: {String: String}) {
     prepare (issuer: AuthAccount) {
         
         let i = issuer.borrow<&PDS.PackIssuer>(from: PDS.packIssuerStoragePath) ?? panic ("issuer does not have PackIssuer resource")
@@ -16,7 +16,7 @@ transaction(NFTProviderPath: PrivatePath) {
         assert(operatorCap.check(), message:  "cannot borrow operator capability") 
 
         let sc <- PDS.createSharedCapabilities ( withdrawCap: withdrawCap, operatorCap: operatorCap )
-        i.create(sharedCap: <-sc)
+        i.create(sharedCap: <-sc, title: title, metadata: metadata)
     } 
 }
  

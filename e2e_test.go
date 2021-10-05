@@ -140,6 +140,13 @@ func TestE2E(t *testing.T) {
 		t.Fatal(err)
 	}
 
+    keyPair := cadence.KeyValuePair{Key: cadence.NewString("metadataKey"), Value: cadence.NewString("metadataValue")}
+    stringifiedKeyPair := "{\"metadataKey\": \"metadataValue\"}"
+    var keypairArr []cadence.KeyValuePair
+    keypairArr = append(keypairArr, keyPair)
+    expMetadata := cadence.NewDictionary(keypairArr)
+    expTitle := "ExampleDistTitle"
+
 	createDist := "./cadence-transactions/pds/create_distribution.cdc"
 	createDistCode := util.ParseCadenceTemplate(createDist)
 	// Private path must match the PackNFT contract
@@ -147,14 +154,20 @@ func TestE2E(t *testing.T) {
 		TransactionFromFile(createDist, createDistCode).
 		SignProposeAndPayAs("issuer").
 		Argument(cadence.Path{Domain: "private", Identifier: "exampleNFTCollectionProvider"}).
+        StringArgument(expTitle).
+        Argument(expMetadata).
 		RunE()
 	if err != nil {
 		t.Fatal(err)
 	}
 	events := util.ParseTestEvents(e)
 
-	util.NewExpectedPDSEvent("DistributionCreated").AddField("DistId", currentDistId.String()).AssertEqual(t, events[0])
-
+    util.NewExpectedPDSEvent("DistributionCreated").
+        AddField("DistId", currentDistId.String()).
+        AddField("state", "initialized").
+        AddField("title", expTitle).
+        AddField("metadata", stringifiedKeyPair).
+        AssertEqual(t, events[0])
 	// -- Create distribution --
 
 	t.Log("Use available NFTs to create a distribution in backend")
