@@ -20,7 +20,7 @@ type Distribution struct {
 
 	FlowID       common.FlowID            `gorm:"column:flow_id"` // A reference on the PDS Contract to this distribution
 	Issuer       common.FlowAddress       `gorm:"column:issuer"`
-	State        common.DistributionState `gorm:"column:state"`
+	State        common.DistributionState `gorm:"column:state;not null;default:null"`
 	MetaData     DistributionMetaData     `gorm:"embedded;embeddedPrefix:meta_"`
 	PackTemplate PackTemplate             `gorm:"embedded;embeddedPrefix:template_"`
 	Packs        []Pack
@@ -57,7 +57,7 @@ type Pack struct {
 
 	ContractReference AddressLocation    `gorm:"embedded;embeddedPrefix:contract_ref_"` // Reference to the pack NFT contract
 	FlowID            common.FlowID      `gorm:"column:flow_id;index"`                  // ID of the pack NFT
-	State             common.PackState   `gorm:"column:state"`                          // public
+	State             common.PackState   `gorm:"column:state;not null;default:null"`    // public
 	Salt              common.BinaryValue `gorm:"column:salt"`                           // private
 	CommitmentHash    common.BinaryValue `gorm:"column:commitment_hash;index"`          // public
 	Collectibles      Collectibles       `gorm:"column:collectibles"`                   // private
@@ -97,7 +97,7 @@ func (p *Pack) BeforeCreate(tx *gorm.DB) (err error) {
 // - set the distributions state to resolved
 func (dist *Distribution) Resolve() error {
 	if dist.State != common.DistributionStateInit {
-		return fmt.Errorf("distribution can not be resolved anymore")
+		return fmt.Errorf("distribution has to be in 'init' state, got '%s'", dist.State)
 	}
 
 	if err := dist.Validate(); err != nil {
@@ -110,6 +110,7 @@ func (dist *Distribution) Resolve() error {
 	// Init packs and their slots
 	packs := make([]Pack, packCount)
 	for i := range packs {
+		packs[i].State = common.PackStateInit
 		packs[i].ContractReference = dist.PackTemplate.PackReference
 		packs[i].Collectibles = make([]Collectible, packSlotCount)
 	}
@@ -157,10 +158,10 @@ func (dist *Distribution) Resolve() error {
 	return nil
 }
 
-// SetSettling sets the status to settling if preceding state was valid
+// SetSettling sets the status to "settling" if preceding state was valid
 func (dist *Distribution) SetSettling() error {
 	if dist.State != common.DistributionStateResolved {
-		return fmt.Errorf("distribution can not start settling at this state: %d", dist.State)
+		return fmt.Errorf("distribution can not start settling at this state: %s", dist.State)
 	}
 
 	dist.State = common.DistributionStateSettling
@@ -168,10 +169,10 @@ func (dist *Distribution) SetSettling() error {
 	return nil
 }
 
-// SetSettled sets the status to settled if preceding state was valid
+// SetSettled sets the status to "settled" if preceding state was valid
 func (dist *Distribution) SetSettled() error {
 	if dist.State != common.DistributionStateSettling {
-		return fmt.Errorf("distribution can not be set as settled at this state: %d", dist.State)
+		return fmt.Errorf("distribution can not be set as settled at this state: %s", dist.State)
 	}
 
 	dist.State = common.DistributionStateSettled
@@ -179,10 +180,10 @@ func (dist *Distribution) SetSettled() error {
 	return nil
 }
 
-// SetMinting sets the status to minting if preceding state was valid
+// SetMinting sets the status to "minting" if preceding state was valid
 func (dist *Distribution) SetMinting() error {
 	if dist.State != common.DistributionStateSettled {
-		return fmt.Errorf("distribution can not start minting at this state: %d", dist.State)
+		return fmt.Errorf("distribution can not start minting at this state: %s", dist.State)
 	}
 
 	dist.State = common.DistributionStateMinting
@@ -190,10 +191,10 @@ func (dist *Distribution) SetMinting() error {
 	return nil
 }
 
-// SetComplete sets the status to complete if preceding state was valid
+// SetComplete sets the status to "complete" if preceding state was valid
 func (dist *Distribution) SetComplete() error {
 	if dist.State != common.DistributionStateMinting {
-		return fmt.Errorf("distribution can not be set as complete at this state: %d", dist.State)
+		return fmt.Errorf("distribution can not be set as complete at this state: %s", dist.State)
 	}
 
 	dist.State = common.DistributionStateComplete
@@ -201,13 +202,13 @@ func (dist *Distribution) SetComplete() error {
 	return nil
 }
 
-// SetCancelled sets the status to cancelled if preceding state was valid
-func (dist *Distribution) SetCancelled() error {
+// SetInvalid sets the status to "invalid" if preceding state was valid
+func (dist *Distribution) SetInvalid() error {
 	if dist.State == common.DistributionStateComplete {
-		return fmt.Errorf("distribution can not be cancelled at this state: %d", dist.State)
+		return fmt.Errorf("distribution can not be set as invalid at this state: %s", dist.State)
 	}
 
-	dist.State = common.DistributionStateCancelled
+	dist.State = common.DistributionStateInvalid
 
 	return nil
 }

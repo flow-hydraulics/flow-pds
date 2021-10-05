@@ -127,6 +127,7 @@ func ResBucketsFromApp(pt app.PackTemplate) []ResBucket {
 
 func (d ReqCreateDistribution) ToApp() app.Distribution {
 	return app.Distribution{
+		State:        common.DistributionStateInit,
 		FlowID:       d.FlowID,
 		Issuer:       d.Issuer,
 		MetaData:     app.DistributionMetaData(d.MetaData),

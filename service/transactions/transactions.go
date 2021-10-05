@@ -23,7 +23,7 @@ type StorableTransaction struct {
 	gorm.Model
 	ID uuid.UUID `gorm:"column:id;primary_key;type:uuid;"`
 
-	State         common.TransactionState `gorm:"column:state"`
+	State         common.TransactionState `gorm:"column:state;not null;default:null"`
 	Error         string                  `gorm:"column:error"`
 	RetryCount    uint                    `gorm:"column:retry_count"`
 	TransactionID string                  `gorm:"column:transaction_id"`
@@ -48,6 +48,7 @@ func NewTransaction(script []byte, arguments []cadence.Value) (*StorableTransact
 	}
 
 	transaction := StorableTransaction{
+		State:     common.TransactionStateInit,
 		Script:    string(script),
 		Arguments: argsJSON,
 	}
@@ -153,7 +154,7 @@ func (t *StorableTransaction) HandleResult(ctx context.Context, flowClient *clie
 	case flow.TransactionStatusExpired:
 		t.State = common.TransactionStateRetry
 	case flow.TransactionStatusSealed:
-		t.State = common.TransactionStateOk
+		t.State = common.TransactionStateComplete
 	}
 
 	return nil
