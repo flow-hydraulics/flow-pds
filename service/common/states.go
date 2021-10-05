@@ -4,9 +4,6 @@ type DistributionState string
 type PackState string
 type TransactionState string
 
-// TODO (latenssi): represent states as strings (instead of integers) to allow
-// flexibility in database structure?
-
 const (
 	DistributionStateInit     DistributionState = "init"
 	DistributionStateInvalid  DistributionState = "invalid"
