@@ -43,10 +43,7 @@ func (app *App) Close() {
 
 // CreateDistribution validates a distribution, resolves it and stores it in database
 func (app *App) CreateDistribution(ctx context.Context, distribution *Distribution) error {
-	if err := distribution.Validate(); err != nil {
-		return err
-	}
-
+	// Resolve will also validate the distribution
 	if err := distribution.Resolve(); err != nil {
 		return err
 	}

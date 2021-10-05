@@ -1,48 +1,31 @@
 package common
 
-type DistributionState uint
-type PackState uint
-type SettlementState uint
-type MintingState uint
-type TransactionState int
-
-// TODO (latenssi): represent states as strings (instead of integers) to allow
-// flexibility in database structure?
+type DistributionState string
+type PackState string
+type TransactionState string
 
 const (
-	DistributionStateInit DistributionState = iota
-	DistributionStateCancelled
-	DistributionStateResolved
-	DistributionStateSettling
-	DistributionStateSettled
-	DistributionStateMinting
-	DistributionStateComplete
+	DistributionStateInit     DistributionState = "init"
+	DistributionStateInvalid  DistributionState = "invalid"
+	DistributionStateResolved DistributionState = "resolved"
+	DistributionStateSettling DistributionState = "settling"
+	DistributionStateSettled  DistributionState = "settled"
+	DistributionStateMinting  DistributionState = "minting"
+	DistributionStateComplete DistributionState = "complete"
 )
 
 const (
-	PackStateInit PackState = iota
-	PackStateSealed
-	PackStateRevealed
-	PackStateOpened
-	PackStateEmpty
+	PackStateInit     PackState = "init"
+	PackStateSealed   PackState = "sealed"
+	PackStateRevealed PackState = "revealed"
+	PackStateOpened   PackState = "opened"
+	PackStateEmpty    PackState = "empty"
 )
 
 const (
-	SettlementStateStarted SettlementState = iota
-	SettlementStateStopped
-	SettlementStateDone
-)
-
-const (
-	MintingStateStarted MintingState = iota
-	MintingStateStopped
-	MintingStateDone
-)
-
-const (
-	TransactionStateInit = iota
-	TransactionStateRetry
-	TransactionStateSent
-	TransactionStateFailed
-	TransactionStateOk
+	TransactionStateInit     TransactionState = "init"
+	TransactionStateRetry    TransactionState = "retry"
+	TransactionStateSent     TransactionState = "sent"
+	TransactionStateFailed   TransactionState = "failed"
+	TransactionStateComplete TransactionState = "complete"
 )

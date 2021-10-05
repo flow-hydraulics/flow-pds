@@ -185,6 +185,7 @@ func TestE2E(t *testing.T) {
 	}
 
 	distribution := app.Distribution{
+		State:  common.DistributionStateInit,
 		FlowID: distId,
 		Issuer: issuer,
 		PackTemplate: app.PackTemplate{

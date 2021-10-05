@@ -56,7 +56,7 @@ func (p *Pack) Hash() []byte {
 // Seal should set the FlowID of the pack and set it as sealed
 func (p *Pack) Seal(id common.FlowID) error {
 	if p.State != common.PackStateInit {
-		return fmt.Errorf("pack in unexpected state: %d", p.State)
+		return fmt.Errorf("pack in unexpected state: %s", p.State)
 	}
 
 	if p.FlowID.Valid {
@@ -72,7 +72,7 @@ func (p *Pack) Seal(id common.FlowID) error {
 // Reveal should set the pack as revealed
 func (p *Pack) Reveal() error {
 	if p.State != common.PackStateSealed {
-		return fmt.Errorf("pack in unexpected state: %d", p.State)
+		return fmt.Errorf("pack in unexpected state: %s", p.State)
 	}
 
 	p.State = common.PackStateRevealed
@@ -83,7 +83,7 @@ func (p *Pack) Reveal() error {
 // Open should set the pack as opened
 func (p *Pack) Open() error {
 	if p.State != common.PackStateRevealed {
-		return fmt.Errorf("pack in unexpected state: %d", p.State)
+		return fmt.Errorf("pack in unexpected state: %s", p.State)
 	}
 
 	p.State = common.PackStateOpened
