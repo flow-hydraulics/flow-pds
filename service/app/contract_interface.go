@@ -707,15 +707,23 @@ func (c *Contract) UpdateCirculatingPack(ctx context.Context, db *gorm.DB, cpc *
 						return err
 					}
 
-					collectibleIDs := make([]cadence.Value, len(pack.Collectibles))
+					collectibleCount := len(pack.Collectibles)
+
+					collectibleContractAddresses := make([]cadence.Value, collectibleCount)
+					collectibleContractNames := make([]cadence.Value, collectibleCount)
+					collectibleIDs := make([]cadence.Value, collectibleCount)
 
 					for i, c := range pack.Collectibles {
+						collectibleContractAddresses[i] = cadence.Address(c.ContractReference.Address)
+						collectibleContractNames[i] = cadence.String(c.ContractReference.Name)
 						collectibleIDs[i] = cadence.UInt64(c.FlowID.Int64)
 					}
 
 					arguments := []cadence.Value{
 						cadence.UInt64(distribution.FlowID.Int64),
 						cadence.UInt64(pack.FlowID.Int64),
+						cadence.NewArray(collectibleContractAddresses),
+						cadence.NewArray(collectibleContractNames),
 						cadence.NewArray(collectibleIDs),
 						cadence.Address(owner),
 					}
