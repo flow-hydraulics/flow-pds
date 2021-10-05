@@ -197,8 +197,6 @@ pub contract PackNFT: NonFungibleToken, IPackNFT {
     }
 
     pub fun publicReveal(id: UInt64, nfts: [{IPackNFT.Collectible}], salt: String) {
-        log("SALT_PUBLIC_REVEAL")
-        log(salt)
         let p = PackNFT.borrowPackRepresentation(id: id) ?? panic ("No such pack")
         p.reveal(id: id, nfts: nfts, salt: salt)
     }
