@@ -187,6 +187,8 @@ func PDSOpenPackNFT(
 	g *gwtf.GoWithTheFlow,
     distId uint64,
     packId uint64,
+    nftContractAddrs cadence.Value,
+    nftContractNames cadence.Value,
     nftIds cadence.Value,
     owner string,
 	account string,
@@ -198,6 +200,8 @@ func PDSOpenPackNFT(
 		SignProposeAndPayAs("pds").
         UInt64Argument(distId).
         UInt64Argument(packId).
+        Argument(nftContractAddrs).
+        Argument(nftContractNames).
         Argument(nftIds).
         AccountArgument(owner).
 		RunE()

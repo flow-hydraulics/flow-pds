@@ -42,9 +42,9 @@ pub contract PackNFT: NonFungibleToken, IPackNFT {
             PackNFT.packs[id] <-! p
         }
 
-        pub fun open(id: UInt64) {
+        pub fun open(id: UInt64, nfts: [{IPackNFT.Collectible}]) {
             let p <- PackNFT.packs.remove(key: id) ?? panic("no such pack")
-            p.open(id: id)
+            p.open(id: id, nfts: nfts)
             PackNFT.packs[id] <-! p
         }
 
@@ -89,8 +89,9 @@ pub contract PackNFT: NonFungibleToken, IPackNFT {
             emit Revealed(id: id, salt: salt, nfts: v)
         }
 
-        access(contract) fun open(id: UInt64) {
+        access(contract) fun open(id: UInt64, nfts: [{IPackNFT.Collectible}]) {
             assert(self.status == "Revealed", message: "Pack status is not Revealed")
+            self._verify(nfts: nfts, salt: self.salt!, commitHash: self.commitHash)
             self.status = "Opened"
             emit Opened(id: id)
         }

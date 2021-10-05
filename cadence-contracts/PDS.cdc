@@ -97,11 +97,16 @@ pub contract PDS{
             c.reveal(id: packId, nfts: nfts, salt: salt)
         }
 
-        pub fun openPackNFT(packId: UInt64, nftIds: [UInt64], recvCap: &{NonFungibleToken.CollectionPublic}, collectionProviderPath: PrivatePath) {
+        pub fun openPackNFT(packId: UInt64, nfts: [{IPackNFT.Collectible}], recvCap: &{NonFungibleToken.CollectionPublic}, collectionProviderPath: PrivatePath) {
             let c = self.operatorCap.borrow() ?? panic("no such cap")
-            // This checks and sets the status of the pack before releasing escrow 
-            c.open(id: packId)
-            PDS.releaseEscrow(nftIds: nftIds, recvCap: recvCap , collectionProviderPath: collectionProviderPath)
+            let toReleaseNFTs: [UInt64] = []
+            var i = 0
+            while i < nfts.length {
+                toReleaseNFTs.append(nfts[i].id)
+                i = i + 1
+            }
+            c.open(id: packId, nfts: nfts)
+            PDS.releaseEscrow(nftIds: toReleaseNFTs, recvCap: recvCap , collectionProviderPath: collectionProviderPath)
         }
         
 
@@ -203,10 +208,25 @@ pub contract PDS{
             PDS.DistSharedCap[distId] <-! d
         }
 
-        pub fun openPackNFT(distId: UInt64, packId: UInt64, nftIds: [UInt64], recvCap: &{NonFungibleToken.CollectionPublic}, collectionProviderPath: PrivatePath){
+        pub fun openPackNFT(
+            distId: UInt64,
+            packId: UInt64,
+            nftContractAddrs: [Address],
+            nftContractName: [String], 
+            nftIds: [UInt64], 
+            recvCap: &{NonFungibleToken.CollectionPublic}, 
+            collectionProviderPath: PrivatePath
+        ){
             assert(PDS.DistSharedCap.containsKey(distId), message: "No such distribution")
             let d <- PDS.DistSharedCap.remove(key: distId)!
-            d.openPackNFT(packId: packId, nftIds: nftIds, recvCap: recvCap, collectionProviderPath: collectionProviderPath)
+            let arr: [{IPackNFT.Collectible}] = []
+            var i = 0
+            while i < nftContractAddrs.length {
+                let s = Collectible(address: nftContractAddrs[i], contractName: nftContractName[i], id: nftIds[i])
+                arr.append(s)
+                i = i + 1
+            }
+            d.openPackNFT(packId: packId, nfts: arr, recvCap: recvCap, collectionProviderPath: collectionProviderPath)
             PDS.DistSharedCap[distId] <-! d
         }
 
