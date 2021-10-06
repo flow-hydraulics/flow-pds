@@ -2,6 +2,7 @@ package app
 
 import (
 	"context"
+	"errors"
 	"fmt"
 	"strings"
 	"time"
@@ -31,7 +32,10 @@ func poller(app *App) {
 			handlePollerError("handleSettling", handleSettling(ctx, app.db, app.contract))
 			handlePollerError("handleSettled", handleSettled(ctx, app.db, app.contract))
 			handlePollerError("handleMinting", handleMinting(ctx, app.db, app.contract))
+			handlePollerError("handleComplete", handleComplete(ctx, app.db, app.contract))
+
 			handlePollerError("pollCirculatingPackContractEvents", pollCirculatingPackContractEvents(ctx, app.db, app.contract))
+
 			handlePollerError("handleSentTransactions", handleSentTransactions(ctx, app.db, app.contract))
 			handlePollerError("handleSendableTransactions", handleSendableTransactions(ctx, app.db, app.contract, app.logger, transactionRatelimiter))
 		case <-app.quit:
@@ -138,6 +142,34 @@ func handleMinting(ctx context.Context, db *gorm.DB, contract *Contract) error {
 				return err
 			}
 		}
+		return nil
+	})
+}
+
+// handleComplete deletes obsolete Settlement, SettlementCollectible and Minting
+// objects from database.
+func handleComplete(ctx context.Context, db *gorm.DB, contract *Contract) error {
+	return db.Transaction(func(tx *gorm.DB) error {
+		complete, err := listDistributionsByState(tx, common.DistributionStateComplete)
+		if err != nil {
+			return err
+		}
+
+		for _, dist := range complete {
+			if err := DeleteSettlementForDistribution(tx, dist.ID); err != nil {
+				if errors.Is(err, gorm.ErrRecordNotFound) {
+					continue
+				}
+				return err
+			}
+			if err := DeleteMintingForDistribution(tx, dist.ID); err != nil {
+				if errors.Is(err, gorm.ErrRecordNotFound) {
+					continue
+				}
+				return err
+			}
+		}
+
 		return nil
 	})
 }

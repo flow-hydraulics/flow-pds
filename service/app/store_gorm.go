@@ -116,10 +116,10 @@ func UpdatePack(db *gorm.DB, d *Pack) error {
 	return db.Omit(clause.Associations).Save(d).Error
 }
 
-// Insert settlement
+// Insert Settlement
 func InsertSettlement(db *gorm.DB, d *Settlement) error {
 	return db.Transaction(func(tx *gorm.DB) error {
-		// Store settlement
+		// Store Settlement
 		if err := tx.Omit(clause.Associations).Create(d).Error; err != nil {
 			return err
 		}
@@ -139,17 +139,26 @@ func InsertSettlement(db *gorm.DB, d *Settlement) error {
 	})
 }
 
-// Update settlement
+// Delete Settlement
+func DeleteSettlementForDistribution(db *gorm.DB, distributionID uuid.UUID) error {
+	settlement, err := GetDistributionSettlement(db, distributionID)
+	if err != nil {
+		return err
+	}
+	return db.Select("Collectibles").Delete(settlement).Error
+}
+
+// Update Settlement
 func UpdateSettlement(db *gorm.DB, d *Settlement) error {
 	return db.Omit(clause.Associations).Save(d).Error
 }
 
-// Update settlement collectible
+// Update Settlement collectible
 func UpdateSettlementCollectible(db *gorm.DB, d *SettlementCollectible) error {
 	return db.Omit(clause.Associations).Save(d).Error
 }
 
-// Get settlement
+// Get Settlement
 func GetDistributionSettlement(db *gorm.DB, distributionID uuid.UUID) (*Settlement, error) {
 	settlement := Settlement{}
 	if err := db.Omit(clause.Associations).Where(&Settlement{DistributionID: distributionID}).First(&settlement).Error; err != nil {
@@ -158,7 +167,7 @@ func GetDistributionSettlement(db *gorm.DB, distributionID uuid.UUID) (*Settleme
 	return &settlement, nil
 }
 
-// Get missing collectibles for a settlement, grouped by collectible contract reference
+// Get missing collectibles for a Settlement, grouped by collectible contract reference
 func MissingCollectibles(db *gorm.DB, settlementId uuid.UUID) (map[string]SettlementCollectibles, error) {
 	missing := []SettlementCollectible{}
 	err := db.Omit(clause.Associations).Where(&SettlementCollectible{SettlementID: settlementId, IsSettled: false}).Find(&missing).Error
@@ -178,7 +187,7 @@ func MissingCollectibles(db *gorm.DB, settlementId uuid.UUID) (map[string]Settle
 	return res, nil
 }
 
-// Get settlement
+// Get Settlement
 func GetCirculatingPackContract(db *gorm.DB, name string, address common.FlowAddress) (*CirculatingPackContract, error) {
 	circulatingPackContract := CirculatingPackContract{}
 	if err := db.Where(&CirculatingPackContract{Name: name, Address: address}).First(&circulatingPackContract).Error; err != nil {
@@ -202,7 +211,16 @@ func InsertMinting(db *gorm.DB, d *Minting) error {
 	return db.Omit(clause.Associations).Create(d).Error
 }
 
-// Get minting
+// Delete Minting
+func DeleteMintingForDistribution(db *gorm.DB, distributionID uuid.UUID) error {
+	minting, err := GetDistributionMinting(db, distributionID)
+	if err != nil {
+		return err
+	}
+	return db.Delete(minting).Error
+}
+
+// Get Minting
 func GetDistributionMinting(db *gorm.DB, distributionID uuid.UUID) (*Minting, error) {
 	minting := Minting{}
 	if err := db.Omit(clause.Associations).Where(&Minting{DistributionID: distributionID}).First(&minting).Error; err != nil {
@@ -211,7 +229,7 @@ func GetDistributionMinting(db *gorm.DB, distributionID uuid.UUID) (*Minting, er
 	return &minting, nil
 }
 
-// Update minting
+// Update Minting
 func UpdateMinting(db *gorm.DB, d *Minting) error {
 	return db.Omit(clause.Associations).Save(d).Error
 }
