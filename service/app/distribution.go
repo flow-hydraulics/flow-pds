@@ -20,7 +20,7 @@ type Distribution struct {
 	State        common.DistributionState `gorm:"column:state;not null;default:null"`
 	MetaData     DistributionMetaData     `gorm:"embedded;embeddedPrefix:meta_"`
 	PackTemplate PackTemplate             `gorm:"embedded;embeddedPrefix:template_"`
-	Packs        []Pack
+	Packs        []Pack                   `gorm:"constraint:OnUpdate:CASCADE,OnDelete:SET NULL;"`
 }
 
 type DistributionMetaData struct {
@@ -32,9 +32,9 @@ type DistributionMetaData struct {
 }
 
 type PackTemplate struct {
-	PackReference AddressLocation `gorm:"embedded;embeddedPrefix:pack_ref_"` // Reference to the pack NFT contract
-	PackCount     uint            `gorm:"column:pack_count"`                 // How many packs to create
-	Buckets       []Bucket        // How to distribute collectibles in a pack
+	PackReference AddressLocation `gorm:"embedded;embeddedPrefix:pack_ref_"`             // Reference to the pack NFT contract
+	PackCount     uint            `gorm:"column:pack_count"`                             // How many packs to create
+	Buckets       []Bucket        `gorm:"constraint:OnUpdate:CASCADE,OnDelete:CASCADE;"` // How to distribute collectibles in a pack
 }
 
 type Bucket struct {
