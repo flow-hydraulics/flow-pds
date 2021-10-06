@@ -18,6 +18,13 @@ import (
 
 var testLogger *log.Logger
 
+func initTestLogger() {
+	if testLogger == nil {
+		testLogger = log.New()
+		testLogger.SetLevel(log.InfoLevel)
+	}
+}
+
 func cleanTestDatabase(cfg *config.Config, db *gorm.DB) {
 	// Only run this if database DSN contains "test"
 	if strings.Contains(strings.ToLower(cfg.DatabaseDSN), "test") {
@@ -50,9 +57,7 @@ func getTestCfg() *config.Config {
 }
 
 func getTestApp(cfg *config.Config, poll bool) (*app.App, func()) {
-	if testLogger == nil {
-		testLogger = log.New()
-	}
+	initTestLogger()
 
 	flowClient, err := client.New(cfg.AccessAPIHost, grpc.WithInsecure())
 	if err != nil {
@@ -86,9 +91,7 @@ func getTestApp(cfg *config.Config, poll bool) (*app.App, func()) {
 }
 
 func getTestServer(cfg *config.Config, poll bool) (*http.Server, func()) {
-	if testLogger == nil {
-		testLogger = log.New()
-	}
+	initTestLogger()
 
 	app, cleanupApp := getTestApp(cfg, poll)
 	clean := func() {

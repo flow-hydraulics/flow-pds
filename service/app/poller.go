@@ -8,17 +8,23 @@ import (
 
 	"github.com/flow-hydraulics/flow-pds/service/common"
 	"github.com/flow-hydraulics/flow-pds/service/transactions"
+	log "github.com/sirupsen/logrus"
+	"go.uber.org/ratelimit"
 	"gorm.io/gorm"
 )
 
-// TODO: instead of running everything in one transaction, separate them by the
-// parent object or something suitable
+// TODO: refactor the db transaction logic
 
 func poller(app *App) {
+
+	ticker := time.NewTicker(time.Second) // TODO (latenssi): configurable?
+	transactionRatelimiter := ratelimit.New(app.cfg.SendTransactionRate)
+
 	ctx := context.Background()
 	ctx, cancel := context.WithCancel(ctx)
-	ticker := time.NewTicker(time.Second) // TODO (latenssi): proper duration
+
 	for {
+		app.logger.Trace("Poll start")
 		select {
 		case <-ticker.C:
 			handlePollerError("handleResolved", handleResolved(ctx, app.db, app.contract))
@@ -26,13 +32,14 @@ func poller(app *App) {
 			handlePollerError("handleSettled", handleSettled(ctx, app.db, app.contract))
 			handlePollerError("handleMinting", handleMinting(ctx, app.db, app.contract))
 			handlePollerError("pollCirculatingPackContractEvents", pollCirculatingPackContractEvents(ctx, app.db, app.contract))
-			handlePollerError("handleSendableTransactions", handleSendableTransactions(ctx, app.db, app.contract))
 			handlePollerError("handleSentTransactions", handleSentTransactions(ctx, app.db, app.contract))
+			handlePollerError("handleSendableTransactions", handleSendableTransactions(ctx, app.db, app.contract, app.logger, transactionRatelimiter))
 		case <-app.quit:
 			cancel()
 			ticker.Stop()
 			return
 		}
+		app.logger.Trace("Poll end")
 	}
 }
 
@@ -94,7 +101,6 @@ func handleSettling(ctx context.Context, db *gorm.DB, contract *Contract) error 
 		}
 
 		for _, dist := range settling {
-			// TODO: separate db transaction?
 			if err := contract.UpdateSettlementStatus(ctx, tx, &dist); err != nil {
 				return err
 			}
@@ -128,7 +134,6 @@ func handleMinting(ctx context.Context, db *gorm.DB, contract *Contract) error {
 		}
 
 		for _, dist := range minting {
-			// TODO: separate db transaction?
 			if err := contract.UpdateMintingStatus(ctx, tx, &dist); err != nil {
 				return err
 			}
@@ -157,33 +162,82 @@ func pollCirculatingPackContractEvents(ctx context.Context, db *gorm.DB, contrac
 // handleSendableTransactions sends all transactions which are sendable (state is init or retry)
 // with no regard to account proposal key sequence number
 // TODO (latenssi): this is basically brute forcing the sequence numbering
-func handleSendableTransactions(ctx context.Context, db *gorm.DB, contract *Contract) error {
-	sendableIDs, err := transactions.SendableIDs(db)
-	if err != nil {
-		return err
-	}
+// TODO (latenssi): this will currently iterate over all sendable transactions
+// in database while locking the poller from doing other actions
+func handleSendableTransactions(ctx context.Context, db *gorm.DB, contract *Contract, logger *log.Logger, rateLimiter ratelimit.Limiter) error {
+	run := true
 
-	for _, id := range sendableIDs {
-		err := db.Transaction(func(dbTx *gorm.DB) error {
-			t, err := transactions.GetTransaction(dbTx, id)
+	for run {
+		// Rate limit
+		rateLimiter.Take()
+
+		// Ignoring error for now, as they are already logged with context
+		db.Transaction(func(dbtx *gorm.DB) error {
+			t, err := transactions.GetNextSendable(dbtx)
 			if err != nil {
+				if strings.Contains(err.Error(), "record not found") {
+					run = false
+				} else {
+					log.WithFields(log.Fields{
+						"function": "handleSendableTransactions",
+						"ID":       t.ID,
+						"error":    err.Error(),
+					}).Warn("Error while getting transaction from database")
+				}
 				return err
 			}
 
-			if err := t.Send(ctx, contract.flowClient, contract.account); err != nil {
+			tx, err := t.Prepare(ctx, contract.flowClient, contract.account)
+			if err != nil {
+				log.WithFields(log.Fields{
+					"function": "handleSendableTransactions",
+					"ID":       t.ID,
+					"error":    err.Error(),
+				}).Warn("Error while preparing transaction")
 				return err
 			}
 
-			if err := t.Save(dbTx); err != nil {
+			// Update TransactionID
+			t.TransactionID = tx.ID().Hex()
+
+			// Update state
+			t.State = common.TransactionStateSent
+
+			// Save early as the database might be locked and not allow us to
+			// save after sending. This way we fail before actually sending.
+			if err := t.Save(dbtx); err != nil {
+				log.WithFields(log.Fields{
+					"function": "handleSendableTransactions",
+					"ID":       t.ID,
+					"error":    err.Error(),
+				}).Warn("Error while saving transaction")
+				return err
+			}
+
+			if err := contract.flowClient.SendTransaction(ctx, *tx); err != nil {
+				log.WithFields(log.Fields{
+					"function": "handleSendableTransactions",
+					"ID":       t.ID,
+					"error":    err.Error(),
+				}).Warn("Error while sending transaction")
+
+				t.State = common.TransactionStateFailed
+				t.Error = err.Error()
+
+				if err := t.Save(dbtx); err != nil {
+					log.WithFields(log.Fields{
+						"function": "handleSendableTransactions",
+						"ID":       t.ID,
+						"error":    err.Error(),
+					}).Warn("Error while saving transaction")
+					return err
+				}
+
 				return err
 			}
 
 			return nil
 		})
-
-		if err != nil {
-			return err
-		}
 	}
 
 	return nil
@@ -192,32 +246,45 @@ func handleSendableTransactions(ctx context.Context, db *gorm.DB, contract *Cont
 // handleSentTransactions checks the results of sent transactions and updates
 // the state in database accordingly
 func handleSentTransactions(ctx context.Context, db *gorm.DB, contract *Contract) error {
-	sentIDs, err := transactions.SentIDs(db)
-	if err != nil {
-		return err
-	}
+	run := true
 
-	for _, id := range sentIDs {
-		err := db.Transaction(func(dbTx *gorm.DB) error {
-			t, err := transactions.GetTransaction(dbTx, id)
+	for run {
+		// Ignoring error for now, as they are already logged with context
+		db.Transaction(func(dbtx *gorm.DB) error {
+			t, err := transactions.GetNextSent(dbtx)
 			if err != nil {
+				if strings.Contains(err.Error(), "record not found") {
+					run = false
+				} else {
+					log.WithFields(log.Fields{
+						"function": "handleSentTransactions",
+						"ID":       t.ID,
+						"error":    err.Error(),
+					}).Warn("error while getting transaction from database")
+				}
 				return err
 			}
 
 			if err := t.HandleResult(ctx, contract.flowClient); err != nil {
+				log.WithFields(log.Fields{
+					"function": "handleSentTransactions",
+					"ID":       t.ID,
+					"error":    err.Error(),
+				}).Warn("error while handling transaction result")
 				return err
 			}
 
-			if err := t.Save(dbTx); err != nil {
+			if err := t.Save(dbtx); err != nil {
+				log.WithFields(log.Fields{
+					"function": "handleSentTransactions",
+					"ID":       t.ID,
+					"error":    err.Error(),
+				}).Warn("error while saving transaction")
 				return err
 			}
 
 			return nil
 		})
-
-		if err != nil {
-			return err
-		}
 	}
 
 	return nil

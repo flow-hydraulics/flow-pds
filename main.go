@@ -23,10 +23,6 @@ var (
 	buildTime string // when the executable was built
 )
 
-func init() {
-	log.SetLevel(log.InfoLevel)
-}
-
 func main() {
 	var (
 		printVersion bool
@@ -66,6 +62,7 @@ func runServer(cfg *config.Config) error {
 	}
 
 	logger := log.New()
+	logger.SetLevel(log.InfoLevel)
 
 	logger.Printf("Starting server (v%s)...\n", version)
 

@@ -2,6 +2,7 @@ package main
 
 import (
 	"context"
+	"math"
 	"strings"
 	"testing"
 	"time"
@@ -20,6 +21,9 @@ func TestE2E(t *testing.T) {
 	defer func() {
 		cleanup()
 	}()
+
+	no_packs := cfg.TestNOCollectibles / 10
+	no_collectibles_per_pack := 10
 
 	g := gwtf.NewGoWithTheFlow([]string{"./flow.json"}, "emulator", false, 0)
 
@@ -94,16 +98,18 @@ func TestE2E(t *testing.T) {
 		t.Fatal(err)
 	}
 
-	// Mint so we have at least 5
-	mintCount := 5 - len(available.(cadence.Array).Values)
+	// Mint so we have enough collectible NFTs
+	mintBatchSize := int(math.Min(100, float64(cfg.TestNOCollectibles)))
+	mintBatchCount := int(math.Ceil(float64(cfg.TestNOCollectibles-len(available.(cadence.Array).Values)) / float64(mintBatchSize)))
 
-	mintExampleNFT := "./cadence-transactions/exampleNFT/mint_exampleNFT.cdc"
+	mintExampleNFT := "./cadence-transactions/exampleNFT/mint_exampleNFTBatched.cdc"
 	mintExampleNFTCode := util.ParseCadenceTemplate(mintExampleNFT)
-	for i := 0; i < mintCount; i++ {
+	for i := 0; i < mintBatchCount; i++ {
 		_, err := g.
 			TransactionFromFile(mintExampleNFT, mintExampleNFTCode).
 			SignProposeAndPayAs("issuer").
 			AccountArgument("issuer").
+			IntArgument(mintBatchSize).
 			RunE()
 		if err != nil {
 			t.Fatal(err)
@@ -116,7 +122,11 @@ func TestE2E(t *testing.T) {
 		t.Fatal(err)
 	}
 
-	t.Logf("Issuer available collectible NFTs: %s (%d)\n", issuerCollectibleNFTs.String(), len(issuerCollectibleNFTs.(cadence.Array).Values))
+	if len(issuerCollectibleNFTs.(cadence.Array).Values) > 20 {
+		t.Logf("Issuer available collectible NFTs: %d\n", len(issuerCollectibleNFTs.(cadence.Array).Values))
+	} else {
+		t.Logf("Issuer available collectible NFTs: %s (%d)\n", issuerCollectibleNFTs.String(), len(issuerCollectibleNFTs.(cadence.Array).Values))
+	}
 
 	t.Log("PDS share DistCap to PackIssuer (owned by Issuer)")
 
@@ -193,14 +203,14 @@ func TestE2E(t *testing.T) {
 				Name:    "PackNFT",
 				Address: issuer,
 			},
-			PackCount: 2,
+			PackCount: uint(no_packs),
 			Buckets: []app.Bucket{
 				{
 					CollectibleReference: app.AddressLocation{
 						Name:    "ExampleNFT",
 						Address: issuer,
 					},
-					CollectibleCount:      2,
+					CollectibleCount:      uint(no_collectibles_per_pack),
 					CollectibleCollection: collection,
 				},
 			},
@@ -216,7 +226,11 @@ func TestE2E(t *testing.T) {
 	for i, c := range resolved {
 		resolvedStr[i] = c.String()
 	}
-	t.Logf("Distribution created with collectibles:\n%s\n", strings.Join(resolvedStr, "\n"))
+	if len(resolved) > 20 {
+		t.Logf("Distribution created with collectibles: %d\n", len(resolved))
+	} else {
+		t.Logf("Distribution created with collectibles:\n%s\n", strings.Join(resolvedStr, "\n"))
+	}
 
 	// -- Resolve, settle and mint --
 
@@ -248,8 +262,8 @@ func TestE2E(t *testing.T) {
 	randomPack := distribution.Packs[0]
 	randomPackID := cadence.UInt64(randomPack.FlowID.Int64)
 
-	if len(randomPack.Collectibles) != 2 {
-		t.Fatal("expected pack to contain 2 collectibles")
+	if len(randomPack.Collectibles) != no_collectibles_per_pack {
+		t.Fatalf("expected pack to contain %d collectibles", no_collectibles_per_pack)
 	}
 
 	collectibles := randomPack.Collectibles
