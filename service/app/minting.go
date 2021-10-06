@@ -5,12 +5,14 @@ import (
 	"gorm.io/gorm"
 )
 
+// TODO (latenssi): these could be removed from database after done
+
 // Minting represents the minting status of a distribution.
 type Minting struct {
 	gorm.Model
-	ID             uuid.UUID `gorm:"column:id;primary_key;type:uuid;"`
-	DistributionID uuid.UUID `gorm:"unique"`
-	Distribution   Distribution
+	ID             uuid.UUID    `gorm:"column:id;primary_key;type:uuid;"`
+	DistributionID uuid.UUID    `gorm:"unique"`
+	Distribution   Distribution `gorm:"constraint:OnUpdate:CASCADE,OnDelete:CASCADE;"`
 
 	CurrentCount uint   `gorm:"column:current_count"`
 	TotalCount   uint   `gorm:"column:total_count"`

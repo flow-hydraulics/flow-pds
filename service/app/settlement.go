@@ -8,22 +8,23 @@ import (
 	"gorm.io/gorm"
 )
 
+// TODO (latenssi): these could be removed from database after done
+
 // Settlement represents the settlement status of a distribution.
 type Settlement struct {
 	gorm.Model
-	ID             uuid.UUID `gorm:"column:id;primary_key;type:uuid;"`
-	DistributionID uuid.UUID `gorm:"unique"`
-	Distribution   Distribution
+	ID             uuid.UUID    `gorm:"column:id;primary_key;type:uuid;"`
+	DistributionID uuid.UUID    `gorm:"unique"`
+	Distribution   Distribution `gorm:"constraint:OnUpdate:CASCADE,OnDelete:CASCADE;"`
 
 	CurrentCount uint   `gorm:"column:current_count"`
 	TotalCount   uint   `gorm:"column:total_count"`
 	StartAtBlock uint64 `gorm:"column:start_at_block"`
 
-	EscrowAddress common.FlowAddress `gorm:"column:escrow_address"`
-	Collectibles  []SettlementCollectible
+	EscrowAddress common.FlowAddress      `gorm:"column:escrow_address"`
+	Collectibles  []SettlementCollectible `gorm:"constraint:OnUpdate:CASCADE,OnDelete:CASCADE;"`
 }
 
-// TODO (latenssi): these could be removed from database after done
 type SettlementCollectible struct {
 	gorm.Model
 	SettlementID uuid.UUID

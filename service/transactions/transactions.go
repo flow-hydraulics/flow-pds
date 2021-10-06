@@ -23,7 +23,7 @@ type StorableTransaction struct {
 	gorm.Model
 	ID uuid.UUID `gorm:"column:id;primary_key;type:uuid;"`
 
-	State         common.TransactionState `gorm:"column:state;not null;default:null"`
+	State         common.TransactionState `gorm:"column:state;not null;default:null;index"`
 	Error         string                  `gorm:"column:error"`
 	RetryCount    uint                    `gorm:"column:retry_count"`
 	TransactionID string                  `gorm:"column:transaction_id"`
