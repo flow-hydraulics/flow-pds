@@ -24,6 +24,11 @@ type Config struct {
 	Port          int    `env:"FLOW_PDS_PORT" envDefault:"3000"`
 	AccessAPIHost string `env:"FLOW_PDS_ACCESS_API_HOST" envDefault:"localhost:3569"`
 
+	// -- Rates etc. ---
+
+	// How many transactions to send per second at max
+	SendTransactionRate int `env:"FLOW_PDS_SEND_RATE" envDefault:"10"`
+
 	// -- Testing --
 
 	TestNOCollectibles int `env:"TEST_COLLECTIBLES" envDefault:"20"`

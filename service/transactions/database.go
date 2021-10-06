@@ -31,37 +31,19 @@ func GetTransaction(db *gorm.DB, id uuid.UUID) (*StorableTransaction, error) {
 	return &t, db.First(&t, id).Error
 }
 
-// SendableIDs returns the offchain IDs of StorableTransactions that are
-// currently sendable.
-func SendableIDs(db *gorm.DB) ([]uuid.UUID, error) {
-	list := []StorableTransaction{}
-	err := db.Select("id").Order("created_at desc").
+func GetNextSendable(db *gorm.DB) (*StorableTransaction, error) {
+	t := StorableTransaction{}
+	err := db.Order("updated_at asc").
 		Where(map[string]interface{}{"state": common.TransactionStateInit}).
 		Or(map[string]interface{}{"state": common.TransactionStateRetry}).
-		Find(&list).Error
-	if err != nil {
-		return nil, err
-	}
-	res := make([]uuid.UUID, len(list))
-	for i, t := range list {
-		res[i] = t.ID
-	}
-	return res, nil
+		First(&t).Error
+	return &t, err
 }
 
-// SentIDs returns the offchain IDs of StorableTransactions that are
-// currently sent.
-func SentIDs(db *gorm.DB) ([]uuid.UUID, error) {
-	list := []StorableTransaction{}
-	err := db.Select("id").Order("created_at desc").
+func GetNextSent(db *gorm.DB) (*StorableTransaction, error) {
+	t := StorableTransaction{}
+	err := db.Order("updated_at asc").
 		Where(map[string]interface{}{"state": common.TransactionStateSent}).
-		Find(&list).Error
-	if err != nil {
-		return nil, err
-	}
-	res := make([]uuid.UUID, len(list))
-	for i, t := range list {
-		res[i] = t.ID
-	}
-	return res, nil
+		First(&t).Error
+	return &t, err
 }

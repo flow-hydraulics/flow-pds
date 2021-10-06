@@ -23,7 +23,7 @@ type StorableTransaction struct {
 	gorm.Model
 	ID uuid.UUID `gorm:"column:id;primary_key;type:uuid;"`
 
-	State         common.TransactionState `gorm:"column:state;not null;default:null"`
+	State         common.TransactionState `gorm:"column:state;not null;default:null;index"`
 	Error         string                  `gorm:"column:error"`
 	RetryCount    uint                    `gorm:"column:retry_count"`
 	TransactionID string                  `gorm:"column:transaction_id"`
@@ -57,7 +57,7 @@ func NewTransaction(script []byte, arguments []cadence.Value) (*StorableTransact
 }
 
 // Prepare parses the transaction into a sendable state.
-func (t *StorableTransaction) Prepare() (*flow.Transaction, error) {
+func (t *StorableTransaction) Prepare(ctx context.Context, flowClient *client.Client, account *flow_helpers.Account) (*flow.Transaction, error) {
 	argsBytes := [][]byte{}
 	if err := json.Unmarshal(t.Arguments, &argsBytes); err != nil {
 		return nil, err
@@ -82,43 +82,18 @@ func (t *StorableTransaction) Prepare() (*flow.Transaction, error) {
 		}
 	}
 
-	return tx, nil
-}
-
-// Send prepares a Flow transaction, signs it and then sends it.
-// Updates the TransactionID each time.
-func (t *StorableTransaction) Send(ctx context.Context, flowClient *client.Client, account *flow_helpers.Account) error {
-	if t.State == common.TransactionStateRetry {
-		t.RetryCount++
-	}
-
-	tx, err := t.Prepare()
-	if err != nil {
-		return err
-	}
-
 	latestBlock, err := flowClient.GetLatestBlock(ctx, true)
 	if err != nil {
-		return err
+		return nil, err
 	}
 
 	tx.SetReferenceBlockID(latestBlock.ID)
 
 	if err := flow_helpers.SignProposeAndPayAs(ctx, flowClient, account, tx); err != nil {
-		return err
+		return nil, err
 	}
 
-	if err := flowClient.SendTransaction(ctx, *tx); err != nil {
-		return err
-	}
-
-	// Update TransactionID
-	t.TransactionID = tx.ID().Hex()
-
-	// Update state
-	t.State = common.TransactionStateSent
-
-	return nil
+	return tx, nil
 }
 
 // HandleResult checks the results of a transaction onchain and updates the
