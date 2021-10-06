@@ -17,9 +17,12 @@ import (
 	"gorm.io/gorm"
 )
 
+// Onchain eventnames
 const (
 	REVEAL_REQUEST = "RevealRequest"
+	REVEALED       = "Revealed"
 	OPEN_REQUEST   = "OpenRequest"
+	OPENED         = "Opened"
 )
 
 // Going much above these will cause the transactions to use more than 9999 gas
@@ -578,7 +581,9 @@ func (c *Contract) UpdateCirculatingPack(ctx context.Context, db *gorm.DB, cpc *
 
 	eventNames := []string{
 		REVEAL_REQUEST,
+		REVEALED,
 		OPEN_REQUEST,
+		OPENED,
 	}
 
 	latestBlock, err := c.flowClient.GetLatestBlock(ctx, true)
@@ -635,7 +640,7 @@ func (c *Contract) UpdateCirculatingPack(ctx context.Context, db *gorm.DB, cpc *
 
 				switch eventName {
 				case REVEAL_REQUEST: // Reveal a pack
-					if err := pack.Reveal(); err != nil {
+					if err := pack.RevealRequestHandled(); err != nil {
 						return err
 					}
 
@@ -686,8 +691,15 @@ func (c *Contract) UpdateCirculatingPack(ctx context.Context, db *gorm.DB, cpc *
 						"packFlowID": flowID,
 					}).Info("Pack reveal transaction created")
 
+				case REVEALED:
+					if err := pack.Reveal(); err != nil {
+						return err
+					}
+					if err := UpdatePack(db, pack); err != nil {
+						return err
+					}
 				case OPEN_REQUEST: // Open a pack
-					if err := pack.Open(); err != nil {
+					if err := pack.OpenRequestHandled(); err != nil {
 						return err
 					}
 
@@ -744,6 +756,13 @@ func (c *Contract) UpdateCirculatingPack(ctx context.Context, db *gorm.DB, cpc *
 						"ID":         distribution.ID,
 						"packFlowID": flowID,
 					}).Info("Pack open transaction created")
+				case OPENED:
+					if err := pack.Open(); err != nil {
+						return err
+					}
+					if err := UpdatePack(db, pack); err != nil {
+						return err
+					}
 				}
 
 				c.logger.WithFields(log.Fields{

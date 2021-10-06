@@ -15,11 +15,13 @@ const (
 )
 
 const (
-	PackStateInit     PackState = "init"
-	PackStateSealed   PackState = "sealed"
-	PackStateRevealed PackState = "revealed"
-	PackStateOpened   PackState = "opened"
-	PackStateEmpty    PackState = "empty"
+	PackStateInit                 PackState = "init"
+	PackStateSealed               PackState = "sealed"
+	PackStateRevealRequestHandled PackState = "reveal-request-handled"
+	PackStateRevealed             PackState = "revealed"
+	PackStateOpenRequestHandled   PackState = "open-request-handled"
+	PackStateOpened               PackState = "opened"
+	PackStateEmpty                PackState = "empty"
 )
 
 const (
