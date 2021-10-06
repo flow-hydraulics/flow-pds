@@ -314,18 +314,18 @@ func (c *Contract) StartMinting(ctx context.Context, db *gorm.DB, dist *Distribu
 	return nil
 }
 
-// Cancel needs to be specced and implemented.
-func (c *Contract) Cancel(ctx context.Context, db *gorm.DB, dist *Distribution) error {
+// Abort a distribution
+func (c *Contract) Abort(ctx context.Context, db *gorm.DB, dist *Distribution) error {
 	// TODO (latenssi)
 
 	c.logger.WithFields(log.Fields{
-		"method": "Cancel",
+		"method": "Abort",
 		"ID":     dist.ID,
-	}).Info("Cancel")
+	}).Info("Abort")
 
-	return fmt.Errorf("cancel is not yet implemented")
+	return fmt.Errorf("abort is not yet implemented")
 
-	// if err := dist.SetCancelled(); err != nil {
+	// if err := dist.SetAborted(); err != nil {
 	// 	return err
 	// }
 

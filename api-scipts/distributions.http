@@ -42,6 +42,6 @@ content-type: application/json
 GET http://localhost:3000/v1/distributions/{{ distributionId }} HTTP/1.1
 content-type: application/json
 
-### Cancel
-DELETE  http://localhost:3000/v1/distributions/{{ distributionId }} HTTP/1.1
+### Abort
+POST  http://localhost:3000/v1/distributions/{{ distributionId }}/abort HTTP/1.1
 content-type: application/json
