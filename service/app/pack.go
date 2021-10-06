@@ -9,6 +9,9 @@ import (
 	"github.com/flow-hydraulics/flow-pds/service/common"
 )
 
+const SALT_LENGTH_IN_BYTES = 32 // 256-bit
+const HASH_DELIM = ","
+
 // SetCommitmentHash should
 // - validate the pack
 // - decide on a random salt value
@@ -26,7 +29,7 @@ func (p *Pack) SetCommitmentHash() error {
 		return fmt.Errorf("commitmentHash is already set")
 	}
 
-	salt, err := common.GenerateRandomBytes(SALT_LENGTH)
+	salt, err := common.GenerateRandomBytes(SALT_LENGTH_IN_BYTES)
 	if err != nil {
 		return err
 	}

@@ -11,9 +11,6 @@ import (
 	"gorm.io/gorm"
 )
 
-const SALT_LENGTH = 8 // TODO (latenssi): is this ok?
-const HASH_DELIM = ","
-
 type Distribution struct {
 	gorm.Model
 	ID uuid.UUID `gorm:"column:id;primary_key;type:uuid;"`
