@@ -162,7 +162,7 @@ func (c *Contract) StartSettlement(ctx context.Context, db *gorm.DB, dist *Distr
 			cadence.NewArray(flowIDs),
 		}
 
-		t, err := transactions.NewTransaction(txScript, arguments)
+		t, err := transactions.NewTransaction(SETTLE_SCRIPT, txScript, arguments)
 		if err != nil {
 			return err
 		}
@@ -285,7 +285,7 @@ func (c *Contract) StartMinting(ctx context.Context, db *gorm.DB, dist *Distribu
 			cadence.Address(dist.Issuer),
 		}
 
-		t, err := transactions.NewTransaction(txScript, arguments)
+		t, err := transactions.NewTransaction(MINT_SCRIPT, txScript, arguments)
 		if err != nil {
 			return err
 		}
@@ -676,7 +676,7 @@ func (c *Contract) UpdateCirculatingPack(ctx context.Context, db *gorm.DB, cpc *
 					}
 
 					txScript := util.ParseCadenceTemplate(REVEAL_SCRIPT)
-					t, err := transactions.NewTransaction(txScript, arguments)
+					t, err := transactions.NewTransaction(REVEAL_SCRIPT, txScript, arguments)
 					if err != nil {
 						return err
 					}
@@ -742,7 +742,7 @@ func (c *Contract) UpdateCirculatingPack(ctx context.Context, db *gorm.DB, cpc *
 					}
 
 					txScript := util.ParseCadenceTemplate(OPEN_SCRIPT)
-					t, err := transactions.NewTransaction(txScript, arguments)
+					t, err := transactions.NewTransaction(OPEN_SCRIPT, txScript, arguments)
 					if err != nil {
 						return err
 					}

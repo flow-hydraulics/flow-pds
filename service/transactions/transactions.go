@@ -28,11 +28,12 @@ type StorableTransaction struct {
 	RetryCount    uint                    `gorm:"column:retry_count"`
 	TransactionID string                  `gorm:"column:transaction_id"`
 
+	Name      string         `gorm:"column:name"` // Just a way to identify a transaction
 	Script    string         `gorm:"column:script"`
 	Arguments datatypes.JSON `gorm:"column:arguments"`
 }
 
-func NewTransaction(script []byte, arguments []cadence.Value) (*StorableTransaction, error) {
+func NewTransaction(name string, script []byte, arguments []cadence.Value) (*StorableTransaction, error) {
 	argsBytes := make([][]byte, len(arguments))
 	for i, a := range arguments {
 		b, err := c_json.Encode(a)
@@ -49,6 +50,7 @@ func NewTransaction(script []byte, arguments []cadence.Value) (*StorableTransact
 
 	transaction := StorableTransaction{
 		State:     common.TransactionStateInit,
+		Name:      name,
 		Script:    string(script),
 		Arguments: argsJSON,
 	}
@@ -56,15 +58,14 @@ func NewTransaction(script []byte, arguments []cadence.Value) (*StorableTransact
 	return &transaction, nil
 }
 
-// Prepare parses the transaction into a sendable state.
-func (t *StorableTransaction) Prepare(ctx context.Context, flowClient *client.Client, account *flow_helpers.Account) (*flow.Transaction, error) {
-	argsBytes := [][]byte{}
-	if err := json.Unmarshal(t.Arguments, &argsBytes); err != nil {
+func (t *StorableTransaction) ArgumentsAsCadence() ([]cadence.Value, error) {
+	bytes := [][]byte{}
+	if err := json.Unmarshal(t.Arguments, &bytes); err != nil {
 		return nil, err
 	}
 
-	argsCadence := make([]cadence.Value, len(argsBytes))
-	for i, a := range argsBytes {
+	argsCadence := make([]cadence.Value, len(bytes))
+	for i, a := range bytes {
 		b, err := c_json.Decode(a)
 		if err != nil {
 			return nil, err
@@ -72,11 +73,21 @@ func (t *StorableTransaction) Prepare(ctx context.Context, flowClient *client.Cl
 		argsCadence[i] = b
 	}
 
+	return argsCadence, nil
+}
+
+// Prepare parses the transaction into a sendable state.
+func (t *StorableTransaction) Prepare(ctx context.Context, flowClient *client.Client, account *flow_helpers.Account) (*flow.Transaction, error) {
+	args, err := t.ArgumentsAsCadence()
+	if err != nil {
+		return nil, err
+	}
+
 	tx := flow.NewTransaction().
 		SetScript([]byte(t.Script)).
 		SetGasLimit(9999)
 
-	for _, a := range argsCadence {
+	for _, a := range args {
 		if err := tx.AddArgument(a); err != nil {
 			return nil, err
 		}
@@ -107,20 +118,25 @@ func (t *StorableTransaction) HandleResult(ctx context.Context, flowClient *clie
 	t.Error = ""
 
 	if result.Error != nil {
+		args, err := t.ArgumentsAsCadence()
+		if err != nil {
+			args = nil
+		}
+
+		logWithContext := log.WithFields(log.Fields{
+			"name":          t.Name,
+			"transactionID": t.TransactionID,
+			"error":         result.Error.Error(),
+			"arguments":     args,
+		})
+
 		t.Error = result.Error.Error()
 		if strings.Contains(result.Error.Error(), "invalid proposal key") {
 			t.State = common.TransactionStateRetry
-
-			log.WithFields(log.Fields{
-				"transactionID": t.TransactionID,
-			}).Warn("Invalid proposal key in transaction, retrying later")
+			logWithContext.Info("Invalid proposal key in transaction, retrying later")
 		} else {
 			t.State = common.TransactionStateFailed
-
-			log.WithFields(log.Fields{
-				"transactionID": t.TransactionID,
-				"error":         result.Error.Error(),
-			}).Warn("Error in transaction")
+			logWithContext.Warn("Error in transaction")
 		}
 		return nil
 	}
