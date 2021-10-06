@@ -26,7 +26,7 @@ type Config struct {
 
 	// -- Testing --
 
-	TestNOCollectibles int `env:"TEST_COLLECTIBLES" envDefault:"0"`
+	TestNOCollectibles int `env:"TEST_COLLECTIBLES" envDefault:"20"`
 }
 
 type ConfigOptions struct {
