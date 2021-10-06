@@ -72,9 +72,20 @@ func (p *Pack) Seal(id common.FlowID) error {
 	return nil
 }
 
+// RevealRequestHandled should set the pack as PackStateOpenRequestHandled
+func (p *Pack) RevealRequestHandled() error {
+	if p.State != common.PackStateSealed {
+		return fmt.Errorf("pack in unexpected state: %s", p.State)
+	}
+
+	p.State = common.PackStateRevealRequestHandled
+
+	return nil
+}
+
 // Reveal should set the pack as revealed
 func (p *Pack) Reveal() error {
-	if p.State != common.PackStateSealed {
+	if p.State != common.PackStateRevealRequestHandled {
 		return fmt.Errorf("pack in unexpected state: %s", p.State)
 	}
 
@@ -83,9 +94,20 @@ func (p *Pack) Reveal() error {
 	return nil
 }
 
+// OpenRequestHandled should set the pack as opened
+func (p *Pack) OpenRequestHandled() error {
+	if p.State != common.PackStateRevealed {
+		return fmt.Errorf("pack in unexpected state: %s", p.State)
+	}
+
+	p.State = common.PackStateOpenRequestHandled
+
+	return nil
+}
+
 // Open should set the pack as opened
 func (p *Pack) Open() error {
-	if p.State != common.PackStateRevealed {
+	if p.State != common.PackStateOpenRequestHandled {
 		return fmt.Errorf("pack in unexpected state: %s", p.State)
 	}
 
