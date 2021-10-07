@@ -16,24 +16,30 @@ pub contract PDS{
     access(contract) let DistSharedCap: @{UInt64: SharedCapabilities}
 
     /// Issuer has created a distribution 
-    pub event DistributionCreated(DistId: UInt64, title: String, metadata: {String: String}, state: String)
+    pub event DistributionCreated(DistId: UInt64, title: String, metadata: {String: String}, state: UInt8)
     
     /// Distribution manager has updated a distribution state
-    pub event DistributionStateUpdated(DistId: UInt64, state: String)
+    pub event DistributionStateUpdated(DistId: UInt64, state: UInt8)
+
+    pub enum DistState: UInt8 {
+        pub case Initialized
+        pub case Invalid 
+        pub case Complete
+    }
 
     pub struct DistInfo {
         pub let title: String
         pub let metadata: {String: String}
-        pub var state: String
+        pub var state: PDS.DistState 
         
-        pub fun setState(newState: String) {
+        pub fun setState(newState: PDS.DistState) {
             self.state = newState
         }
         
-        init(title: String, metadata: {String: String}, state: String) {
+        init(title: String, metadata: {String: String}) {
             self.title = title
             self.metadata = metadata
-            self.state = state
+            self.state = PDS.DistState.Initialized 
         }
     }
     
@@ -153,20 +159,19 @@ pub contract PDS{
     pub resource DistributionCreator: IDistCreator {
         pub fun createNewDist(sharedCap: @SharedCapabilities, title: String, metadata: {String: String}) {
             let currentId = PDS.nextDistId
-            let initState = "initialized"
             PDS.DistSharedCap[currentId] <-! sharedCap
-            PDS.Distributions[currentId] = DistInfo(title: title, metadata: metadata, state: initState)
+            PDS.Distributions[currentId] = DistInfo(title: title, metadata: metadata)
             PDS.nextDistId = currentId + 1 
-            emit DistributionCreated(DistId: currentId, title: title, metadata: metadata, state: initState)
+            emit DistributionCreated(DistId: currentId, title: title, metadata: metadata, state: 0)
         }
     }
     
     pub resource DistributionManager {
-        pub fun updateDistState(distId: UInt64, state: String) {
+        pub fun updateDistState(distId: UInt64, state: PDS.DistState) {
             let d = PDS.Distributions.remove(key: distId) ?? panic ("No such distribution")
             d.setState(newState: state)
             PDS.Distributions.insert(key: distId, d)
-            emit DistributionStateUpdated(DistId: distId, state: state)
+            emit DistributionStateUpdated(DistId: distId, state: state.rawValue)
         }
 
         pub fun withdraw(distId: UInt64, nftIDs: [UInt64], escrowCollectionPublic: PublicPath) {
