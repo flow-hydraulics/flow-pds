@@ -3,7 +3,6 @@ package transactions
 import (
 	"context"
 	"encoding/json"
-	"strings"
 
 	"github.com/flow-hydraulics/flow-pds/service/common"
 	"github.com/flow-hydraulics/flow-pds/service/flow_helpers"
@@ -131,7 +130,8 @@ func (t *StorableTransaction) HandleResult(ctx context.Context, flowClient *clie
 		})
 
 		t.Error = result.Error.Error()
-		if strings.Contains(result.Error.Error(), "invalid proposal key") {
+
+		if flow_helpers.IsInvalidProposalSeqNumberError(result.Error) {
 			t.State = common.TransactionStateRetry
 			logWithContext.Info("Invalid proposal key in transaction, retrying later")
 		} else {
