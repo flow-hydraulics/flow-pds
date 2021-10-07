@@ -116,12 +116,6 @@ func TestDistributionResolution(t *testing.T) {
 		t.Fatalf("resolved collections should match")
 	}
 
-	for i := range r1 {
-		if i > 0 && r1[i].FlowID.LessThan(r1[i-1].FlowID) {
-			t.Fatal("resolved collection should be sorted ascending by flow id")
-		}
-	}
-
 	if len(d.Packs) != packCount {
 		t.Fatalf("expected there to be %d packs", packCount)
 	}
