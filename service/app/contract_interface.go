@@ -316,24 +316,43 @@ func (c *Contract) StartMinting(ctx context.Context, db *gorm.DB, dist *Distribu
 
 // Abort a distribution
 func (c *Contract) Abort(ctx context.Context, db *gorm.DB, dist *Distribution) error {
-	// TODO (latenssi)
 
 	c.logger.WithFields(log.Fields{
 		"method": "Abort",
 		"ID":     dist.ID,
 	}).Info("Abort")
 
-	return fmt.Errorf("abort is not yet implemented")
+	if err := dist.SetInvalid(); err != nil {
+		return err
+	}
 
-	// if err := dist.SetAborted(); err != nil {
-	// 	return err
-	// }
+	if err := UpdateDistribution(db, dist); err != nil {
+		return err
+	}
 
-	// if err := UpdateDistribution(db, dist); err != nil {
-	// 	return err
-	// }
+	// Update distribution state onchain
+	txScript := util.ParseCadenceTemplate(UPDATE_STATE_SCRIPT)
+	arguments := []cadence.Value{
+		cadence.UInt64(dist.FlowID.Int64),
+		cadence.UInt8(1),
+	}
+	t, err := transactions.NewTransaction(UPDATE_STATE_SCRIPT, txScript, arguments)
+	if err != nil {
+		return err
+	}
 
-	// return nil
+	if err := t.Save(db); err != nil {
+		return err
+	}
+
+	c.logger.WithFields(log.Fields{
+		"method":   "Abort",
+		"ID":       dist.ID,
+		"state":    1,
+		"stateStr": "invalid",
+	}).Info("Distribution state update transaction saved")
+
+	return nil
 }
 
 // UpdateSettlementStatus polls for 'Deposit' events regarding the given distributions

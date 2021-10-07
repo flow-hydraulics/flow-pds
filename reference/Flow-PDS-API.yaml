@@ -95,6 +95,7 @@ paths:
         name: distributionId
         in: path
         required: true
+        description: Distribution offchain ID
     get:
       summary: Get Distribution
       operationId: get-distribution-by-id
@@ -113,16 +114,15 @@ paths:
         name: distributionId
         in: path
         required: true
+        description: Distribution offchain ID
     post:
       summary: Abort distribution
       operationId: abort-distribution
       responses:
         '200':
           description: OK
-      description: |-
-        THIS ENDOINT IS NOT IMPLEMENTED
+      description: Forcibly abort the process, which will put the Distribution into the Invalid state.
 
-        Forcibly abort the process, which will put the Distribution into the Invalid state.
 components:
   schemas: {}
   responses:

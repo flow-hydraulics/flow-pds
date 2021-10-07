@@ -73,8 +73,7 @@ func (app *App) GetDistribution(ctx context.Context, id uuid.UUID) (*Distributio
 	return distribution, nil
 }
 
-// AbortDistribution aborts a distribution. Spec and implementation for
-// distribution aborting is not finished yet.
+// AbortDistribution aborts a distribution.
 func (app *App) AbortDistribution(ctx context.Context, id uuid.UUID) error {
 	return app.db.Transaction(func(tx *gorm.DB) error {
 		distribution, err := GetDistribution(tx, id)
