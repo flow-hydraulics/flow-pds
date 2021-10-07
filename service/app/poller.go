@@ -3,7 +3,6 @@ package app
 import (
 	"context"
 	"errors"
-	"strings"
 	"time"
 
 	"github.com/flow-hydraulics/flow-pds/service/common"
@@ -55,10 +54,6 @@ func min(x, y uint64) uint64 {
 
 func handlePollerError(pollerName string, err error, logger *log.Logger) {
 	if err != nil {
-		// Ignore database locked errors as they are part of the control flow
-		if strings.Contains(err.Error(), "database is locked") {
-			return
-		}
 		logger.WithFields(log.Fields{
 			"pollerName": pollerName,
 			"error":      err,
@@ -209,7 +204,7 @@ func handleSendableTransactions(ctx context.Context, db *gorm.DB, contract *Cont
 		db.Transaction(func(dbtx *gorm.DB) error {
 			t, err := transactions.GetNextSendable(dbtx)
 			if err != nil {
-				if strings.Contains(err.Error(), "record not found") {
+				if errors.Is(err, gorm.ErrRecordNotFound) {
 					run = false
 				} else {
 					log.WithFields(log.Fields{
@@ -287,7 +282,7 @@ func handleSentTransactions(ctx context.Context, db *gorm.DB, contract *Contract
 		db.Transaction(func(dbtx *gorm.DB) error {
 			t, err := transactions.GetNextSent(dbtx)
 			if err != nil {
-				if strings.Contains(err.Error(), "record not found") {
+				if errors.Is(err, gorm.ErrRecordNotFound) {
 					run = false
 				} else {
 					log.WithFields(log.Fields{

@@ -2,13 +2,14 @@ package http
 
 import (
 	"encoding/json"
+	"errors"
 	"fmt"
 	"io"
 	"net/http"
-	"strings"
 
 	gorilla "github.com/gorilla/handlers"
 	log "github.com/sirupsen/logrus"
+	"gorm.io/gorm"
 )
 
 func UseCors(h http.Handler) http.Handler {
@@ -35,7 +36,7 @@ func handleError(rw http.ResponseWriter, logger *log.Logger, err error) {
 	}
 
 	// Check for "record not found" database error
-	if strings.Contains(err.Error(), "record not found") {
+	if errors.Is(err, gorm.ErrRecordNotFound) {
 		http.Error(rw, err.Error(), http.StatusNotFound)
 		return
 	}
