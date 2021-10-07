@@ -33,10 +33,11 @@ const (
 
 const (
 	// TODO (latenssi): this only handles ExampleNFTs currently
-	SETTLE_SCRIPT = "./cadence-transactions/pds/settle_exampleNFT.cdc"
-	MINT_SCRIPT   = "./cadence-transactions/pds/mint_packNFT.cdc"
-	REVEAL_SCRIPT = "./cadence-transactions/pds/reveal_packNFT.cdc"
-	OPEN_SCRIPT   = "./cadence-transactions/pds/open_packNFT.cdc"
+	SETTLE_SCRIPT       = "./cadence-transactions/pds/settle_exampleNFT.cdc"
+	MINT_SCRIPT         = "./cadence-transactions/pds/mint_packNFT.cdc"
+	REVEAL_SCRIPT       = "./cadence-transactions/pds/reveal_packNFT.cdc"
+	OPEN_SCRIPT         = "./cadence-transactions/pds/open_packNFT.cdc"
+	UPDATE_STATE_SCRIPT = "./cadence-transactions/pds/update_dist_state.cdc"
 )
 
 const (
@@ -552,6 +553,8 @@ func (c *Contract) UpdateMintingStatus(ctx context.Context, db *gorm.DB, dist *D
 	}
 
 	if minting.IsComplete() {
+		// Distribution is now complete
+
 		// TODO: consider updating the distribution separately
 		if err := dist.SetComplete(); err != nil {
 			return err
@@ -559,12 +562,35 @@ func (c *Contract) UpdateMintingStatus(ctx context.Context, db *gorm.DB, dist *D
 		if err := UpdateDistribution(db, dist); err != nil {
 			return err
 		}
+
 		c.logger.WithFields(log.Fields{
 			"method":     "UpdateMintingStatus",
 			"ID":         dist.ID,
 			"blockStart": start,
 			"blockEnd":   end,
 		}).Info("Minting complete")
+
+		// Update distribution state onchain
+		txScript := util.ParseCadenceTemplate(UPDATE_STATE_SCRIPT)
+		arguments := []cadence.Value{
+			cadence.UInt64(dist.FlowID.Int64),
+			cadence.UInt8(2),
+		}
+		t, err := transactions.NewTransaction(UPDATE_STATE_SCRIPT, txScript, arguments)
+		if err != nil {
+			return err
+		}
+
+		if err := t.Save(db); err != nil {
+			return err
+		}
+
+		c.logger.WithFields(log.Fields{
+			"method":   "UpdateMintingStatus",
+			"ID":       dist.ID,
+			"state":    2,
+			"stateStr": "complete",
+		}).Info("Distribution state update transaction saved")
 	}
 
 	minting.StartAtBlock = end

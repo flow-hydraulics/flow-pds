@@ -13,6 +13,7 @@ import (
 	"github.com/flow-hydraulics/flow-pds/service/common"
 	"github.com/onflow/cadence"
 	"github.com/onflow/flow-go-sdk"
+	"github.com/stretchr/testify/assert"
 )
 
 func TestE2E(t *testing.T) {
@@ -392,4 +393,13 @@ func TestE2E(t *testing.T) {
 
 	t.Logf("Owner collectible NFTs before: %s\n", ownerCollectibleNFTsBefore.String())
 	t.Logf("Owner collectible NFTs after:  %s\n", ownerCollectibleNFTsAfter.String())
+
+	distStateScript := "./cadence-scripts/pds/get_dist_state.cdc"
+	distStateCode := util.ParseCadenceTemplate(distStateScript)
+	distStateR, err := g.ScriptFromFile(distStateScript, distStateCode).UInt64Argument(uint64(distribution.FlowID.Int64)).RunReturns()
+	if err != nil {
+		t.Fatal(err)
+	}
+
+	assert.Equal(t, uint8(2), distStateR.ToGoValue().(uint8), "Expected distribution to be in state 2 (complete)")
 }
