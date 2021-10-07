@@ -3,7 +3,6 @@ package app
 import (
 	"context"
 	"errors"
-	"fmt"
 	"strings"
 	"time"
 
@@ -28,16 +27,16 @@ func poller(app *App) {
 		app.logger.Trace("Poll start")
 		select {
 		case <-ticker.C:
-			handlePollerError("handleResolved", handleResolved(ctx, app.db, app.contract))
-			handlePollerError("handleSettling", handleSettling(ctx, app.db, app.contract))
-			handlePollerError("handleSettled", handleSettled(ctx, app.db, app.contract))
-			handlePollerError("handleMinting", handleMinting(ctx, app.db, app.contract))
-			handlePollerError("handleComplete", handleComplete(ctx, app.db, app.contract))
+			handlePollerError("handleResolved", handleResolved(ctx, app.db, app.contract), app.logger)
+			handlePollerError("handleSettling", handleSettling(ctx, app.db, app.contract), app.logger)
+			handlePollerError("handleSettled", handleSettled(ctx, app.db, app.contract), app.logger)
+			handlePollerError("handleMinting", handleMinting(ctx, app.db, app.contract), app.logger)
+			handlePollerError("handleComplete", handleComplete(ctx, app.db, app.contract), app.logger)
 
-			handlePollerError("pollCirculatingPackContractEvents", pollCirculatingPackContractEvents(ctx, app.db, app.contract))
+			handlePollerError("pollCirculatingPackContractEvents", pollCirculatingPackContractEvents(ctx, app.db, app.contract), app.logger)
 
-			handlePollerError("handleSentTransactions", handleSentTransactions(ctx, app.db, app.contract))
-			handlePollerError("handleSendableTransactions", handleSendableTransactions(ctx, app.db, app.contract, app.logger, transactionRatelimiter))
+			handlePollerError("handleSentTransactions", handleSentTransactions(ctx, app.db, app.contract), app.logger)
+			handlePollerError("handleSendableTransactions", handleSendableTransactions(ctx, app.db, app.contract, app.logger, transactionRatelimiter), app.logger)
 		case <-app.quit:
 			cancel()
 			ticker.Stop()
@@ -54,13 +53,16 @@ func min(x, y uint64) uint64 {
 	return x
 }
 
-func handlePollerError(pollerName string, err error) {
+func handlePollerError(pollerName string, err error, logger *log.Logger) {
 	if err != nil {
 		// Ignore database locked errors as they are part of the control flow
 		if strings.Contains(err.Error(), "database is locked") {
 			return
 		}
-		fmt.Printf("error while running poller \"%s\": %s\n", pollerName, err)
+		logger.WithFields(log.Fields{
+			"pollerName": pollerName,
+			"error":      err,
+		}).Warn("Error while running poller")
 	}
 }
 
@@ -292,7 +294,7 @@ func handleSentTransactions(ctx context.Context, db *gorm.DB, contract *Contract
 						"function": "handleSentTransactions",
 						"ID":       t.ID,
 						"error":    err.Error(),
-					}).Warn("error while getting transaction from database")
+					}).Warn("Error while getting transaction from database")
 				}
 				return err
 			}
@@ -302,7 +304,7 @@ func handleSentTransactions(ctx context.Context, db *gorm.DB, contract *Contract
 					"function": "handleSentTransactions",
 					"ID":       t.ID,
 					"error":    err.Error(),
-				}).Warn("error while handling transaction result")
+				}).Warn("Error while handling transaction result")
 				return err
 			}
 
@@ -311,7 +313,7 @@ func handleSentTransactions(ctx context.Context, db *gorm.DB, contract *Contract
 					"function": "handleSentTransactions",
 					"ID":       t.ID,
 					"error":    err.Error(),
-				}).Warn("error while saving transaction")
+				}).Warn("Error while saving transaction")
 				return err
 			}
 
