@@ -73,16 +73,15 @@ func (app *App) GetDistribution(ctx context.Context, id uuid.UUID) (*Distributio
 	return distribution, nil
 }
 
-// CancelDistribution cancels a distribution. Spec and implementation for
-// distribution cancelling is not finished yet.
-func (app *App) CancelDistribution(ctx context.Context, id uuid.UUID) error {
+// AbortDistribution aborts a distribution.
+func (app *App) AbortDistribution(ctx context.Context, id uuid.UUID) error {
 	return app.db.Transaction(func(tx *gorm.DB) error {
 		distribution, err := GetDistribution(tx, id)
 		if err != nil {
 			return err
 		}
 
-		if err := app.contract.Cancel(ctx, tx, distribution); err != nil {
+		if err := app.contract.Abort(ctx, tx, distribution); err != nil {
 			return err
 		}
 

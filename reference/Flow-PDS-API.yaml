@@ -95,6 +95,7 @@ paths:
         name: distributionId
         in: path
         required: true
+        description: Distribution offchain ID
     get:
       summary: Get Distribution
       operationId: get-distribution-by-id
@@ -106,23 +107,22 @@ paths:
               schema:
                 $ref: ../models/Distribution-Get.yaml
       description: Returns the details for a distribution.
-  '/distributions/{distributionId}/cancel':
+  '/distributions/{distributionId}/abort':
     parameters:
       - schema:
           type: string
         name: distributionId
         in: path
         required: true
-    delete:
-      summary: Cancel distribution
-      operationId: cancel-distribution
+        description: Distribution offchain ID
+    post:
+      summary: Abort distribution
+      operationId: abort-distribution
       responses:
         '200':
           description: OK
-      description: |-
-        THIS ENDOINT IS NOT IMPLEMENTED
+      description: Forcibly abort the process, which will put the Distribution into the Invalid state.
 
-        Cancel a distribution which is not in "complete" state. PDS should return all withdrawn NFTs and once all have been returned revoke all capabilities created during this distribution and delete the distribution from database.
 components:
   schemas: {}
   responses:

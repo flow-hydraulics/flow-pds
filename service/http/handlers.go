@@ -92,8 +92,8 @@ func HandleGetDistribution(logger *log.Logger, app *app.App) http.HandlerFunc {
 	}
 }
 
-// Cancel a distribution
-func HandleCancelDistribution(logger *log.Logger, app *app.App) http.HandlerFunc {
+// Abort a distribution
+func HandleAbortDistribution(logger *log.Logger, app *app.App) http.HandlerFunc {
 	return func(rw http.ResponseWriter, r *http.Request) {
 		vars := mux.Vars(r)
 
@@ -103,7 +103,7 @@ func HandleCancelDistribution(logger *log.Logger, app *app.App) http.HandlerFunc
 			return
 		}
 
-		if err := app.CancelDistribution(r.Context(), id); err != nil {
+		if err := app.AbortDistribution(r.Context(), id); err != nil {
 			handleError(rw, logger, err)
 			return
 		}
