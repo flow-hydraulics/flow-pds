@@ -158,7 +158,7 @@ func (c *Contract) StartSettlement(ctx context.Context, db *gorm.DB, dist *Distr
 			cadence.NewArray(flowIDs),
 		}
 
-		t, err := transactions.NewTransaction(SETTLE_SCRIPT, txScript, arguments)
+		t, err := transactions.NewTransactionWithDistributionID(SETTLE_SCRIPT, txScript, arguments, dist.ID)
 		if err != nil {
 			return err
 		}
@@ -292,7 +292,7 @@ func (c *Contract) StartMinting(ctx context.Context, db *gorm.DB, dist *Distribu
 			cadence.Address(dist.Issuer),
 		}
 
-		t, err := transactions.NewTransaction(MINT_SCRIPT, txScript, arguments)
+		t, err := transactions.NewTransactionWithDistributionID(MINT_SCRIPT, txScript, arguments, dist.ID)
 		if err != nil {
 			return err
 		}
@@ -336,7 +336,7 @@ func (c *Contract) Abort(ctx context.Context, db *gorm.DB, dist *Distribution) e
 		cadence.UInt64(dist.FlowID.Int64),
 		cadence.UInt8(1),
 	}
-	t, err := transactions.NewTransaction(UPDATE_STATE_SCRIPT, txScript, arguments)
+	t, err := transactions.NewTransactionWithDistributionID(UPDATE_STATE_SCRIPT, txScript, arguments, dist.ID)
 	if err != nil {
 		return err
 	}
@@ -616,7 +616,7 @@ func (c *Contract) UpdateMintingStatus(ctx context.Context, db *gorm.DB, dist *D
 			cadence.UInt64(dist.FlowID.Int64),
 			cadence.UInt8(2),
 		}
-		t, err := transactions.NewTransaction(UPDATE_STATE_SCRIPT, txScript, arguments)
+		t, err := transactions.NewTransactionWithDistributionID(UPDATE_STATE_SCRIPT, txScript, arguments, dist.ID)
 		if err != nil {
 			return err
 		}
@@ -753,7 +753,7 @@ func (c *Contract) UpdateCirculatingPack(ctx context.Context, db *gorm.DB, cpc *
 					}
 
 					txScript := util.ParseCadenceTemplate(REVEAL_SCRIPT)
-					t, err := transactions.NewTransaction(REVEAL_SCRIPT, txScript, arguments)
+					t, err := transactions.NewTransactionWithDistributionID(REVEAL_SCRIPT, txScript, arguments, distribution.ID)
 					if err != nil {
 						return err
 					}
@@ -819,7 +819,7 @@ func (c *Contract) UpdateCirculatingPack(ctx context.Context, db *gorm.DB, cpc *
 					}
 
 					txScript := util.ParseCadenceTemplate(OPEN_SCRIPT)
-					t, err := transactions.NewTransaction(OPEN_SCRIPT, txScript, arguments)
+					t, err := transactions.NewTransactionWithDistributionID(OPEN_SCRIPT, txScript, arguments, distribution.ID)
 					if err != nil {
 						return err
 					}
