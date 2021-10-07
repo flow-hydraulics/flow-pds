@@ -33,8 +33,8 @@ func poller(app *App) {
 			handlePollerError("handleComplete", handleComplete(ctx, app.db, app.contract), app.logger)
 
 			handlePollerError("pollCirculatingPackContractEvents", pollCirculatingPackContractEvents(ctx, app.db, app.contract), app.logger)
-			handlePollerError("handleSentTransactions", handleSentTransactions(ctx, app.db, app.contract), app.logger)
 
+			handlePollerError("handleSentTransactions", handleSentTransactions(ctx, app.db, app.contract), app.logger)
 			handlePollerError("handleSendableTransactions", handleSendableTransactions(ctx, app.db, app.contract, app.logger, transactionRatelimiter), app.logger)
 		case <-app.quit:
 			cancel()
