@@ -174,7 +174,7 @@ func TestE2E(t *testing.T) {
 
 	util.NewExpectedPDSEvent("DistributionCreated").
 		AddField("DistId", currentDistId.String()).
-		AddField("state", "initialized").
+		AddField("state", "0").
 		AddField("title", expTitle).
 		AddField("metadata", stringifiedKeyPair).
 		AssertEqual(t, events[0])
