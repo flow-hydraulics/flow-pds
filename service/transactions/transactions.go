@@ -133,7 +133,8 @@ func (t *StorableTransaction) HandleResult(ctx context.Context, flowClient *clie
 
 		if flow_helpers.IsInvalidProposalSeqNumberError(result.Error) {
 			t.State = common.TransactionStateRetry
-			logWithContext.Info("Invalid proposal key in transaction, retrying later")
+			// These can be quite numerous so using trace log level here
+			logWithContext.Trace("Invalid proposal key in transaction, retrying later")
 		} else {
 			t.State = common.TransactionStateFailed
 			logWithContext.Warn("Error in transaction")

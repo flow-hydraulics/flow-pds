@@ -221,7 +221,14 @@ func TestE2E(t *testing.T) {
 		t.Fatal(err)
 	}
 
-	resolved := distribution.ResolvedCollection()
+	collectibleCount, err := distribution.TemplateCollectibleCount()
+	if err != nil {
+		t.Fatal(err)
+	}
+	resolved := make(app.Collectibles, 0, collectibleCount)
+	for _, pack := range distribution.Packs {
+		resolved = append(resolved, pack.Collectibles...)
+	}
 	resolvedStr := make([]string, len(resolved))
 	for i, c := range resolved {
 		resolvedStr[i] = c.String()

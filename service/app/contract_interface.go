@@ -229,7 +229,18 @@ func (c *Contract) StartMinting(ctx context.Context, db *gorm.DB, dist *Distribu
 		if cpc.StartAtBlock < existing.StartAtBlock {
 			// Situation where a new cpc has lower blockheight (LastCheckedBlock) than an old one.
 			// Should not happen in production but can happen in tests.
-			fmt.Println("CirculatingPackContract with higher block height found in database, should not happen in production")
+			c.logger.WithFields(log.Fields{
+				"method":          "StartMinting",
+				"ID":              dist.ID,
+				"existingID":      existing.ID,
+				"existingName":    existing.Name,
+				"existingAddress": existing.Address,
+				"existingStart":   existing.StartAtBlock,
+				"newID":           cpc.ID,
+				"newName":         cpc.Name,
+				"newAddress":      cpc.Address,
+				"newStart":        cpc.StartAtBlock,
+			}).Warn("CirculatingPackContract with higher block height found in database, should not happen in production")
 			existing.StartAtBlock = cpc.StartAtBlock
 			if err := UpdateCirculatingPackContract(db, existing); err != nil {
 				return err

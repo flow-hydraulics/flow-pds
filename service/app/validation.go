@@ -28,7 +28,7 @@ func (pt PackTemplate) Validate() error {
 	}
 
 	if len(pt.Buckets) == 0 {
-		return fmt.Errorf("no slot templates provided")
+		return fmt.Errorf("no buckets provided")
 	}
 
 	if err := pt.PackReference.Validate(); err != nil {
@@ -37,15 +37,15 @@ func (pt PackTemplate) Validate() error {
 
 	for i, bucket := range pt.Buckets {
 		if err := bucket.Validate(); err != nil {
-			return fmt.Errorf("error in slot template %d: %w", i+1, err)
+			return fmt.Errorf("error in bucket %d: %w", i, err)
 		}
 
 		requiredCount := int(pt.PackCount * bucket.CollectibleCount)
 		allocatedCount := len(bucket.CollectibleCollection)
 		if requiredCount > allocatedCount {
 			return fmt.Errorf(
-				"collection too small for slot template %d, required %d got %d",
-				i+1, requiredCount, allocatedCount,
+				"collection too small for bucket %d, required %d got %d",
+				i, requiredCount, allocatedCount,
 			)
 		}
 	}

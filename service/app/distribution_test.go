@@ -97,17 +97,23 @@ func TestDistributionResolution(t *testing.T) {
 		t.Fatalf("didn't expect an error, got %s", err)
 	}
 
-	r1 := d.ResolvedCollection()
-	r2 := d.ResolvedCollection()
+	collectibleCount, err := d.TemplateCollectibleCount()
+	if err != nil {
+		t.Fatal(err)
+	}
+
+	r1 := make(Collectibles, 0, collectibleCount)
+	for _, pack := range d.Packs {
+		r1 = append(r1, pack.Collectibles...)
+	}
+
+	r2 := make(Collectibles, 0, collectibleCount)
+	for _, pack := range d.Packs {
+		r2 = append(r2, pack.Collectibles...)
+	}
 
 	if !reflect.DeepEqual(r1, r2) {
 		t.Fatalf("resolved collections should match")
-	}
-
-	for i := range r1 {
-		if i > 0 && r1[i].FlowID.LessThan(r1[i-1].FlowID) {
-			t.Fatal("resolved collection should be sorted ascending by flow id")
-		}
 	}
 
 	if len(d.Packs) != packCount {
@@ -115,7 +121,10 @@ func TestDistributionResolution(t *testing.T) {
 	}
 
 	for _, p := range d.Packs {
-		expected := d.PackSlotCount()
+		expected, err := d.PackTemplate.PackSlotCount()
+		if err != nil {
+			t.Fatal(err)
+		}
 		if len(p.Collectibles) != expected {
 			t.Fatalf("expected there to be %d slots", expected)
 		}

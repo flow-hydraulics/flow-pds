@@ -7,13 +7,6 @@ content-type: application/json
 {
   "distFlowID": 1,
   "issuer":"0x1",
-  "meta": {
-    "title": "Test",
-    "description": "This is a test distribution",
-    "image": "",
-    "startDate": "2021-01-01T00:00:00Z",
-    "endDate": "2021-01-01T00:00:00Z"
-  },
   "packTemplate":{
     "packReference": {
       "name": "PackNFT",
