@@ -5,8 +5,6 @@ import (
 	"gorm.io/gorm"
 )
 
-// TODO (latenssi): these could be removed from database after done
-
 // Minting represents the minting status of a distribution.
 type Minting struct {
 	gorm.Model

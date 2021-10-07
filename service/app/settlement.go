@@ -8,8 +8,6 @@ import (
 	"gorm.io/gorm"
 )
 
-// TODO (latenssi): these could be removed from database after done
-
 // Settlement represents the settlement status of a distribution.
 type Settlement struct {
 	gorm.Model

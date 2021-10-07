@@ -43,10 +43,6 @@ const (
 	MAX_EVENTS_PER_CHECK = 100
 )
 
-// TODO (latenssi):
-// - Timeout for settling and minting?
-// - Cancel?
-
 // Contract handles all the onchain logic and functions
 type Contract struct {
 	cfg        *config.Config
@@ -123,9 +119,8 @@ func (c *Contract) StartSettlement(ctx context.Context, db *gorm.DB, dist *Distr
 		CurrentCount:   0,
 		TotalCount:     uint(len(collectibles)),
 		StartAtBlock:   latestBlock.Height - 1,
-		// TODO (latenssi): Can we assume the admin is always the escrow?
-		EscrowAddress: common.FlowAddressFromString(c.cfg.AdminAddress),
-		Collectibles:  settlementCollectibles,
+		EscrowAddress:  common.FlowAddressFromString(c.cfg.AdminAddress),
+		Collectibles:   settlementCollectibles,
 	}
 
 	if err := InsertSettlement(db, &settlement); err != nil {
