@@ -12,6 +12,7 @@ require (
 	github.com/gorilla/mux v1.8.0
 	github.com/joho/godotenv v1.3.0
 	github.com/onflow/cadence v0.18.1-0.20210621144040-64e6b6fb2337
+	github.com/onflow/flow-go v0.18.4
 	github.com/onflow/flow-go-sdk v0.20.1-0.20210623043139-533a95abf071
 	github.com/sirupsen/logrus v1.8.1
 	github.com/stretchr/testify v1.7.0
@@ -80,7 +81,6 @@ require (
 	github.com/onflow/flow-core-contracts/lib/go/templates v0.6.0 // indirect
 	github.com/onflow/flow-emulator v0.22.0 // indirect
 	github.com/onflow/flow-ft/lib/go/contracts v0.5.0 // indirect
-	github.com/onflow/flow-go v0.18.4 // indirect
 	github.com/onflow/flow-go/crypto v0.18.0 // indirect
 	github.com/onflow/flow/protobuf/go/flow v0.2.0 // indirect
 	github.com/opentracing/opentracing-go v1.2.0 // indirect
