@@ -24,6 +24,12 @@ pub contract PackNFT: NonFungibleToken, IPackNFT {
     pub event Withdraw(id: UInt64, from: Address?)
     pub event Deposit(id: UInt64, to: Address?)
 
+    pub enum Status: UInt8 {
+        pub case Sealed
+        pub case Revealed
+        pub case Opened
+    }
+
     pub resource PackNFTOperator: IPackNFT.IOperator {
 
          pub fun mint(distId: UInt64, commitHash: String, issuer: Address): @NFT{
@@ -54,11 +60,11 @@ pub contract PackNFT: NonFungibleToken, IPackNFT {
     pub resource Pack {
         pub let commitHash: String
         pub let issuer: Address
-        pub var status: String
+        pub var status: PackNFT.Status 
         pub var salt: String?
 
         pub fun verify(nftString: String): Bool {
-            assert(self.status != "Sealed", message: "Pack not revealed yet")
+            assert(self.status != PackNFT.Status.Sealed, message: "Pack not revealed yet")
             var hashString = self.salt!
             hashString = hashString.concat(",").concat(nftString)
             let hash = HashAlgorithm.SHA2_256.hash(hashString.utf8)
@@ -82,24 +88,24 @@ pub contract PackNFT: NonFungibleToken, IPackNFT {
         }
 
         access(contract) fun reveal(id: UInt64, nfts: [{IPackNFT.Collectible}], salt: String) {
-            assert(self.status == "Sealed", message: "Pack status is not Sealed")
+            assert(self.status == PackNFT.Status.Sealed, message: "Pack status is not Sealed")
             let v = self._verify(nfts: nfts, salt: salt, commitHash: self.commitHash)
             self.salt = salt
-            self.status = "Revealed"
+            self.status = PackNFT.Status.Revealed 
             emit Revealed(id: id, salt: salt, nfts: v)
         }
 
         access(contract) fun open(id: UInt64, nfts: [{IPackNFT.Collectible}]) {
-            assert(self.status == "Revealed", message: "Pack status is not Revealed")
+            assert(self.status == PackNFT.Status.Revealed, message: "Pack status is not Revealed")
             self._verify(nfts: nfts, salt: self.salt!, commitHash: self.commitHash)
-            self.status = "Opened"
+            self.status = PackNFT.Status.Opened
             emit Opened(id: id)
         }
 
         init(commitHash: String, issuer: Address) {
             self.commitHash = commitHash
             self.issuer = issuer
-            self.status = "Sealed"
+            self.status = PackNFT.Status.Sealed 
             self.salt = nil
         }
     }
@@ -186,13 +192,13 @@ pub contract PackNFT: NonFungibleToken, IPackNFT {
 
     access(contract) fun revealRequest(id: UInt64 ) {
         let p = PackNFT.borrowPackRepresentation(id: id) ?? panic ("No such pack")
-        assert(p.status == "Sealed", message: "Pack status must be Sealed for reveal request")
+        assert(p.status == PackNFT.Status.Sealed, message: "Pack status must be Sealed for reveal request")
         emit RevealRequest(id: id)
     }
 
     access(contract) fun openRequest(id: UInt64) {
         let p = PackNFT.borrowPackRepresentation(id: id) ?? panic ("No such pack")
-        assert(p.status == "Revealed", message: "Pack status must be Revealed for open request")
+        assert(p.status == PackNFT.Status.Revealed, message: "Pack status must be Revealed for open request")
         emit OpenRequest(id: id)
     }
 

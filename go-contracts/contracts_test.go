@@ -108,7 +108,7 @@ func TestCreateDistWithCap(t *testing.T) {
 
 	util.NewExpectedPDSEvent("DistributionCreated").
 		AddField("DistId", strconv.Itoa(int(currentDistId))).
-		AddField("state", "initialized").
+		AddField("state", "0").
 		AddField("title", expTitle).
 		AddField("metadata", stringifiedKeyPair).
 		AssertEqual(t, events[0])
@@ -208,13 +208,13 @@ func TestUpdateDistState(t *testing.T) {
 	currentDistId := nextDistId - 1
 	assert.NoError(t, err)
 
-	stateToUpdate := "completed"
+	stateToUpdate := "complete"
 	events, err := pds.PDSUpdateDistState(g, currentDistId, stateToUpdate)
 	assert.NoError(t, err)
 
 	util.NewExpectedPDSEvent("DistributionStateUpdated").
 		AddField("DistId", strconv.Itoa(int(currentDistId))).
-		AddField("state", stateToUpdate).
+		AddField("state", "2").
 		AssertEqual(t, events[0])
 }
 
