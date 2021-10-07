@@ -55,12 +55,6 @@ func UpdateDistribution(db *gorm.DB, d *Distribution) error {
 	return db.Omit(clause.Associations).Save(d).Error
 }
 
-// Remove distribution
-func RemoveDistribution(*gorm.DB, *Distribution) error {
-	// TODO (latenssi)
-	return nil
-}
-
 // List distributions
 func ListDistributions(db *gorm.DB, opt ListOptions) ([]Distribution, error) {
 	list := []Distribution{}

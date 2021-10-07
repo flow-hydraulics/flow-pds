@@ -23,7 +23,7 @@ type Account struct {
 	Address           flow.Address
 	PrivateKey        string
 	PrivateKeyType    string
-	KeyIndexes        []int // TODO (latenssi): this needs to be configurable to allow multiple instances use different indexes
+	KeyIndexes        []int
 	nextKeyIndexIndex int
 }
 
