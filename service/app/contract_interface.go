@@ -413,7 +413,7 @@ func (c *Contract) UpdateSettlementStatus(ctx context.Context, db *gorm.DB, dist
 					"eventType":  e.Type,
 				}).Debug("Handling event")
 
-				evtValueMap := flow_helpers.EventValuesToMap(e.Value.EventType.Fields, e.Value.Fields)
+				evtValueMap := flow_helpers.EventValuesToMap(e)
 
 				idValue, ok := evtValueMap["id"]
 				if !ok {
@@ -537,7 +537,7 @@ func (c *Contract) UpdateMintingStatus(ctx context.Context, db *gorm.DB, dist *D
 				"eventType":  e.Type,
 			}).Debug("Handling event")
 
-			evtValueMap := flow_helpers.EventValuesToMap(e.Value.EventType.Fields, e.Value.Fields)
+			evtValueMap := flow_helpers.EventValuesToMap(e)
 
 			idValue, ok := evtValueMap["id"]
 			if !ok {
@@ -700,7 +700,7 @@ func (c *Contract) UpdateCirculatingPack(ctx context.Context, db *gorm.DB, cpc *
 				}).Debug("Handling event")
 
 				// TODO (latenssi): consider separating this one db transaction ("db")
-				evtValueMap := flow_helpers.EventValuesToMap(e.Value.EventType.Fields, e.Value.Fields)
+				evtValueMap := flow_helpers.EventValuesToMap(e)
 
 				idValue, ok := evtValueMap["id"]
 				if !ok {
