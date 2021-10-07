@@ -3,7 +3,6 @@ package app
 import (
 	"fmt"
 	"math/rand"
-	"sort"
 	"time"
 
 	"github.com/flow-hydraulics/flow-pds/service/common"
@@ -93,7 +92,10 @@ func (dist *Distribution) Resolve() error {
 	}
 
 	packCount := int(dist.PackTemplate.PackCount)
-	packSlotCount := int(dist.PackSlotCount())
+	packSlotCount, err := dist.PackTemplate.PackSlotCount()
+	if err != nil {
+		return err
+	}
 
 	// Init packs and their slots
 	packs := make([]Pack, packCount)
@@ -201,31 +203,25 @@ func (dist *Distribution) SetInvalid() error {
 	return nil
 }
 
-// ResolvedCollection should publicly present what collectibles got in the distribution
-// without revealing in which pack each one resides
-func (dist Distribution) ResolvedCollection() Collectibles {
-	res := make(Collectibles, 0, dist.SlotCount())
-	for _, pack := range dist.Packs {
-		res = append(res, pack.Collectibles...)
+func (d Distribution) TemplateCollectibleCount() (int, error) {
+	packSlotCount, err := d.PackTemplate.PackSlotCount()
+	if err != nil {
+		return 0, err
 	}
-	sort.Sort(res)
-	return res
+	return int(d.PackTemplate.PackCount) * packSlotCount, nil
 }
 
-func (dist Distribution) PackCount() int {
-	return int(dist.PackTemplate.PackCount)
-}
+// PackSlotCount returns the number of slots in each Pack described by PackTemplate
+// (sum of all buckets ColletibleCounts)
+func (pt PackTemplate) PackSlotCount() (int, error) {
+	if pt.Buckets == nil {
+		return 0, fmt.Errorf("distribution not fully hydrated from database")
+	}
 
-// PackSlotCount returns the number of slots per pack
-func (dist Distribution) PackSlotCount() int {
 	res := 0
-	for _, bucket := range dist.PackTemplate.Buckets {
+	for _, bucket := range pt.Buckets {
 		res += int(bucket.CollectibleCount)
 	}
-	return res
-}
 
-// SlotCount returns the total number of slots in distribution
-func (dist Distribution) SlotCount() int {
-	return dist.PackCount() * dist.PackSlotCount()
+	return res, nil
 }
