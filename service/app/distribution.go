@@ -18,17 +18,8 @@ type Distribution struct {
 	FlowID       common.FlowID            `gorm:"column:flow_id"` // A reference on the PDS Contract to this distribution
 	Issuer       common.FlowAddress       `gorm:"column:issuer"`
 	State        common.DistributionState `gorm:"column:state;not null;default:null"`
-	MetaData     DistributionMetaData     `gorm:"embedded;embeddedPrefix:meta_"`
 	PackTemplate PackTemplate             `gorm:"embedded;embeddedPrefix:template_"`
 	Packs        []Pack                   `gorm:"constraint:OnUpdate:CASCADE,OnDelete:SET NULL;"`
-}
-
-type DistributionMetaData struct {
-	Title       string    `gorm:"column:title"`
-	Description string    `gorm:"column:description"`
-	Image       string    `gorm:"column:image"`
-	StartDate   time.Time `gorm:"column:start_date"`
-	EndDate     time.Time `gorm:"column:end_date"`
 }
 
 type PackTemplate struct {

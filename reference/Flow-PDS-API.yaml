@@ -27,26 +27,17 @@ paths:
                   example: 1
                 issuer:
                   $ref: ../models/Issuer.yaml
-                meta:
-                  $ref: ../models/Distribution-Meta.yaml
                 packTemplate:
                   $ref: ../models/Pack-Template-Create.yaml
               required:
                 - distFlowID
                 - issuer
-                - meta
                 - packTemplate
             examples:
               example-1:
                 value:
                   distFlowID: 12
                   issuer: '0x1'
-                  meta:
-                    title: string
-                    description: string
-                    image: string
-                    startDate: '2019-08-24T14:15:22Z'
-                    endDate: '2019-08-24T14:15:22Z'
                   packTemplate:
                     packReference:
                       name: string

@@ -24,5 +24,3 @@ properties:
       - settling
       - settled
       - complete
-  meta:
-    $ref: ./Distribution-Meta.yaml

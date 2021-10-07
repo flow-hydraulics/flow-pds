@@ -9,10 +9,9 @@ import (
 )
 
 type ReqCreateDistribution struct {
-	FlowID       common.FlowID        `json:"distFlowID"`
-	Issuer       common.FlowAddress   `json:"issuer"`
-	MetaData     DistributionMetaData `json:"meta"`
-	PackTemplate ReqPackTemplate      `json:"packTemplate"`
+	FlowID       common.FlowID      `json:"distFlowID"`
+	Issuer       common.FlowAddress `json:"issuer"`
+	PackTemplate ReqPackTemplate    `json:"packTemplate"`
 }
 
 type ReqPackTemplate struct {
@@ -39,7 +38,6 @@ type ResGetDistribution struct {
 	UpdatedAt    time.Time                `json:"updatedAt"`
 	Issuer       common.FlowAddress       `json:"issuer"`
 	State        common.DistributionState `json:"state"`
-	MetaData     DistributionMetaData     `json:"meta"`
 	PackTemplate ResPackTemplate          `json:"packTemplate"`
 }
 
@@ -50,7 +48,6 @@ type ResListDistribution struct {
 	UpdatedAt time.Time                `json:"updatedAt"`
 	Issuer    common.FlowAddress       `json:"issuer"`
 	State     common.DistributionState `json:"state"`
-	MetaData  DistributionMetaData     `json:"meta"`
 }
 
 type ResPackTemplate struct {
@@ -62,14 +59,6 @@ type ResPackTemplate struct {
 type ResBucket struct {
 	CollectibleReference AddressLocation `json:"collectibleReference"`
 	CollectibleCount     uint            `json:"collectibleCount"`
-}
-
-type DistributionMetaData struct {
-	Title       string    `json:"title"`
-	Description string    `json:"description"`
-	Image       string    `json:"image"`
-	StartDate   time.Time `json:"startDate"`
-	EndDate     time.Time `json:"endDate"`
 }
 
 type AddressLocation struct {
@@ -85,7 +74,6 @@ func ResGetDistributionFromApp(d *app.Distribution) ResGetDistribution {
 		UpdatedAt:    d.UpdatedAt,
 		Issuer:       d.Issuer,
 		State:        d.State,
-		MetaData:     DistributionMetaData(d.MetaData),
 		PackTemplate: ResPackTemplateFromApp(d.PackTemplate),
 	}
 }
@@ -100,7 +88,6 @@ func ResDistributionListFromApp(dd []app.Distribution) []ResListDistribution {
 			UpdatedAt: d.UpdatedAt,
 			Issuer:    d.Issuer,
 			State:     d.State,
-			MetaData:  DistributionMetaData(d.MetaData),
 		}
 	}
 	return res
@@ -130,7 +117,6 @@ func (d ReqCreateDistribution) ToApp() app.Distribution {
 		State:        common.DistributionStateInit,
 		FlowID:       d.FlowID,
 		Issuer:       d.Issuer,
-		MetaData:     app.DistributionMetaData(d.MetaData),
 		PackTemplate: d.PackTemplate.ToApp(),
 	}
 }
