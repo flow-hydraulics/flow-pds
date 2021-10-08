@@ -35,7 +35,7 @@ func poller(app *App) {
 			handlePollerError("pollCirculatingPackContractEvents", pollCirculatingPackContractEvents(ctx, app.db, app.contract), app.logger)
 
 			handlePollerError("handleSentTransactions", handleSentTransactions(ctx, app.db, app.contract), app.logger)
-			handlePollerError("handleSendableTransactions", handleSendableTransactions(ctx, app.db, app.contract, app.logger, transactionRatelimiter), app.logger)
+			handlePollerError("handleSendableTransactions", handleSendableTransactions(ctx, app.db, app.contract, transactionRatelimiter), app.logger)
 		case <-app.quit:
 			cancel()
 			ticker.Stop()
@@ -193,7 +193,11 @@ func pollCirculatingPackContractEvents(ctx context.Context, db *gorm.DB, contrac
 // TODO (latenssi): this is basically brute forcing the sequence numbering
 // TODO (latenssi): this will currently iterate over all sendable transactions
 // in database while locking the poller from doing other actions
-func handleSendableTransactions(ctx context.Context, db *gorm.DB, contract *Contract, logger *log.Logger, rateLimiter ratelimit.Limiter) error {
+func handleSendableTransactions(ctx context.Context, db *gorm.DB, contract *Contract, rateLimiter ratelimit.Limiter) error {
+	logger := log.WithFields(log.Fields{
+		"function": "handleSendableTransactions",
+	})
+
 	run := true
 
 	for run {
@@ -207,22 +211,20 @@ func handleSendableTransactions(ctx context.Context, db *gorm.DB, contract *Cont
 				if errors.Is(err, gorm.ErrRecordNotFound) {
 					run = false
 				} else {
-					log.WithFields(log.Fields{
-						"function": "handleSendableTransactions",
-						"ID":       t.ID,
-						"error":    err.Error(),
-					}).Warn("Error while getting transaction from database")
+					logger.WithFields(log.Fields{"error": err.Error()}).Warn("Error while getting transaction from database")
 				}
 				return err
 			}
 
+			logger = logger.WithFields(log.Fields{
+				"ID":             t.ID,
+				"name":           t.Name,
+				"distributionID": t.DistributionID,
+			})
+
 			tx, err := t.Prepare(ctx, contract.flowClient, contract.account)
 			if err != nil {
-				log.WithFields(log.Fields{
-					"function": "handleSendableTransactions",
-					"ID":       t.ID,
-					"error":    err.Error(),
-				}).Warn("Error while preparing transaction")
+				logger.WithFields(log.Fields{"error": err.Error()}).Warn("Error while preparing transaction")
 				return err
 			}
 
@@ -232,37 +234,31 @@ func handleSendableTransactions(ctx context.Context, db *gorm.DB, contract *Cont
 			// Update state
 			t.State = common.TransactionStateSent
 
+			logger = logger.WithFields(log.Fields{
+				"transactionID": t.TransactionID,
+			})
+
 			// Save early as the database might be locked and not allow us to
 			// save after sending. This way we fail before actually sending.
 			if err := t.Save(dbtx); err != nil {
-				log.WithFields(log.Fields{
-					"function": "handleSendableTransactions",
-					"ID":       t.ID,
-					"error":    err.Error(),
-				}).Warn("Error while saving transaction")
+				logger.WithFields(log.Fields{"error": err.Error()}).Warn("Error while saving transaction")
 				return err
 			}
 
 			if err := contract.flowClient.SendTransaction(ctx, *tx); err != nil {
-				log.WithFields(log.Fields{
-					"function": "handleSendableTransactions",
-					"ID":       t.ID,
-					"error":    err.Error(),
-				}).Warn("Error while sending transaction")
+				logger.WithFields(log.Fields{"error": err.Error()}).Warn("Error while sending transaction")
 
 				t.State = common.TransactionStateFailed
 				t.Error = err.Error()
 
 				if err := t.Save(dbtx); err != nil {
-					log.WithFields(log.Fields{
-						"function": "handleSendableTransactions",
-						"ID":       t.ID,
-						"error":    err.Error(),
-					}).Warn("Error while saving transaction")
+					logger.WithFields(log.Fields{"error": err.Error()}).Warn("Error while saving transaction")
 					return err
 				}
 
-				return err
+				// Cant't return the error here as that would rollback this db transaction
+			} else {
+				logger.Debug("Transaction sent")
 			}
 
 			return nil
@@ -275,6 +271,10 @@ func handleSendableTransactions(ctx context.Context, db *gorm.DB, contract *Cont
 // handleSentTransactions checks the results of sent transactions and updates
 // the state in database accordingly
 func handleSentTransactions(ctx context.Context, db *gorm.DB, contract *Contract) error {
+	logger := log.WithFields(log.Fields{
+		"function": "handleSentTransactions",
+	})
+
 	run := true
 
 	for run {
@@ -285,30 +285,24 @@ func handleSentTransactions(ctx context.Context, db *gorm.DB, contract *Contract
 				if errors.Is(err, gorm.ErrRecordNotFound) {
 					run = false
 				} else {
-					log.WithFields(log.Fields{
-						"function": "handleSentTransactions",
-						"ID":       t.ID,
-						"error":    err.Error(),
-					}).Warn("Error while getting transaction from database")
+					logger.WithFields(log.Fields{"error": err.Error()}).Warn("Error while getting transaction from database")
 				}
 				return err
 			}
 
+			logger = logger.WithFields(log.Fields{
+				"ID":             t.ID,
+				"name":           t.Name,
+				"distributionID": t.DistributionID,
+			})
+
 			if err := t.HandleResult(ctx, contract.flowClient); err != nil {
-				log.WithFields(log.Fields{
-					"function": "handleSentTransactions",
-					"ID":       t.ID,
-					"error":    err.Error(),
-				}).Warn("Error while handling transaction result")
+				logger.WithFields(log.Fields{"error": err.Error()}).Warn("Error while handling transaction result")
 				return err
 			}
 
 			if err := t.Save(dbtx); err != nil {
-				log.WithFields(log.Fields{
-					"function": "handleSentTransactions",
-					"ID":       t.ID,
-					"error":    err.Error(),
-				}).Warn("Error while saving transaction")
+				logger.WithFields(log.Fields{"error": err.Error()}).Warn("Error while saving transaction")
 				return err
 			}
 

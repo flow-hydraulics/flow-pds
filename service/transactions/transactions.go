@@ -30,6 +30,8 @@ type StorableTransaction struct {
 	Name      string         `gorm:"column:name"` // Just a way to identify a transaction
 	Script    string         `gorm:"column:script"`
 	Arguments datatypes.JSON `gorm:"column:arguments"`
+
+	DistributionID uuid.UUID `gorm:"column:distribution_id;index"` // NOTE: Not a proper foreign key
 }
 
 func NewTransaction(name string, script []byte, arguments []cadence.Value) (*StorableTransaction, error) {
@@ -55,6 +57,17 @@ func NewTransaction(name string, script []byte, arguments []cadence.Value) (*Sto
 	}
 
 	return &transaction, nil
+}
+
+func NewTransactionWithDistributionID(name string, script []byte, arguments []cadence.Value, distributionID uuid.UUID) (*StorableTransaction, error) {
+	transaction, err := NewTransaction(name, script, arguments)
+	if err != nil {
+		return nil, err
+	}
+
+	transaction.DistributionID = distributionID
+
+	return transaction, nil
 }
 
 func (t *StorableTransaction) ArgumentsAsCadence() ([]cadence.Value, error) {
@@ -109,6 +122,12 @@ func (t *StorableTransaction) Prepare(ctx context.Context, flowClient *client.Cl
 // HandleResult checks the results of a transaction onchain and updates the
 // StorableTransaction accordingly.
 func (t *StorableTransaction) HandleResult(ctx context.Context, flowClient *client.Client) error {
+	logger := log.WithFields(log.Fields{
+		"name":           t.Name,
+		"transactionID":  t.TransactionID,
+		"distributionID": t.DistributionID,
+	})
+
 	result, err := flowClient.GetTransactionResult(ctx, flow.HexToID(t.TransactionID))
 	if err != nil {
 		return err
@@ -117,35 +136,27 @@ func (t *StorableTransaction) HandleResult(ctx context.Context, flowClient *clie
 	t.Error = ""
 
 	if result.Error != nil {
-		args, err := t.ArgumentsAsCadence()
-		if err != nil {
-			args = nil
-		}
-
-		logWithContext := log.WithFields(log.Fields{
-			"name":          t.Name,
-			"transactionID": t.TransactionID,
-			"error":         result.Error.Error(),
-			"arguments":     args,
-		})
+		loggerWithError := logger.WithFields(log.Fields{"error": result.Error.Error()})
 
 		t.Error = result.Error.Error()
 
 		if flow_helpers.IsInvalidProposalSeqNumberError(result.Error) {
 			t.State = common.TransactionStateRetry
 			// These can be quite numerous so using trace log level here
-			logWithContext.Trace("Invalid proposal key in transaction, retrying later")
+			loggerWithError.Trace("Invalid sequence number, retrying later")
 		} else {
 			t.State = common.TransactionStateFailed
-			logWithContext.Warn("Error in transaction")
+			loggerWithError.Warn("Error in transaction")
 		}
 		return nil
 	}
 
 	switch result.Status {
 	case flow.TransactionStatusExpired:
+		// TODO (latenssi): will we ever get here? if status == expired is result.Error set?
 		t.State = common.TransactionStateRetry
 	case flow.TransactionStatusSealed:
+		logger.Debug("Transaction sealed")
 		t.State = common.TransactionStateComplete
 	}
 
