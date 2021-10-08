@@ -413,12 +413,23 @@ func (c *Contract) UpdateSettlementStatus(ctx context.Context, db *gorm.DB, dist
 					"eventType":  e.Type,
 				}).Debug("Handling event")
 
-				flowID, err := common.FlowIDFromCadence(e.Value.Fields[0])
+				evtValueMap := flow_helpers.EventValuesToMap(e)
+
+				idValue, ok := evtValueMap["id"]
+				if !ok {
+					return fmt.Errorf("could not read 'id' from event %s", e)
+				}
+				flowID, err := common.FlowIDFromCadence(idValue)
+
 				if err != nil {
 					return err
 				}
 
-				address, err := common.FlowAddressFromCadence(e.Value.Fields[1])
+				toValue, ok := evtValueMap["to"]
+				if !ok {
+					return fmt.Errorf("could not read 'to' from event %s", e)
+				}
+				address, err := common.FlowAddressFromCadence(toValue)
 				if err != nil {
 					return err
 				}
@@ -526,12 +537,22 @@ func (c *Contract) UpdateMintingStatus(ctx context.Context, db *gorm.DB, dist *D
 				"eventType":  e.Type,
 			}).Debug("Handling event")
 
-			flowID, err := common.FlowIDFromCadence(e.Value.Fields[0])
+			evtValueMap := flow_helpers.EventValuesToMap(e)
+
+			idValue, ok := evtValueMap["id"]
+			if !ok {
+				return fmt.Errorf("could not read 'id' from event %s", e)
+			}
+			flowID, err := common.FlowIDFromCadence(idValue)
 			if err != nil {
 				return err
 			}
 
-			commitmentHash, err := common.BinaryValueFromCadence(e.Value.Fields[1])
+			commitHashValue, ok := evtValueMap["commitHash"]
+			if !ok {
+				return fmt.Errorf("could not read 'commitHash' from event %s", e)
+			}
+			commitmentHash, err := common.BinaryValueFromCadence(commitHashValue)
 			if err != nil {
 				return err
 			}
@@ -679,8 +700,13 @@ func (c *Contract) UpdateCirculatingPack(ctx context.Context, db *gorm.DB, cpc *
 				}).Debug("Handling event")
 
 				// TODO (latenssi): consider separating this one db transaction ("db")
+				evtValueMap := flow_helpers.EventValuesToMap(e)
 
-				flowID, err := common.FlowIDFromCadence(e.Value.Fields[0])
+				idValue, ok := evtValueMap["id"]
+				if !ok {
+					return fmt.Errorf("could not read 'id' from event %s", e)
+				}
+				flowID, err := common.FlowIDFromCadence(idValue)
 				if err != nil {
 					return err
 				}
