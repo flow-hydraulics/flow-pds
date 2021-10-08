@@ -745,6 +745,7 @@ func (c *Contract) UpdateCirculatingPack(ctx context.Context, db *gorm.DB, cpc *
 
 					// Make sure the pack is in correct state
 					if err := pack.RevealRequestHandled(); err != nil {
+						err := fmt.Errorf("error while handling %s: %w", eventName, err)
 						return err // rollback
 					}
 
@@ -791,6 +792,7 @@ func (c *Contract) UpdateCirculatingPack(ctx context.Context, db *gorm.DB, cpc *
 
 					// Make sure the pack is in correct state
 					if err := pack.Reveal(); err != nil {
+						err := fmt.Errorf("error while handling %s: %w", eventName, err)
 						return err // rollback
 					}
 
@@ -804,6 +806,7 @@ func (c *Contract) UpdateCirculatingPack(ctx context.Context, db *gorm.DB, cpc *
 
 					// Make sure the pack is in correct state
 					if err := pack.OpenRequestHandled(); err != nil {
+						err := fmt.Errorf("error while handling %s: %w", eventName, err)
 						return err // rollback
 					}
 
@@ -857,6 +860,7 @@ func (c *Contract) UpdateCirculatingPack(ctx context.Context, db *gorm.DB, cpc *
 
 					// Make sure the pack is in correct state
 					if err := pack.Open(); err != nil {
+						err := fmt.Errorf("error while handling %s: %w", eventName, err)
 						return err // rollback
 					}
 

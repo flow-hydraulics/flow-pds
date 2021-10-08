@@ -111,7 +111,7 @@ func (p *Pack) OpenRequestHandled() error {
 // Open should set the pack as "opened"
 // given the previous state was correct
 func (p *Pack) Open() error {
-	if p.State != common.PackStateOpenRequestHandled {
+	if p.State != common.PackStateOpenRequestHandled && p.State != common.PackStateRevealed {
 		return fmt.Errorf("pack in unexpected state: %s", p.State)
 	}
 
