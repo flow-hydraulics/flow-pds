@@ -90,9 +90,10 @@ func GetDistributionPacks(db *gorm.DB, distributionID uuid.UUID) ([]Pack, error)
 	return list, nil
 }
 
-func GetMintingPack(db *gorm.DB, h common.BinaryValue) (*Pack, error) {
+// GetMintingPack returns a pack which has no FlowID by its commitmentHash (therefore it should still be minting)
+func GetMintingPack(db *gorm.DB, commitmentHash common.BinaryValue) (*Pack, error) {
 	pack := Pack{}
-	if err := db.Where(&Pack{CommitmentHash: h, FlowID: common.FlowID{Valid: false}}).First(&pack).Error; err != nil {
+	if err := db.Where(&Pack{CommitmentHash: commitmentHash, FlowID: common.FlowID{Valid: false}}).First(&pack).Error; err != nil {
 		return nil, err
 	}
 	return &pack, nil
