@@ -6,6 +6,15 @@ info:
 servers:
   - url: 'http://localhost:3000/v1'
 paths:
+  /health/ready:
+    get:
+      summary: Health check
+      description: Simple health check, will always respond with 200 OK
+      operationId: health-ready
+      responses:
+        '200':
+          description: OK
+
   /distributions:
     post:
       summary: Create Distribution
