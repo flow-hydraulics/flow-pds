@@ -750,6 +750,7 @@ func (c *Contract) UpdateCirculatingPack(ctx context.Context, db *gorm.DB, cpc *
 						cadence.NewArray(collectibleContractNames),
 						cadence.NewArray(collectibleIDs),
 						cadence.String(pack.Salt.String()),
+						cadence.NewOptional(nil),
 					}
 
 					txScript := util.ParseCadenceTemplate(REVEAL_SCRIPT)

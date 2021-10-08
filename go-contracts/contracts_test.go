@@ -161,6 +161,7 @@ func TestPDSMintPackNFTs(t *testing.T) {
 	assert.NoError(t, err)
 	gonfts := nfts.ToGoValue().([]interface{})
 
+	// Mint a pack nft to test reveal ONLY
 	toHash := "f24dfdf9911df152,A." + addr + ".ExampleNFT." + strconv.Itoa(int(gonfts[0].(uint64))) + ",A." + addr + ".ExampleNFT." + strconv.Itoa(int(gonfts[1].(uint64)))
 
 	hash, err := util.GetHash(g, toHash)
@@ -193,7 +194,14 @@ func TestPDSMintPackNFTs(t *testing.T) {
 	assert.NoError(t, err)
 	assert.Equal(t, "Sealed", status)
 
-	// Mint a second pack to be revealed via the public function
+	// Mint second pack that will be revealed and opened at the same block
+	toHash1 := "f24dfdf9911df152,A." + addr + ".ExampleNFT." + strconv.Itoa(int(gonfts[2].(uint64))) + ",A." + addr + ".ExampleNFT." + strconv.Itoa(int(gonfts[3].(uint64)))
+	hash1, err := util.GetHash(g, toHash1)
+	assert.NoError(t, err)
+	_, err = pds.PDSMintPackNFT(g, nextDistId-1, hash1, "issuer", "pds")
+	assert.NoError(t, err)
+
+	// Mint a third pack to be revealed via the public function
 	toHash2 := "g24dfdf9911df152,A." + addr + ".ExampleNFT.2,A." + addr + ".ExampleNFT.4"
 	hash2, err := util.GetHash(g, toHash2)
 	assert.NoError(t, err)
@@ -303,6 +311,7 @@ func TestPDSCannotRevealwithWrongSalt(t *testing.T) {
 		cadence.NewArray(name),
 		cadence.NewArray(ids),
 		incorrectSalt,
+		"owner",
 		"pds",
 	)
 
@@ -345,6 +354,7 @@ func TestPDSCannotRevealwithWrongNFTs(t *testing.T) {
 		cadence.NewArray(name),
 		cadence.NewArray(ids),
 		salt,
+		"owner",
 		"pds",
 	)
 	assert.Error(t, err)
@@ -358,7 +368,8 @@ func TestPDSRevealPackNFTs(t *testing.T) {
 	g := gwtf.NewGoWithTheFlow(util.FlowJSON, os.Getenv("NETWORK"), false, 3)
 	nextPackNFTId, err := packnft.GetTotalPacks(g)
 	assert.NoError(t, err)
-	currentPack := nextPackNFTId - 2
+	// This is the first minted pack
+	currentPack := nextPackNFTId - 3
 
 	nextDistId, err := pds.GetDistID(g)
 	currentDistId := nextDistId - 1
@@ -390,6 +401,7 @@ func TestPDSRevealPackNFTs(t *testing.T) {
 		cadence.NewArray(name),
 		cadence.NewArray(ids),
 		salt,
+		"",
 		"pds",
 	)
 	assert.NoError(t, err)
@@ -407,7 +419,7 @@ func TestPDSRevealPackNFTs(t *testing.T) {
 
 }
 
-func TestPublicFailRevealPackNFTs(t *testing.T) {
+func TestPublicFailRevealPackNFTsWithWrongIds(t *testing.T) {
 	g := gwtf.NewGoWithTheFlow(util.FlowJSON, os.Getenv("NETWORK"), false, 3)
 	nextPackNFTId, err := packnft.GetTotalPacks(g)
 	assert.NoError(t, err)
@@ -485,6 +497,89 @@ func TestPublicRevealPackNFTs(t *testing.T) {
 
 }
 
+func TestPDSRevealAndOpenPackNFT(t *testing.T) {
+	g := gwtf.NewGoWithTheFlow(util.FlowJSON, os.Getenv("NETWORK"), false, 3)
+	nextPackNFTId, err := packnft.GetTotalPacks(g)
+	assert.NoError(t, err)
+	// This is the second minted NFT pack
+	currentPack := nextPackNFTId - 2
+
+	nextDistId, err := pds.GetDistID(g)
+	currentDistId := nextDistId - 1
+	assert.NoError(t, err)
+
+	salt := "f24dfdf9911df152"
+	addr := g.Account("issuer").Address().String()
+
+	nfts, err := examplenft.GetBalance(g, "pds")
+	assert.NoError(t, err)
+	gonfts := nfts.ToGoValue().([]interface{})
+
+	var addrs []cadence.Value
+	var name []cadence.Value
+	var ids []cadence.Value
+	addrBytes := cadence.BytesToAddress(g.Account("issuer").Address().Bytes())
+	for i := 0; i < 2; i++ {
+		addrs = append(addrs, addrBytes)
+		name = append(name, cadence.NewString("ExampleNFT"))
+	}
+	ids = append(ids, cadence.UInt64(gonfts[2].(uint64)))
+	ids = append(ids, cadence.UInt64(gonfts[3].(uint64)))
+
+	// First time submitting the transaction to reveal
+	events, err := pds.PDSRevealPackNFT(
+		g,
+		currentDistId,
+		currentPack,
+		cadence.NewArray(addrs),
+		cadence.NewArray(name),
+		cadence.NewArray(ids),
+		salt,
+		"owner",
+		"pds",
+	)
+	assert.NoError(t, err)
+
+	nftString := "A." + addr + ".ExampleNFT." + strconv.Itoa(int(gonfts[2].(uint64))) + ",A." + addr + ".ExampleNFT." + strconv.Itoa(int(gonfts[3].(uint64)))
+	util.NewExpectedPackNFTEvent("Revealed").
+		AddField("id", strconv.Itoa(int(currentPack))).
+		AddField("salt", salt).
+		AddField("nfts", nftString).
+		AssertEqual(t, events[0])
+
+		// Second time submitting the transaction to open
+	events, err = pds.PDSRevealPackNFT(
+		g,
+		currentDistId,
+		currentPack,
+		cadence.NewArray(addrs),
+		cadence.NewArray(name),
+		cadence.NewArray(ids),
+		salt,
+		"owner",
+		"pds",
+	)
+	assert.NoError(t, err)
+
+	util.NewExpectedPackNFTEvent("Opened").
+		AddField("id", strconv.Itoa(int(currentPack))).
+		AssertEqual(t, events[0])
+
+	status, err := packnft.GetPackStatus(g, currentPack)
+	assert.NoError(t, err)
+	assert.Equal(t, "Opened", status)
+
+	if os.Getenv("NETWORK") == "emulator" {
+		fmt.Print("emulator")
+		// each NFT goes through withdraw and deposit events
+		assert.Len(t, events, (4 + 1))
+	} else {
+		fmt.Print("testnet")
+		// each NFT goes through withdraw and deposit events and 3 events for fees
+		assert.Len(t, events, (4 + 1 + 3))
+	}
+}
+
 // Open
 
 func TestOwnerOpenReq(t *testing.T) {
@@ -505,7 +600,7 @@ func TestPDSFailOpenPackNFTsWithWrongIds(t *testing.T) {
 	g := gwtf.NewGoWithTheFlow(util.FlowJSON, os.Getenv("NETWORK"), false, 3)
 	nextPackNFTId, err := packnft.GetTotalPacks(g)
 	assert.NoError(t, err)
-	currentPack := nextPackNFTId - 2
+	currentPack := nextPackNFTId - 3
 
 	nextDistId, err := pds.GetDistID(g)
 	currentDistId := nextDistId - 1
@@ -540,7 +635,7 @@ func TestPDSOpenPackNFTs(t *testing.T) {
 	g := gwtf.NewGoWithTheFlow(util.FlowJSON, os.Getenv("NETWORK"), false, 3)
 	nextPackNFTId, err := packnft.GetTotalPacks(g)
 	assert.NoError(t, err)
-	currentPack := nextPackNFTId - 2
+	currentPack := nextPackNFTId - 3
 
 	nextDistId, err := pds.GetDistID(g)
 	currentDistId := nextDistId - 1

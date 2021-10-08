@@ -185,10 +185,18 @@ func PDSRevealPackNFT(
 	nftContractNames cadence.Value,
 	nftIds cadence.Value,
 	salt string,
+	receiver string,
 	account string,
 ) (events []*gwtf.FormatedEvent, err error) {
 	txScript := "../cadence-transactions/pds/reveal_packNFT.cdc"
 	code := util.ParseCadenceTemplate(txScript)
+	var recv cadence.Value
+	if len(receiver) != 0 {
+		addr := g.Account(receiver).Address()
+		recv = cadence.NewAddress(addr)
+	} else {
+		recv = nil
+	}
 	e, err := g.
 		TransactionFromFile(txScript, code).
 		SignProposeAndPayAs("pds").
@@ -198,6 +206,7 @@ func PDSRevealPackNFT(
 		Argument(nftContractNames).
 		Argument(nftIds).
 		StringArgument(salt).
+		Argument(cadence.NewOptional(recv)).
 		RunE()
 	events = util.ParseTestEvents(e)
 	return
