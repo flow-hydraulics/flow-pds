@@ -60,29 +60,14 @@ func NewTransaction(name string, script []byte, arguments []cadence.Value) (*Sto
 }
 
 func NewTransactionWithDistributionID(name string, script []byte, arguments []cadence.Value, distributionID uuid.UUID) (*StorableTransaction, error) {
-	argsBytes := make([][]byte, len(arguments))
-	for i, a := range arguments {
-		b, err := c_json.Encode(a)
-		if err != nil {
-			return nil, err
-		}
-		argsBytes[i] = b
-	}
-
-	argsJSON, err := json.Marshal(argsBytes)
+	transaction, err := NewTransaction(name, script, arguments)
 	if err != nil {
 		return nil, err
 	}
 
-	transaction := StorableTransaction{
-		State:          common.TransactionStateInit,
-		Name:           name,
-		Script:         string(script),
-		Arguments:      argsJSON,
-		DistributionID: distributionID,
-	}
+	transaction.DistributionID = distributionID
 
-	return &transaction, nil
+	return transaction, nil
 }
 
 func (t *StorableTransaction) ArgumentsAsCadence() ([]cadence.Value, error) {
