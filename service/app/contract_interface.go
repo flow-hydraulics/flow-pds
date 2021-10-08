@@ -705,6 +705,12 @@ func (c *Contract) UpdateCirculatingPack(ctx context.Context, db *gorm.DB, cpc *
 						return err
 					}
 
+					// Get the owner of the pack from the transaction that emitted the open request event
+					tx, err := c.flowClient.GetTransaction(ctx, e.TransactionID)
+					if err != nil {
+						return err
+					}
+					owner := tx.Authorizers[0]
 					collectibleCount := len(pack.Collectibles)
 
 					collectibleContractAddresses := make([]cadence.Value, collectibleCount)
@@ -724,6 +730,7 @@ func (c *Contract) UpdateCirculatingPack(ctx context.Context, db *gorm.DB, cpc *
 						cadence.NewArray(collectibleContractNames),
 						cadence.NewArray(collectibleIDs),
 						cadence.String(pack.Salt.String()),
+                        cadence.NewOptional(cadence.Address(owner)),
 					}
 
 					txScript := util.ParseCadenceTemplate(REVEAL_SCRIPT)
