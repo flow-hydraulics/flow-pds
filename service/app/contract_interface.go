@@ -77,27 +77,32 @@ func NewContract(cfg *config.Config, logger *log.Logger, flowClient *client.Clie
 // database to be later processed by a poller.
 // Batching needs to be done to control the transaction size.
 func (c *Contract) StartSettlement(ctx context.Context, db *gorm.DB, dist *Distribution) error {
-	c.logger.WithFields(log.Fields{
-		"method": "StartSettlement",
-		"ID":     dist.ID,
-	}).Info("Start settlement")
+	logger := c.logger.WithFields(log.Fields{
+		"method":     "StartSettlement",
+		"distID":     dist.ID,
+		"distFlowID": dist.FlowID,
+	})
 
+	logger.Info("Start settlement")
+
+	// Make sure the distribution is in correct state
 	if err := dist.SetSettling(); err != nil {
-		return err
+		return err // rollback
 	}
 
+	// Update the distribution in database
 	if err := UpdateDistribution(db, dist); err != nil {
-		return err
+		return err // rollback
 	}
 
 	latestBlock, err := c.flowClient.GetLatestBlock(ctx, true)
 	if err != nil {
-		return err
+		return err // rollback
 	}
 
 	packs, err := GetDistributionPacks(db, dist.ID)
 	if err != nil {
-		return err
+		return err // rollback
 	}
 
 	collectibles := make(Collectibles, 0)
@@ -125,7 +130,7 @@ func (c *Contract) StartSettlement(ctx context.Context, db *gorm.DB, dist *Distr
 	}
 
 	if err := InsertSettlement(db, &settlement); err != nil {
-		return err
+		return err // rollback
 	}
 
 	txScript := util.ParseCadenceTemplate(SETTLE_SCRIPT)
@@ -139,12 +144,13 @@ func (c *Contract) StartSettlement(ctx context.Context, db *gorm.DB, dist *Distr
 			break
 		}
 
-		c.logger.WithFields(log.Fields{
-			"method":      "StartSettlement",
+		batchLogger := logger.WithFields(log.Fields{
 			"batchNumber": batchIndex + 1,
 			"batchBegin":  begin,
 			"batchEnd":    end,
-		}).Debug("Initiating settle transaction")
+		})
+
+		batchLogger.Debug("Initiating settle transaction")
 
 		batch := settlementCollectibles[begin:end]
 
@@ -160,27 +166,24 @@ func (c *Contract) StartSettlement(ctx context.Context, db *gorm.DB, dist *Distr
 
 		t, err := transactions.NewTransactionWithDistributionID(SETTLE_SCRIPT, txScript, arguments, dist.ID)
 		if err != nil {
-			return err
+			return err // rollback
 		}
 
 		if err := t.Save(db); err != nil {
-			return err
+			return err // rollback
 		}
 
-		c.logger.WithFields(log.Fields{
-			"method":      "StartMinting",
-			"batchNumber": batchIndex + 1,
-			"batchBegin":  begin,
-			"batchEnd":    end,
-		}).Trace("Settle transaction saved")
+		batchLogger.Trace("Settle transaction saved")
 
 		batchIndex++
 	}
 
-	return nil
+	logger.Trace("Start settlement complete")
+
+	return nil // commit
 }
 
-// StartMinting sets the given distributions state to 'minting' and starts the settlement
+// StartMinting sets the given distributions state to 'minting' and starts the minting
 // phase onchain.
 // It creates a CirculatingPackContract to allow onchain monitoring
 // (listening for events) of any pack that has been put to circulation.
@@ -190,44 +193,48 @@ func (c *Contract) StartSettlement(ctx context.Context, db *gorm.DB, dist *Distr
 // later processed by a poller.
 // Batching needs to be done to control the transaction size.
 func (c *Contract) StartMinting(ctx context.Context, db *gorm.DB, dist *Distribution) error {
-	c.logger.WithFields(log.Fields{
-		"method": "StartMinting",
-		"ID":     dist.ID,
-	}).Info("Start minting")
+	logger := c.logger.WithFields(log.Fields{
+		"method":     "StartMinting",
+		"distID":     dist.ID,
+		"distFlowID": dist.FlowID,
+	})
 
+	logger.Info("Start minting")
+
+	// Make sure the distribution is in correct state
 	if err := dist.SetMinting(); err != nil {
-		return err
+		return err // rollback
 	}
 
+	// Update the distribution in database
 	if err := UpdateDistribution(db, dist); err != nil {
-		return err
+		return err // rollback
 	}
 
 	latestBlock, err := c.flowClient.GetLatestBlock(ctx, true)
 	if err != nil {
-		return err
+		return err // rollback
 	}
 
-	// Add CirculatingPackContract to database
+	// Init a CirculatingPackContract
 	cpc := CirculatingPackContract{
 		Name:         dist.PackTemplate.PackReference.Name,
 		Address:      dist.PackTemplate.PackReference.Address,
 		StartAtBlock: latestBlock.Height - 1,
 	}
 
-	// Try to find one
+	// Try to find an existing one (CirculatingPackContract)
 	if existing, err := GetCirculatingPackContract(db, cpc.Name, cpc.Address); err != nil {
-		// Insert new if not found
+		// Insert the newly initialized if not found
 		if err := InsertCirculatingPackContract(db, &cpc); err != nil {
-			return err
+			return err // rollback
 		}
-	} else {
+	} else { // err == nil, existing found
 		if cpc.StartAtBlock < existing.StartAtBlock {
 			// Situation where a new cpc has lower blockheight (LastCheckedBlock) than an old one.
 			// Should not happen in production but can happen in tests.
-			c.logger.WithFields(log.Fields{
-				"method":          "StartMinting",
-				"ID":              dist.ID,
+
+			logger.WithFields(log.Fields{
 				"existingID":      existing.ID,
 				"existingName":    existing.Name,
 				"existingAddress": existing.Address,
@@ -237,17 +244,20 @@ func (c *Contract) StartMinting(ctx context.Context, db *gorm.DB, dist *Distribu
 				"newAddress":      cpc.Address,
 				"newStart":        cpc.StartAtBlock,
 			}).Warn("CirculatingPackContract with higher block height found in database, should not happen in production")
+
 			existing.StartAtBlock = cpc.StartAtBlock
 			if err := UpdateCirculatingPackContract(db, existing); err != nil {
-				return err
+				return err // rollback
 			}
+
+			// Use the existing one from now on
 			cpc = *existing
 		}
 	}
 
 	packs, err := GetDistributionPacks(db, dist.ID)
 	if err != nil {
-		return err
+		return err // rollback
 	}
 
 	minting := Minting{
@@ -258,7 +268,7 @@ func (c *Contract) StartMinting(ctx context.Context, db *gorm.DB, dist *Distribu
 	}
 
 	if err := InsertMinting(db, &minting); err != nil {
-		return err
+		return err // rollback
 	}
 
 	txScript := util.ParseCadenceTemplate(MINT_SCRIPT)
@@ -272,12 +282,13 @@ func (c *Contract) StartMinting(ctx context.Context, db *gorm.DB, dist *Distribu
 			break
 		}
 
-		c.logger.WithFields(log.Fields{
-			"method":      "StartMinting",
+		batchLogger := logger.WithFields(log.Fields{
 			"batchNumber": batchIndex + 1,
 			"batchBegin":  begin,
 			"batchEnd":    end,
-		}).Debug("Initiating mint transaction")
+		})
+
+		batchLogger.Debug("Initiating mint transaction")
 
 		batch := packs[begin:end]
 
@@ -294,40 +305,41 @@ func (c *Contract) StartMinting(ctx context.Context, db *gorm.DB, dist *Distribu
 
 		t, err := transactions.NewTransactionWithDistributionID(MINT_SCRIPT, txScript, arguments, dist.ID)
 		if err != nil {
-			return err
+			return err // rollback
 		}
 
 		if err := t.Save(db); err != nil {
-			return err
+			return err // rollback
 		}
 
-		c.logger.WithFields(log.Fields{
-			"method":      "StartMinting",
-			"batchNumber": batchIndex + 1,
-			"batchBegin":  begin,
-			"batchEnd":    end,
-		}).Trace("Mint transaction saved")
+		batchLogger.Trace("Mint transaction saved")
 
 		batchIndex++
 	}
 
-	return nil
+	logger.Trace("Start minting complete")
+
+	return nil // commit
 }
 
 // Abort a distribution
 func (c *Contract) Abort(ctx context.Context, db *gorm.DB, dist *Distribution) error {
+	logger := c.logger.WithFields(log.Fields{
+		"method":     "Abort",
+		"distID":     dist.ID,
+		"distFlowID": dist.FlowID,
+	})
 
-	c.logger.WithFields(log.Fields{
-		"method": "Abort",
-		"ID":     dist.ID,
-	}).Info("Abort")
+	logger.Info("Abort")
 
+	// Make sure the distribution is in correct state
 	if err := dist.SetInvalid(); err != nil {
-		return err
+		return err // rollback
 	}
 
+	// Update the distribution in database
 	if err := UpdateDistribution(db, dist); err != nil {
-		return err
+		return err // rollback
 	}
 
 	// Update distribution state onchain
@@ -338,257 +350,256 @@ func (c *Contract) Abort(ctx context.Context, db *gorm.DB, dist *Distribution) e
 	}
 	t, err := transactions.NewTransactionWithDistributionID(UPDATE_STATE_SCRIPT, txScript, arguments, dist.ID)
 	if err != nil {
-		return err
+		return err // rollback
 	}
 
 	if err := t.Save(db); err != nil {
-		return err
+		return err // rollback
 	}
 
-	c.logger.WithFields(log.Fields{
-		"method":   "Abort",
-		"ID":       dist.ID,
+	logger.WithFields(log.Fields{
 		"state":    1,
 		"stateStr": "invalid",
 	}).Info("Distribution state update transaction saved")
 
-	return nil
+	return nil // commit
 }
 
 // UpdateSettlementStatus polls for 'Deposit' events regarding the given distributions
 // collectible NFTs.
 // It updates the settelement status in database accordingly.
 func (c *Contract) UpdateSettlementStatus(ctx context.Context, db *gorm.DB, dist *Distribution) error {
-	c.logger.WithFields(log.Fields{
-		"method": "UpdateSettlementStatus",
-		"ID":     dist.ID,
-	}).Trace("Update settlement status")
+	logger := c.logger.WithFields(log.Fields{
+		"method":     "UpdateSettlementStatus",
+		"distID":     dist.ID,
+		"distFlowID": dist.FlowID,
+	})
+
+	logger.Trace("Update settlement status")
 
 	settlement, err := GetDistributionSettlement(db, dist.ID)
 	if err != nil {
-		return err
+		return err // rollback
 	}
 
 	latestBlock, err := c.flowClient.GetLatestBlock(ctx, true)
 	if err != nil {
-		return err
+		return err // rollback
 	}
 
-	start := settlement.StartAtBlock + 1
-	end := min(latestBlock.Height, start+MAX_EVENTS_PER_CHECK)
+	begin := settlement.StartAtBlock + 1
+	end := min(latestBlock.Height, begin+MAX_EVENTS_PER_CHECK)
 
-	if start > end {
+	logger = logger.WithFields(log.Fields{
+		"blockBegin": begin,
+		"blockEnd":   end,
+	})
+
+	if begin > end {
 		// Nothing to update
-		c.logger.WithFields(log.Fields{
-			"method":     "UpdateSettlementStatus",
-			"ID":         dist.ID,
-			"blockStart": start,
-			"blockEnd":   end,
-		}).Trace("No blocks to handle")
-		return nil
+		logger.Trace("No blocks to handle")
+		return nil // commit
 	}
 
+	// Group missing collectibles by their contract reference
 	groupedMissing, err := MissingCollectibles(db, settlement.ID)
 	if err != nil {
-		return err
+		return err // rollback
 	}
 
 	for reference, missing := range groupedMissing {
 		arr, err := c.flowClient.GetEventsForHeightRange(ctx, client.EventRangeQuery{
 			Type:        fmt.Sprintf("%s.Deposit", reference),
-			StartHeight: start,
+			StartHeight: begin,
 			EndHeight:   end,
 		})
 		if err != nil {
-			return err
+			return err // rollback
 		}
 
 		for _, be := range arr {
 			for _, e := range be.Events {
-				c.logger.WithFields(log.Fields{
-					"method":     "UpdateSettlementStatus",
-					"ID":         dist.ID,
-					"blockStart": start,
-					"blockEnd":   end,
-					"eventType":  e.Type,
-				}).Debug("Handling event")
+				eventLogger := logger.WithFields(log.Fields{"eventType": e.Type})
+
+				eventLogger.Debug("Handling event")
 
 				evtValueMap := flow_helpers.EventValuesToMap(e)
 
-				idValue, ok := evtValueMap["id"]
+				collectibleFlowIDCadence, ok := evtValueMap["id"]
 				if !ok {
-					return fmt.Errorf("could not read 'id' from event %s", e)
-				}
-				flowID, err := common.FlowIDFromCadence(idValue)
-
-				if err != nil {
-					return err
+					err := fmt.Errorf("could not read 'id' from event %s", e)
+					return err // rollback
 				}
 
-				toValue, ok := evtValueMap["to"]
-				if !ok {
-					return fmt.Errorf("could not read 'to' from event %s", e)
-				}
-				address, err := common.FlowAddressFromCadence(toValue)
+				collectibleFlowID, err := common.FlowIDFromCadence(collectibleFlowIDCadence)
+
 				if err != nil {
-					return err
+					return err // rollback
+				}
+
+				addressCadence, ok := evtValueMap["to"]
+				if !ok {
+					err := fmt.Errorf("could not read 'to' from event %s", e)
+					return err // rollback
+				}
+
+				address, err := common.FlowAddressFromCadence(addressCadence)
+				if err != nil {
+					return err // rollback
 				}
 
 				if address == settlement.EscrowAddress {
-					if i, ok := missing.ContainsID(flowID); ok {
+					if i, ok := missing.ContainsID(collectibleFlowID); ok {
+						// Collectible in "missing" at index "i"
+
+						// Make sure the collectible is in correct state
 						if err := missing[i].SetSettled(); err != nil {
-							return err
+							return err // rollback
 						}
+
+						// Update the collectible in database
 						if err := UpdateSettlementCollectible(db, &missing[i]); err != nil {
-							return err
+							return err // rollback
 						}
+
 						settlement.IncrementCount()
 					}
 				}
 
-				c.logger.WithFields(log.Fields{
-					"method":     "UpdateSettlementStatus",
-					"ID":         dist.ID,
-					"blockStart": start,
-					"blockEnd":   end,
-					"eventType":  e.Type,
-				}).Trace("Handling event complete")
+				eventLogger.Trace("Handling event complete")
 			}
 		}
 	}
 
 	if settlement.IsComplete() {
 		// TODO: consider updating the distribution separately
+
+		// Make sure the distribution is in correct state
 		if err := dist.SetSettled(); err != nil {
-			return err
-		}
-		if err := UpdateDistribution(db, dist); err != nil {
-			return err
+			return err // rollback
 		}
 
-		c.logger.WithFields(log.Fields{
-			"method":     "UpdateSettlementStatus",
-			"ID":         dist.ID,
-			"blockStart": start,
-			"blockEnd":   end,
-		}).Info("Settlement complete")
+		// Update the distribution in database
+		if err := UpdateDistribution(db, dist); err != nil {
+			return err // rollback
+		}
+
+		logger.Info("Settlement complete")
 	}
 
 	settlement.StartAtBlock = end
 
+	// Update the settlement status in database
 	if err := UpdateSettlement(db, settlement); err != nil {
-		return err
+		return err // rollback
 	}
 
-	return nil
+	logger.Trace("Update settlement status complete")
+
+	return nil // commit
 }
 
 // UpdateMintingStatus polls for 'Mint' events regarding the given distributions
 // Pack NFTs.
 // It updates the minting status in database accordingly.
 func (c *Contract) UpdateMintingStatus(ctx context.Context, db *gorm.DB, dist *Distribution) error {
-	c.logger.WithFields(log.Fields{
-		"method": "UpdateMintingStatus",
-		"ID":     dist.ID,
-	}).Trace("Update minting status")
+	logger := c.logger.WithFields(log.Fields{
+		"method":     "UpdateMintingStatus",
+		"distID":     dist.ID,
+		"distFlowID": dist.FlowID,
+	})
+
+	logger.Trace("Update minting status")
 
 	minting, err := GetDistributionMinting(db, dist.ID)
 	if err != nil {
-		return err
+		return err // rollback
 	}
 
 	latestBlock, err := c.flowClient.GetLatestBlock(ctx, true)
 	if err != nil {
-		return err
+		return err // rollback
 	}
 
-	start := minting.StartAtBlock + 1
-	end := min(latestBlock.Height, start+MAX_EVENTS_PER_CHECK)
+	begin := minting.StartAtBlock + 1
+	end := min(latestBlock.Height, begin+MAX_EVENTS_PER_CHECK)
 
-	if start > end {
+	logger = logger.WithFields(log.Fields{
+		"blockBegin": begin,
+		"blockEnd":   end,
+	})
+
+	if begin > end {
 		// Nothing to update
-		c.logger.WithFields(log.Fields{
-			"method":     "UpdateMintingStatus",
-			"ID":         dist.ID,
-			"blockStart": start,
-			"blockEnd":   end,
-		}).Trace("No blocks to handle")
-		return nil
+		logger.Trace("No blocks to handle")
+		return nil // commit
 	}
 
 	reference := dist.PackTemplate.PackReference.String()
 
 	arr, err := c.flowClient.GetEventsForHeightRange(ctx, client.EventRangeQuery{
 		Type:        fmt.Sprintf("%s.Mint", reference),
-		StartHeight: start,
+		StartHeight: begin,
 		EndHeight:   end,
 	})
 	if err != nil {
-		return err
+		return err // rollback
 	}
 
 	for _, be := range arr {
 		for _, e := range be.Events {
-			c.logger.WithFields(log.Fields{
-				"method":     "UpdateMintingStatus",
-				"ID":         dist.ID,
-				"blockStart": start,
-				"blockEnd":   end,
-				"eventType":  e.Type,
-			}).Debug("Handling event")
+			eventLogger := logger.WithFields(log.Fields{"eventType": e.Type})
+
+			eventLogger.Debug("Handling event")
 
 			evtValueMap := flow_helpers.EventValuesToMap(e)
 
-			idValue, ok := evtValueMap["id"]
+			packFlowIDCadence, ok := evtValueMap["id"]
 			if !ok {
-				return fmt.Errorf("could not read 'id' from event %s", e)
-			}
-			flowID, err := common.FlowIDFromCadence(idValue)
-			if err != nil {
-				return err
+				err := fmt.Errorf("could not read 'id' from event %s", e)
+				return err // rollback
 			}
 
-			commitHashValue, ok := evtValueMap["commitHash"]
-			if !ok {
-				return fmt.Errorf("could not read 'commitHash' from event %s", e)
-			}
-			commitmentHash, err := common.BinaryValueFromCadence(commitHashValue)
+			packFlowID, err := common.FlowIDFromCadence(packFlowIDCadence)
 			if err != nil {
-				return err
+				return err // rollback
+			}
+
+			commitmentHashCadence, ok := evtValueMap["commitHash"]
+			if !ok {
+				err := fmt.Errorf("could not read 'commitHash' from event %s", e)
+				return err // rollback
+			}
+
+			commitmentHash, err := common.BinaryValueFromCadence(commitmentHashCadence)
+			if err != nil {
+				return err // rollback
 			}
 
 			pack, err := GetMintingPack(db, commitmentHash)
 			if err != nil {
-				c.logger.WithFields(log.Fields{
-					"method":         "UpdateMintingStatus",
-					"ID":             dist.ID,
-					"blockStart":     start,
-					"blockEnd":       end,
-					"eventType":      e.Type,
-					"flowID":         flowID,
+				eventLogger.WithFields(log.Fields{
+					"packFlowID":     packFlowID,
 					"commitmentHash": commitmentHash,
-					"error":          "unable to find matching pack from database",
-				}).Errorf("Error while handling event")
-				continue
+					"error":          err,
+				}).Warn("Error while handling event")
+				continue // ignore this commitmenthash, go to next event
 			}
 
-			if err := pack.Seal(flowID); err != nil {
-				return err
+			// Set the FlowID of the pack
+			// Make sure the pack is in correct state
+			if err := pack.Seal(packFlowID); err != nil {
+				return err // rollback
 			}
 
+			// Update the pack in database
 			if err := UpdatePack(db, pack); err != nil {
-				return err
+				return err // rollback
 			}
 
 			minting.IncrementCount()
 
-			c.logger.WithFields(log.Fields{
-				"method":     "UpdateMintingStatus",
-				"ID":         dist.ID,
-				"blockStart": start,
-				"blockEnd":   end,
-				"eventType":  e.Type,
-			}).Trace("Handling event complete")
+			eventLogger.Trace("Handling event complete")
 		}
 	}
 
@@ -596,19 +607,18 @@ func (c *Contract) UpdateMintingStatus(ctx context.Context, db *gorm.DB, dist *D
 		// Distribution is now complete
 
 		// TODO: consider updating the distribution separately
+
+		// Make sure the distribution is in correct state
 		if err := dist.SetComplete(); err != nil {
-			return err
-		}
-		if err := UpdateDistribution(db, dist); err != nil {
-			return err
+			return err // rollback
 		}
 
-		c.logger.WithFields(log.Fields{
-			"method":     "UpdateMintingStatus",
-			"ID":         dist.ID,
-			"blockStart": start,
-			"blockEnd":   end,
-		}).Info("Minting complete")
+		// Update the distribution in database
+		if err := UpdateDistribution(db, dist); err != nil {
+			return err // rollback
+		}
+
+		logger.Info("Minting complete")
 
 		// Update distribution state onchain
 		txScript := util.ParseCadenceTemplate(UPDATE_STATE_SCRIPT)
@@ -618,16 +628,14 @@ func (c *Contract) UpdateMintingStatus(ctx context.Context, db *gorm.DB, dist *D
 		}
 		t, err := transactions.NewTransactionWithDistributionID(UPDATE_STATE_SCRIPT, txScript, arguments, dist.ID)
 		if err != nil {
-			return err
+			return err // rollback
 		}
 
 		if err := t.Save(db); err != nil {
-			return err
+			return err // rollback
 		}
 
-		c.logger.WithFields(log.Fields{
-			"method":   "UpdateMintingStatus",
-			"ID":       dist.ID,
+		logger.WithFields(log.Fields{
 			"state":    2,
 			"stateStr": "complete",
 		}).Info("Distribution state update transaction saved")
@@ -635,22 +643,28 @@ func (c *Contract) UpdateMintingStatus(ctx context.Context, db *gorm.DB, dist *D
 
 	minting.StartAtBlock = end
 
+	// Update the minting status in database
 	if err := UpdateMinting(db, minting); err != nil {
-		return err
+		return err // rollback
 	}
 
-	return nil
+	logger.Trace("Update minting status complete")
+
+	return nil // commit
 }
 
-// UpdateCirculatingPack polls for 'REVEAL_REQUEST' and 'OPEN_REQUEST' events
+// UpdateCirculatingPack polls for 'REVEAL_REQUEST', 'REVEALED', 'OPEN_REQUEST' and 'OPENED' events
 // regarding the given CirculatingPackContract.
-// It handles each event by creating and storing an appropriate Flow transaction
-// in database to be later processed by a poller.
+// It handles each the 'REVEAL_REQUEST' and 'OPEN_REQUEST' events by creating
+// and storing an appropriate Flow transaction in database to be later processed by a poller.
+// 'REVEALED' and 'OPENED' events are used to sync the state of a pack in database with onchain state.
 func (c *Contract) UpdateCirculatingPack(ctx context.Context, db *gorm.DB, cpc *CirculatingPackContract) error {
-	c.logger.WithFields(log.Fields{
+	logger := c.logger.WithFields(log.Fields{
 		"method": "UpdateCirculatingPack",
 		"cpcID":  cpc.ID,
-	}).Trace("Update circulating pack")
+	})
+
+	logger.Trace("Update circulating pack")
 
 	eventNames := []string{
 		REVEAL_REQUEST,
@@ -661,20 +675,20 @@ func (c *Contract) UpdateCirculatingPack(ctx context.Context, db *gorm.DB, cpc *
 
 	latestBlock, err := c.flowClient.GetLatestBlock(ctx, true)
 	if err != nil {
-		return err
+		return err // rollback
 	}
 
-	start := cpc.StartAtBlock + 1
-	end := min(latestBlock.Height, start+MAX_EVENTS_PER_CHECK)
+	begin := cpc.StartAtBlock + 1
+	end := min(latestBlock.Height, begin+MAX_EVENTS_PER_CHECK)
 
-	if start > end {
-		c.logger.WithFields(log.Fields{
-			"method":     "UpdateCirculatingPack",
-			"cpcID":      cpc.ID,
-			"blockStart": start,
-			"blockEnd":   end,
-		}).Trace("No blocks to handle")
-		return nil
+	logger = logger.WithFields(log.Fields{
+		"blockBegin": begin,
+		"blockEnd":   end,
+	})
+
+	if begin > end {
+		logger.Trace("No blocks to handle")
+		return nil // commit
 	}
 
 	contractRef := AddressLocation{Name: cpc.Name, Address: cpc.Address}
@@ -682,57 +696,64 @@ func (c *Contract) UpdateCirculatingPack(ctx context.Context, db *gorm.DB, cpc *
 	for _, eventName := range eventNames {
 		arr, err := c.flowClient.GetEventsForHeightRange(ctx, client.EventRangeQuery{
 			Type:        cpc.EventName(eventName),
-			StartHeight: start,
+			StartHeight: begin,
 			EndHeight:   end,
 		})
 		if err != nil {
-			return err
+			return err // rollback
 		}
 
 		for _, be := range arr {
 			for _, e := range be.Events {
-				c.logger.WithFields(log.Fields{
-					"method":     "UpdateCirculatingPack",
-					"cpcID":      cpc.ID,
-					"blockStart": start,
-					"blockEnd":   end,
-					"eventType":  e.Type,
-				}).Debug("Handling event")
+				eventLogger := logger.WithFields(log.Fields{"eventType": e.Type})
 
-				// TODO (latenssi): consider separating this one db transaction ("db")
+				eventLogger.Debug("Handling event")
+
 				evtValueMap := flow_helpers.EventValuesToMap(e)
 
-				idValue, ok := evtValueMap["id"]
+				packFlowIDCadence, ok := evtValueMap["id"]
 				if !ok {
-					return fmt.Errorf("could not read 'id' from event %s", e)
-				}
-				flowID, err := common.FlowIDFromCadence(idValue)
-				if err != nil {
-					return err
+					err := fmt.Errorf("could not read 'id' from event %s", e)
+					return err // rollback
 				}
 
-				pack, err := GetPackByContractAndFlowID(db, contractRef, flowID)
+				packFlowID, err := common.FlowIDFromCadence(packFlowIDCadence)
 				if err != nil {
-					return err
+					return err // rollback
 				}
+
+				pack, err := GetPackByContractAndFlowID(db, contractRef, packFlowID)
+				if err != nil {
+					return err // rollback
+				}
+
+				distribution, err := GetDistribution(db, pack.DistributionID)
+				if err != nil {
+					return err // rollback
+				}
+
+				eventLogger = eventLogger.WithFields(log.Fields{
+					"distID":     distribution.ID,
+					"distFlowID": distribution.FlowID,
+					"packID":     pack.ID,
+					"packFlowID": pack.FlowID,
+				})
 
 				switch eventName {
-				case REVEAL_REQUEST: // Reveal a pack
+				// -- REVEAL_REQUEST, Owner has requested to reveal a pack ------------
+				case REVEAL_REQUEST:
+
+					// Make sure the pack is in correct state
 					if err := pack.RevealRequestHandled(); err != nil {
-						return err
+						return err // rollback
 					}
 
+					// Update the pack in database
 					if err := UpdatePack(db, pack); err != nil {
-						return err
-					}
-
-					distribution, err := GetDistribution(db, pack.DistributionID)
-					if err != nil {
-						return err
+						return err // rollback
 					}
 
 					collectibleCount := len(pack.Collectibles)
-
 					collectibleContractAddresses := make([]cadence.Value, collectibleCount)
 					collectibleContractNames := make([]cadence.Value, collectibleCount)
 					collectibleIDs := make([]cadence.Value, collectibleCount)
@@ -756,47 +777,47 @@ func (c *Contract) UpdateCirculatingPack(ctx context.Context, db *gorm.DB, cpc *
 					txScript := util.ParseCadenceTemplate(REVEAL_SCRIPT)
 					t, err := transactions.NewTransactionWithDistributionID(REVEAL_SCRIPT, txScript, arguments, distribution.ID)
 					if err != nil {
-						return err
+						return err // rollback
 					}
 
 					if err := t.Save(db); err != nil {
-						return err
+						return err // rollback
 					}
 
-					c.logger.WithFields(log.Fields{
-						"method":     "UpdateCirculatingPack",
-						"cpcID":      cpc.ID,
-						"ID":         distribution.ID,
-						"packFlowID": flowID,
-					}).Info("Pack reveal transaction created")
+					eventLogger.Info("Pack reveal transaction created")
 
+				// -- REVEALED, Pack has been revealed onchain ------------------------
 				case REVEALED:
+
+					// Make sure the pack is in correct state
 					if err := pack.Reveal(); err != nil {
-						return err
-					}
-					if err := UpdatePack(db, pack); err != nil {
-						return err
-					}
-				case OPEN_REQUEST: // Open a pack
-					if err := pack.OpenRequestHandled(); err != nil {
-						return err
+						return err // rollback
 					}
 
+					// Update the pack in database
 					if err := UpdatePack(db, pack); err != nil {
-						return err
+						return err // rollback
+					}
+
+				// -- OPEN_REQUEST, Owner has requested to open a pack ----------------
+				case OPEN_REQUEST:
+
+					// Make sure the pack is in correct state
+					if err := pack.OpenRequestHandled(); err != nil {
+						return err // rollback
+					}
+
+					// Update the pack in database
+					if err := UpdatePack(db, pack); err != nil {
+						return err // rollback
 					}
 
 					// Get the owner of the pack from the transaction that emitted the open request event
 					tx, err := c.flowClient.GetTransaction(ctx, e.TransactionID)
 					if err != nil {
-						return err
+						return err // rollback
 					}
 					owner := tx.Authorizers[0]
-
-					distribution, err := GetDistribution(db, pack.DistributionID)
-					if err != nil {
-						return err
-					}
 
 					collectibleCount := len(pack.Collectibles)
 
@@ -822,44 +843,42 @@ func (c *Contract) UpdateCirculatingPack(ctx context.Context, db *gorm.DB, cpc *
 					txScript := util.ParseCadenceTemplate(OPEN_SCRIPT)
 					t, err := transactions.NewTransactionWithDistributionID(OPEN_SCRIPT, txScript, arguments, distribution.ID)
 					if err != nil {
-						return err
+						return err // rollback
 					}
 
 					if err := t.Save(db); err != nil {
-						return err
+						return err // rollback
 					}
 
-					c.logger.WithFields(log.Fields{
-						"method":     "UpdateCirculatingPack",
-						"cpcID":      cpc.ID,
-						"ID":         distribution.ID,
-						"packFlowID": flowID,
-					}).Info("Pack open transaction created")
+					eventLogger.Info("Pack open transaction created")
+
+				// -- OPENED, Pack has been opened onchain ----------------------------
 				case OPENED:
+
+					// Make sure the pack is in correct state
 					if err := pack.Open(); err != nil {
-						return err
+						return err // rollback
 					}
+
+					// Update the pack in database
 					if err := UpdatePack(db, pack); err != nil {
-						return err
+						return err // rollback
 					}
 				}
 
-				c.logger.WithFields(log.Fields{
-					"method":     "UpdateCirculatingPack",
-					"cpcID":      cpc.ID,
-					"blockStart": start,
-					"blockEnd":   end,
-					"eventType":  e.Type,
-				}).Trace("Handling event complete")
+				eventLogger.Trace("Handling event complete")
 			}
 		}
 	}
 
 	cpc.StartAtBlock = end
 
+	// Update the CirculatingPackContract in database
 	if err := UpdateCirculatingPackContract(db, cpc); err != nil {
-		return err
+		return err // rollback
 	}
 
-	return nil
+	logger.Trace("Update circulating pack complete")
+
+	return nil // commit
 }

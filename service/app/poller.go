@@ -14,6 +14,7 @@ import (
 
 // TODO: refactor the db transaction logic
 
+// poller is responsible for the main operation of the service
 func poller(app *App) {
 
 	ticker := time.NewTicker(time.Second) // TODO (latenssi): configurable?
