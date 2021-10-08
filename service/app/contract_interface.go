@@ -2,7 +2,6 @@ package app
 
 import (
 	"context"
-	"errors"
 	"fmt"
 	"sort"
 
@@ -579,20 +578,11 @@ func (c *Contract) UpdateMintingStatus(ctx context.Context, db *gorm.DB, dist *D
 
 			pack, err := GetMintingPack(db, commitmentHash)
 			if err != nil {
-				if errors.Is(err, gorm.ErrRecordNotFound) {
-					eventLogger.WithFields(log.Fields{
-						"packFlowID":     packFlowID,
-						"commitmentHash": commitmentHash,
-						"error":          "unable to find a minting pack from database",
-					}).Warn("Error while handling event")
-				} else {
-					eventLogger.WithFields(log.Fields{
-						"packFlowID":     packFlowID,
-						"commitmentHash": commitmentHash,
-						"error":          err,
-					}).Warn("Error while handling event")
-				}
-
+				eventLogger.WithFields(log.Fields{
+					"packFlowID":     packFlowID,
+					"commitmentHash": commitmentHash,
+					"error":          err,
+				}).Warn("Error while handling event")
 				continue // ignore this commitmenthash, go to next event
 			}
 
