@@ -10,6 +10,7 @@ import (
 	"github.com/flow-hydraulics/flow-pds/service/config"
 	"github.com/flow-hydraulics/flow-pds/service/flow_helpers"
 	"github.com/flow-hydraulics/flow-pds/service/transactions"
+	"github.com/google/uuid"
 	"github.com/onflow/cadence"
 	"github.com/onflow/flow-go-sdk"
 	"github.com/onflow/flow-go-sdk/client"
@@ -772,7 +773,17 @@ func (c *Contract) UpdateCirculatingPack(ctx context.Context, db *gorm.DB, cpc *
 						cadence.NewArray(collectibleContractNames),
 						cadence.NewArray(collectibleIDs),
 						cadence.String(pack.Salt.String()),
-						cadence.NewOptional(nil),
+					}
+
+					{ // This block should run only if we want to reveal AND open the pack
+
+						// Get the owner of the pack from the transaction that emitted the reveal request event
+						tx, err := c.flowClient.GetTransaction(ctx, e.TransactionID)
+						if err != nil {
+							return err // rollback
+						}
+						owner := tx.Authorizers[0]
+						arguments = append(arguments, cadence.NewOptional(cadence.Address(owner)))
 					}
 
 					txScript := util.ParseCadenceTemplate(REVEAL_SCRIPT)
@@ -783,6 +794,15 @@ func (c *Contract) UpdateCirculatingPack(ctx context.Context, db *gorm.DB, cpc *
 
 					if err := t.Save(db); err != nil {
 						return err // rollback
+					}
+
+					{ // This block should run only if we want to reveal AND open the pack
+
+						// Reset the ID to save a second indentical transaction
+						t.ID = uuid.Nil
+						if err := t.Save(db); err != nil {
+							return err // rollback
+						}
 					}
 
 					eventLogger.Info("Pack reveal transaction created")

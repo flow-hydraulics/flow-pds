@@ -325,7 +325,7 @@ func TestE2E(t *testing.T) {
 		if err != nil {
 			t.Fatal(err)
 		}
-		if p.State == common.PackStateRevealed {
+		if p.State == common.PackStateRevealed || p.State == common.PackStateOpened {
 			break
 		}
 		time.Sleep(time.Second)
@@ -333,36 +333,36 @@ func TestE2E(t *testing.T) {
 
 	// -- Open --
 
-	t.Log("Owner requests to open the pack")
+	// t.Log("Owner requests to open the pack")
 
-	openRequest := "./cadence-transactions/packNFT/open_request.cdc"
-	openRequestCode := util.ParseCadenceTemplate(openRequest)
-	e, err = g.
-		TransactionFromFile(openRequest, openRequestCode).
-		SignProposeAndPayAs("owner").
-		Argument(randomPackID).
-		RunE()
-	if err != nil {
-		t.Fatal(err)
-	}
+	// openRequest := "./cadence-transactions/packNFT/open_request.cdc"
+	// openRequestCode := util.ParseCadenceTemplate(openRequest)
+	// e, err = g.
+	// 	TransactionFromFile(openRequest, openRequestCode).
+	// 	SignProposeAndPayAs("owner").
+	// 	Argument(randomPackID).
+	// 	RunE()
+	// if err != nil {
+	// 	t.Fatal(err)
+	// }
 
-	events = util.ParseTestEvents(e)
-	// Owner withdraw PackNFT from the collection, calls open on it and deposits back into their collection
-	util.NewExpectedPackNFTEvent("OpenRequest").AddField("id", randomPackID.String()).AssertEqual(t, events[0])
+	// events = util.ParseTestEvents(e)
+	// // Owner withdraw PackNFT from the collection, calls open on it and deposits back into their collection
+	// util.NewExpectedPackNFTEvent("OpenRequest").AddField("id", randomPackID.String()).AssertEqual(t, events[0])
 
-	t.Log("PDS backend submits open transaction")
+	// t.Log("PDS backend submits open transaction")
 
-	t.Log("Wait for the open to happen")
-	for {
-		p, err := a.GetPack(context.Background(), randomPack.ID)
-		if err != nil {
-			t.Fatal(err)
-		}
-		if p.State == common.PackStateOpened {
-			break
-		}
-		time.Sleep(time.Second)
-	}
+	// t.Log("Wait for the open to happen")
+	// for {
+	// 	p, err := a.GetPack(context.Background(), randomPack.ID)
+	// 	if err != nil {
+	// 		t.Fatal(err)
+	// 	}
+	// 	if p.State == common.PackStateOpened {
+	// 		break
+	// 	}
+	// 	time.Sleep(time.Second)
+	// }
 
 	// Wait a bit more as the blocktime might be 1s if run from the test script
 	time.Sleep(time.Second * 2)
