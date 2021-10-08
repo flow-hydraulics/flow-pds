@@ -111,3 +111,9 @@ func HandleAbortDistribution(logger *log.Logger, app *app.App) http.HandlerFunc 
 		handleJsonResponse(rw, http.StatusOK, "Ok")
 	}
 }
+
+func HandleHealthReady() http.HandlerFunc {
+	return func(rw http.ResponseWriter, r *http.Request) {
+		rw.WriteHeader(http.StatusOK)
+	}
+}
