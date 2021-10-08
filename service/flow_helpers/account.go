@@ -72,7 +72,7 @@ func (a *Account) KeyIndex() int {
 	return i
 }
 
-func (a Account) GetProposalKey(ctx context.Context, flowClient *client.Client) (*flow.AccountKey, error) {
+func (a *Account) GetProposalKey(ctx context.Context, flowClient *client.Client) (*flow.AccountKey, error) {
 	account, err := flowClient.GetAccount(ctx, a.Address)
 	k := account.Keys[a.KeyIndex()]
 	if err != nil {
