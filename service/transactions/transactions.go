@@ -24,7 +24,7 @@ type StorableTransaction struct {
 
 	State         common.TransactionState `gorm:"column:state;not null;default:null;index"`
 	Error         string                  `gorm:"column:error"`
-	RetryCount    uint                    `gorm:"column:retry_count"`
+	RetryCount    uint                    `gorm:"column:retry_count"` // TODO increment this
 	TransactionID string                  `gorm:"column:transaction_id"`
 
 	Name      string         `gorm:"column:name"` // Just a way to identify a transaction
