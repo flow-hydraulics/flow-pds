@@ -207,7 +207,6 @@ pub contract PackNFT: NonFungibleToken, IPackNFT {
         p.reveal(id: id, nfts: nfts, salt: salt)
     }
 
-    // TODO getters for packs status
     pub fun borrowPackRepresentation(id: UInt64):  &Pack? {
         return &self.packs[id] as &Pack
     }
