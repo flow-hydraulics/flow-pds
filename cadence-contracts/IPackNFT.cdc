@@ -11,7 +11,7 @@ pub contract interface IPackNFT{
     pub let collectionPublicPath: PublicPath 
     /// Request for Reveal
     ///
-    pub event RevealRequest(id: UInt64)
+    pub event RevealRequest(id: UInt64, openRequest: Bool)
     /// Request for Open
     ///
     /// This is emitted when owner of a PackNFT request for the entitled NFT to be
@@ -30,7 +30,7 @@ pub contract interface IPackNFT{
     /// Emitted when a packNFT has been opened
     pub event Opened(id: UInt64)
 
-    access(contract) fun revealRequest(id: UInt64)
+    access(contract) fun revealRequest(id: UInt64, openRequest: Bool)
     access(contract) fun openRequest(id: UInt64)
 
     pub struct interface Collectible {
@@ -64,12 +64,12 @@ pub contract interface IPackNFT{
         pub let id: UInt64
         pub let commitHash: String
         pub let issuer: Address
-        pub fun reveal()
+        pub fun reveal(openRequest: Bool)
         pub fun open() 
     }
     
     pub resource interface IPackNFTOwnerOperator{
-        pub fun reveal()
+        pub fun reveal(openRequest: Bool)
         pub fun open() 
     }
     

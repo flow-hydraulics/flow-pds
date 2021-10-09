@@ -61,13 +61,14 @@ func Verify(
 	return
 }
 
-func OwnerRevealReq(g *gwtf.GoWithTheFlow, id uint64) (events []*gwtf.FormatedEvent, err error) {
+func OwnerRevealReq(g *gwtf.GoWithTheFlow, id uint64, openRequest bool) (events []*gwtf.FormatedEvent, err error) {
 	revealRequest := "../cadence-transactions/packNFT/reveal_request.cdc"
 	revealRequestCode := util.ParseCadenceTemplate(revealRequest)
 	e, err := g.
 		TransactionFromFile(revealRequest, revealRequestCode).
 		SignProposeAndPayAs("owner").
 		UInt64Argument(id).
+		BooleanArgument(openRequest).
 		RunE()
 	events = util.ParseTestEvents(e)
 	return
