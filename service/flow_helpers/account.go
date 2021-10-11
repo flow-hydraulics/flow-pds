@@ -76,7 +76,7 @@ func (a *Account) KeyIndex() int {
 	return i
 }
 
-func (a *Account) GetProposalKey(ctx context.Context, flowClient *client.Client) (*flow.AccountKey, error) {
+func (a *Account) GetProposalKey(ctx context.Context, flowClient *client.Client, referenceBlockID flow.Identifier) (*flow.AccountKey, error) {
 	account, err := flowClient.GetAccount(ctx, a.Address)
 	if err != nil {
 		return nil, fmt.Errorf("error in flow_helpers.Account.GetProposalKey: %w", err)
@@ -84,9 +84,7 @@ func (a *Account) GetProposalKey(ctx context.Context, flowClient *client.Client)
 
 	k := account.Keys[a.KeyIndex()]
 
-	if latestBlockHeader, err := flowClient.GetLatestBlockHeader(ctx, true); err == nil {
-		k.SequenceNumber = getSequenceNumber(a.Address, k, latestBlockHeader.ID)
-	}
+	k.SequenceNumber = getSequenceNumber(a.Address, k, referenceBlockID)
 
 	return k, nil
 }
@@ -134,6 +132,7 @@ func getGoogleKMSSigner(address flow.Address, resourceId string) (crypto.Signer,
 // getSequenceNumber, is a hack around the fact that GetAccount on Flow Client returns
 // the latest SequenceNumber on-chain but it might be outdated as we may be
 // sending multiple transactions in the current block
+// NOTE: This breaks if running in a multi-instance setup
 func getSequenceNumber(address flow.Address, accountKey *flow.AccountKey, currentBlockID flow.Identifier) uint64 {
 	seqNumLock.Lock()
 	defer seqNumLock.Unlock()
