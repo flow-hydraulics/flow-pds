@@ -102,7 +102,7 @@ func (c *Contract) StartSettlement(ctx context.Context, db *gorm.DB, dist *Distr
 		return err // rollback
 	}
 
-	latestBlock, err := c.flowClient.GetLatestBlock(ctx, true)
+	latestBlockHeader, err := c.flowClient.GetLatestBlockHeader(ctx, true)
 	if err != nil {
 		return err // rollback
 	}
@@ -131,7 +131,7 @@ func (c *Contract) StartSettlement(ctx context.Context, db *gorm.DB, dist *Distr
 		DistributionID: dist.ID,
 		CurrentCount:   0,
 		TotalCount:     uint(len(collectibles)),
-		StartAtBlock:   latestBlock.Height - 1,
+		StartAtBlock:   latestBlockHeader.Height - 1,
 		EscrowAddress:  common.FlowAddressFromString(c.cfg.AdminAddress),
 		Collectibles:   settlementCollectibles,
 	}
@@ -218,7 +218,7 @@ func (c *Contract) StartMinting(ctx context.Context, db *gorm.DB, dist *Distribu
 		return err // rollback
 	}
 
-	latestBlock, err := c.flowClient.GetLatestBlock(ctx, true)
+	latestBlockHeader, err := c.flowClient.GetLatestBlockHeader(ctx, true)
 	if err != nil {
 		return err // rollback
 	}
@@ -227,7 +227,7 @@ func (c *Contract) StartMinting(ctx context.Context, db *gorm.DB, dist *Distribu
 	cpc := CirculatingPackContract{
 		Name:         dist.PackTemplate.PackReference.Name,
 		Address:      dist.PackTemplate.PackReference.Address,
-		StartAtBlock: latestBlock.Height - 1,
+		StartAtBlock: latestBlockHeader.Height - 1,
 	}
 
 	// Try to find an existing one (CirculatingPackContract)
@@ -271,7 +271,7 @@ func (c *Contract) StartMinting(ctx context.Context, db *gorm.DB, dist *Distribu
 		DistributionID: dist.ID,
 		CurrentCount:   0,
 		TotalCount:     uint(len(packs)),
-		StartAtBlock:   latestBlock.Height - 1,
+		StartAtBlock:   latestBlockHeader.Height - 1,
 	}
 
 	if err := InsertMinting(db, &minting); err != nil {
@@ -389,13 +389,13 @@ func (c *Contract) UpdateSettlementStatus(ctx context.Context, db *gorm.DB, dist
 		return err // rollback
 	}
 
-	latestBlock, err := c.flowClient.GetLatestBlock(ctx, true)
+	latestBlockHeader, err := c.flowClient.GetLatestBlockHeader(ctx, true)
 	if err != nil {
 		return err // rollback
 	}
 
 	begin := settlement.StartAtBlock + 1
-	end := min(latestBlock.Height, begin+MAX_EVENTS_PER_CHECK)
+	end := min(latestBlockHeader.Height, begin+MAX_EVENTS_PER_CHECK)
 
 	logger = logger.WithFields(log.Fields{
 		"blockBegin": begin,
@@ -523,13 +523,13 @@ func (c *Contract) UpdateMintingStatus(ctx context.Context, db *gorm.DB, dist *D
 		return err // rollback
 	}
 
-	latestBlock, err := c.flowClient.GetLatestBlock(ctx, true)
+	latestBlockHeader, err := c.flowClient.GetLatestBlockHeader(ctx, true)
 	if err != nil {
 		return err // rollback
 	}
 
 	begin := minting.StartAtBlock + 1
-	end := min(latestBlock.Height, begin+MAX_EVENTS_PER_CHECK)
+	end := min(latestBlockHeader.Height, begin+MAX_EVENTS_PER_CHECK)
 
 	logger = logger.WithFields(log.Fields{
 		"blockBegin": begin,
@@ -680,13 +680,13 @@ func (c *Contract) UpdateCirculatingPack(ctx context.Context, db *gorm.DB, cpc *
 		OPENED,
 	}
 
-	latestBlock, err := c.flowClient.GetLatestBlock(ctx, true)
+	latestBlockHeader, err := c.flowClient.GetLatestBlockHeader(ctx, true)
 	if err != nil {
 		return err // rollback
 	}
 
 	begin := cpc.StartAtBlock + 1
-	end := min(latestBlock.Height, begin+MAX_EVENTS_PER_CHECK)
+	end := min(latestBlockHeader.Height, begin+MAX_EVENTS_PER_CHECK)
 
 	logger = logger.WithFields(log.Fields{
 		"blockBegin": begin,
