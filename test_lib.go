@@ -79,7 +79,10 @@ func getTestApp(cfg *config.Config, poll bool) (*app.App, func()) {
 		panic(err)
 	}
 
-	app := app.New(cfg, testLogger, db, flowClient, poll)
+	app, err := app.New(cfg, testLogger, db, flowClient, poll)
+	if err != nil {
+		panic(err)
+	}
 
 	clean := func() {
 		app.Close()

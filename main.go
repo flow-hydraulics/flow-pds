@@ -94,7 +94,11 @@ func runServer(cfg *config.Config) error {
 	}
 
 	// Application
-	app := app.New(cfg, logger, db, flowClient, true)
+	app, err := app.New(cfg, logger, db, flowClient, true)
+	if err != nil {
+		return err
+	}
+
 	defer app.Close()
 
 	// HTTP server

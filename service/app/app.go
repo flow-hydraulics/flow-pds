@@ -20,12 +20,16 @@ type App struct {
 	quit       chan bool // Chan type does not matter as we only use this to 'close'
 }
 
-func New(cfg *config.Config, logger *log.Logger, db *gorm.DB, flowClient *client.Client, poll bool) *App {
+func New(cfg *config.Config, logger *log.Logger, db *gorm.DB, flowClient *client.Client, poll bool) (*App, error) {
 	if logger == nil {
 		panic("no logger")
 	}
 
-	contract := NewContract(cfg, logger, flowClient)
+	contract, err := NewContract(cfg, logger, flowClient)
+	if err != nil {
+		return nil, err
+	}
+
 	quit := make(chan bool)
 	app := &App{cfg, logger, db, flowClient, contract, quit}
 
@@ -33,7 +37,7 @@ func New(cfg *config.Config, logger *log.Logger, db *gorm.DB, flowClient *client
 		go poller(app)
 	}
 
-	return app
+	return app, nil
 }
 
 // Closes allows the poller to close controllably

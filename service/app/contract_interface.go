@@ -59,14 +59,21 @@ func minInt(a int, b int) int {
 	return a
 }
 
-func NewContract(cfg *config.Config, logger *log.Logger, flowClient *client.Client) *Contract {
+func NewContract(cfg *config.Config, logger *log.Logger, flowClient *client.Client) (*Contract, error) {
 	pdsAccount := flow_helpers.GetAccount(
 		flow.HexToAddress(cfg.AdminAddress),
 		cfg.AdminPrivateKey,
 		cfg.AdminPrivateKeyType,
 		cfg.AdminPrivateKeyIndexes,
 	)
-	return &Contract{cfg, logger, flowClient, pdsAccount}
+	flowAccount, err := flowClient.GetAccount(context.Background(), pdsAccount.Address)
+	if err != nil {
+		return nil, err
+	}
+	if len(flowAccount.Keys) < len(pdsAccount.KeyIndexes) {
+		return nil, fmt.Errorf("too many key indexes given for admin account")
+	}
+	return &Contract{cfg, logger, flowClient, pdsAccount}, nil
 }
 
 // StartSettlement sets the given distributions state to 'settling' and starts the settlement
