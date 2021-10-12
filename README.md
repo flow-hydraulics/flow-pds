@@ -79,6 +79,7 @@ In order to use a key stored in Google KMS as admin key:
 | AdminPrivateKey | `FLOW_PDS_ADMIN_PRIVATE_KEY` | Private key value, for Google KMS this should be the Resource Name of the key | `""` | `projects/KMS_PROJECT_NAME/locations/KMS_PROJECT_LOCATION/keyRings/KMS_KEYRING_NAME/cryptoKeys/KMS_ADMIN_KEY_NAME/cryptoKeyVersions/1`, `9c687961e7a1abe1e445830e7ec118ffd1e2a0449cf705f5476b3f100e94dc29` |
 | AdminPrivateKeyIndexes | `FLOW_PDS_ADMIN_PRIVATE_KEY_INDEXES` | Comma separated list of key indexes that can be used. | `0` | `1,2,3` |
 | AdminPrivateKeyType | `FLOW_PDS_ADMIN_PRIVATE_KEY_TYPE` | Type of key, `google_kms` for Google KMS | `local` | `local`, `google_kms` |
+| - | `GOOGLE_APPLICATION_CREDENTIALS` | Path the the Google KMS credentials JSON file. |  | `/path/to/kms-credentials.json` |
 
 
 
