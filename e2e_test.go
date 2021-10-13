@@ -298,9 +298,9 @@ func TestE2E(t *testing.T) {
 		t.Fatal(err)
 	}
 
-	// -- Reveal --
+	// -- Reveal & open --
 
-	t.Log("Owner requests to reveal the pack")
+	t.Log("Owner requests to reveal and open the pack")
 
 	revealRequest := "./cadence-transactions/packNFT/reveal_request.cdc"
 	revealRequestCode := util.ParseCadenceTemplate(revealRequest)
@@ -308,19 +308,19 @@ func TestE2E(t *testing.T) {
 		TransactionFromFile(revealRequest, revealRequestCode).
 		SignProposeAndPayAs("owner").
 		Argument(randomPackID).
-		BooleanArgument(false).
+		BooleanArgument(true).
 		RunE()
 	if err != nil {
 		t.Fatal(err)
 	}
 
 	events = util.ParseTestEvents(e)
-	// Onwer withdraw PackNFT from the collection, calls reveal on it and deposits back into their collection
-	util.NewExpectedPackNFTEvent("RevealRequest").AddField("id", randomPackID.String()).AddField("openRequest", "false").AssertEqual(t, events[0])
+	// Owner withdraw PackNFT from the collection, calls reveal & open on it and deposits back into their collection
+	util.NewExpectedPackNFTEvent("RevealRequest").AddField("id", randomPackID.String()).AddField("openRequest", "true").AssertEqual(t, events[0])
 
-	t.Log("PDS backend submits reveal transaction")
+	t.Log("PDS backend submits reveal transaction w/ openRequest=true")
 
-	t.Log("Wait for the reveal to happen")
+	t.Log("Wait for the reveal & open to happen")
 	for {
 		p, err := a.GetPack(context.Background(), randomPack.ID)
 		if err != nil {

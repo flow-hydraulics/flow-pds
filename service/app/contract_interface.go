@@ -773,7 +773,14 @@ func (c *Contract) UpdateCirculatingPack(ctx context.Context, db *gorm.DB, cpc *
 						collectibleIDs[i] = cadence.UInt64(c.FlowID.Int64)
 					}
 
-					openRequest := true // TODO(nanuuki): read this from the event data (openRequest field)
+					openRequestValue, ok := evtValueMap["openRequest"]
+					if !ok { // TODO(nanuuki): rollback or use a default value for openRequest?
+						err := fmt.Errorf("could not read 'openRequest' from event %s", e)
+						return err // rollback
+					}
+
+					openRequest := openRequestValue.ToGoValue().(bool)
+					eventLogger = eventLogger.WithFields(log.Fields{"openRequest": openRequest})
 
 					arguments := []cadence.Value{
 						cadence.UInt64(distribution.FlowID.Int64),
@@ -796,7 +803,7 @@ func (c *Contract) UpdateCirculatingPack(ctx context.Context, db *gorm.DB, cpc *
 						return err // rollback
 					}
 
-					if openRequest { // This block should run only if we want to reveal AND open the pack
+					if openRequest { // NOTE: This block should run only if we want to reveal AND open the pack
 						// Reset the ID to save a second indentical transaction
 						t.ID = uuid.Nil
 						if err := t.Save(db); err != nil {
