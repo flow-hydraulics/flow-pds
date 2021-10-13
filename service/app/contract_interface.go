@@ -420,7 +420,7 @@ func (c *Contract) UpdateSettlementStatus(ctx context.Context, db *gorm.DB, dist
 
 		for _, be := range arr {
 			for _, e := range be.Events {
-				eventLogger := logger.WithFields(log.Fields{"eventType": e.Type})
+				eventLogger := logger.WithFields(log.Fields{"eventType": e.Type, "eventID": e.ID()})
 
 				eventLogger.Debug("Handling event")
 
@@ -549,7 +549,7 @@ func (c *Contract) UpdateMintingStatus(ctx context.Context, db *gorm.DB, dist *D
 
 	for _, be := range arr {
 		for _, e := range be.Events {
-			eventLogger := logger.WithFields(log.Fields{"eventType": e.Type})
+			eventLogger := logger.WithFields(log.Fields{"eventType": e.Type, "eventID": e.ID()})
 
 			eventLogger.Debug("Handling event")
 
@@ -706,7 +706,7 @@ func (c *Contract) UpdateCirculatingPack(ctx context.Context, db *gorm.DB, cpc *
 
 		for _, be := range arr {
 			for _, e := range be.Events {
-				eventLogger := logger.WithFields(log.Fields{"eventType": e.Type})
+				eventLogger := logger.WithFields(log.Fields{"eventType": e.Type, "eventID": e.ID()})
 
 				eventLogger.Debug("Handling event")
 
