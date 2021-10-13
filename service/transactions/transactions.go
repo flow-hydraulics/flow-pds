@@ -105,12 +105,12 @@ func (t *StorableTransaction) Prepare(ctx context.Context, flowClient *client.Cl
 		}
 	}
 
-	latestBlock, err := flowClient.GetLatestBlock(ctx, true)
+	latestBlockHeader, err := flowClient.GetLatestBlockHeader(ctx, true)
 	if err != nil {
 		return nil, err
 	}
 
-	tx.SetReferenceBlockID(latestBlock.ID)
+	tx.SetReferenceBlockID(latestBlockHeader.ID)
 
 	if err := flow_helpers.SignProposeAndPayAs(ctx, flowClient, account, tx); err != nil {
 		return nil, err

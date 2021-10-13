@@ -8,7 +8,7 @@ import (
 )
 
 func SignProposeAndPayAs(ctx context.Context, flowClient *client.Client, account *Account, tx *flow.Transaction) error {
-	key, err := account.GetProposalKey(ctx, flowClient)
+	key, err := account.GetProposalKey(ctx, flowClient, tx.ReferenceBlockID)
 	if err != nil {
 		return err
 	}
