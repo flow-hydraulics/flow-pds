@@ -14,6 +14,10 @@ Dev environment
     # Needs docker-compose installed
     make dev
 
+### Deployment notes
+
+**NOTE:** Currently the PDS backend only supports a single instance setup. This is because of sequence number bookkeeping in `service/flow_helpers/account.go` (see `getSequenceNumber`).
+
 ## Testing
 
     cp env.example .env.test
