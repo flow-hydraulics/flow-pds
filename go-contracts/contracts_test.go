@@ -250,11 +250,12 @@ func TestOwnerRevealReq(t *testing.T) {
 	currentPack := nextPackNFTId - 1
 	assert.NoError(t, err)
 
-	events, err := packnft.OwnerRevealReq(g, currentPack)
+	events, err := packnft.OwnerRevealReq(g, currentPack, false)
 	assert.NoError(t, err)
 
 	util.NewExpectedPackNFTEvent("RevealRequest").
 		AddField("id", strconv.Itoa(int(currentPack))).
+        AddField("openRequest", "false").
 		AssertEqual(t, events[0])
 
 	// Request should not change the state
@@ -311,7 +312,8 @@ func TestPDSCannotRevealwithWrongSalt(t *testing.T) {
 		cadence.NewArray(name),
 		cadence.NewArray(ids),
 		incorrectSalt,
-		"owner",
+        "owner",
+        false,
 		"pds",
 	)
 
@@ -355,6 +357,7 @@ func TestPDSCannotRevealwithWrongNFTs(t *testing.T) {
 		cadence.NewArray(ids),
 		salt,
 		"owner",
+        false,
 		"pds",
 	)
 	assert.Error(t, err)
@@ -401,7 +404,8 @@ func TestPDSRevealPackNFTs(t *testing.T) {
 		cadence.NewArray(name),
 		cadence.NewArray(ids),
 		salt,
-		"",
+		"owner",
+        false,
 		"pds",
 	)
 	assert.NoError(t, err)
@@ -536,6 +540,7 @@ func TestPDSRevealAndOpenPackNFT(t *testing.T) {
 		cadence.NewArray(ids),
 		salt,
 		"owner",
+        true,
 		"pds",
 	)
 	assert.NoError(t, err)
@@ -557,6 +562,7 @@ func TestPDSRevealAndOpenPackNFT(t *testing.T) {
 		cadence.NewArray(ids),
 		salt,
 		"owner",
+        true,
 		"pds",
 	)
 	assert.NoError(t, err)

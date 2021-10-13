@@ -308,6 +308,7 @@ func TestE2E(t *testing.T) {
 		TransactionFromFile(revealRequest, revealRequestCode).
 		SignProposeAndPayAs("owner").
 		Argument(randomPackID).
+		BooleanArgument(false).
 		RunE()
 	if err != nil {
 		t.Fatal(err)
@@ -315,7 +316,7 @@ func TestE2E(t *testing.T) {
 
 	events = util.ParseTestEvents(e)
 	// Onwer withdraw PackNFT from the collection, calls reveal on it and deposits back into their collection
-	util.NewExpectedPackNFTEvent("RevealRequest").AddField("id", randomPackID.String()).AssertEqual(t, events[0])
+	util.NewExpectedPackNFTEvent("RevealRequest").AddField("id", randomPackID.String()).AddField("openRequest", "false").AssertEqual(t, events[0])
 
 	t.Log("PDS backend submits reveal transaction")
 

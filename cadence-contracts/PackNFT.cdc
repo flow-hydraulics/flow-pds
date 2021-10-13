@@ -15,7 +15,7 @@ pub contract PackNFT: NonFungibleToken, IPackNFT {
     // representation of the NFT in this contract to keep track of states
     access(contract) let packs: @{UInt64: Pack}
 
-    pub event RevealRequest(id: UInt64)
+    pub event RevealRequest(id: UInt64, openRequest: Bool)
     pub event OpenRequest(id: UInt64)
     pub event Revealed(id: UInt64, salt: String, nfts: String)
     pub event Opened(id: UInt64)
@@ -115,8 +115,8 @@ pub contract PackNFT: NonFungibleToken, IPackNFT {
         pub let commitHash: String
         pub let issuer: Address
 
-        pub fun reveal(){
-            PackNFT.revealRequest(id: self.id)
+        pub fun reveal(openRequest: Bool){
+            PackNFT.revealRequest(id: self.id, openRequest: openRequest)
         }
 
         pub fun open(){
@@ -190,10 +190,10 @@ pub contract PackNFT: NonFungibleToken, IPackNFT {
         }
     }
 
-    access(contract) fun revealRequest(id: UInt64 ) {
+    access(contract) fun revealRequest(id: UInt64, openRequest: Bool ) {
         let p = PackNFT.borrowPackRepresentation(id: id) ?? panic ("No such pack")
         assert(p.status == PackNFT.Status.Sealed, message: "Pack status must be Sealed for reveal request")
-        emit RevealRequest(id: id)
+        emit RevealRequest(id: id, openRequest: openRequest)
     }
 
     access(contract) fun openRequest(id: UInt64) {
@@ -207,7 +207,6 @@ pub contract PackNFT: NonFungibleToken, IPackNFT {
         p.reveal(id: id, nfts: nfts, salt: salt)
     }
 
-    // TODO getters for packs status
     pub fun borrowPackRepresentation(id: UInt64):  &Pack? {
         return &self.packs[id] as &Pack
     }
