@@ -10,6 +10,7 @@ import (
 	"github.com/flow-hydraulics/flow-pds/service/config"
 	"github.com/flow-hydraulics/flow-pds/service/flow_helpers"
 	"github.com/flow-hydraulics/flow-pds/service/transactions"
+	"github.com/google/uuid"
 	"github.com/onflow/cadence"
 	"github.com/onflow/flow-go-sdk"
 	"github.com/onflow/flow-go-sdk/client"
@@ -419,7 +420,7 @@ func (c *Contract) UpdateSettlementStatus(ctx context.Context, db *gorm.DB, dist
 
 		for _, be := range arr {
 			for _, e := range be.Events {
-				eventLogger := logger.WithFields(log.Fields{"eventType": e.Type})
+				eventLogger := logger.WithFields(log.Fields{"eventType": e.Type, "eventID": e.ID()})
 
 				eventLogger.Debug("Handling event")
 
@@ -548,7 +549,7 @@ func (c *Contract) UpdateMintingStatus(ctx context.Context, db *gorm.DB, dist *D
 
 	for _, be := range arr {
 		for _, e := range be.Events {
-			eventLogger := logger.WithFields(log.Fields{"eventType": e.Type})
+			eventLogger := logger.WithFields(log.Fields{"eventType": e.Type, "eventID": e.ID()})
 
 			eventLogger.Debug("Handling event")
 
@@ -705,7 +706,7 @@ func (c *Contract) UpdateCirculatingPack(ctx context.Context, db *gorm.DB, cpc *
 
 		for _, be := range arr {
 			for _, e := range be.Events {
-				eventLogger := logger.WithFields(log.Fields{"eventType": e.Type})
+				eventLogger := logger.WithFields(log.Fields{"eventType": e.Type, "eventID": e.ID()})
 
 				eventLogger.Debug("Handling event")
 
@@ -745,6 +746,7 @@ func (c *Contract) UpdateCirculatingPack(ctx context.Context, db *gorm.DB, cpc *
 
 					// Make sure the pack is in correct state
 					if err := pack.RevealRequestHandled(); err != nil {
+						err := fmt.Errorf("error while handling %s: %w", eventName, err)
 						return err // rollback
 					}
 
@@ -771,6 +773,15 @@ func (c *Contract) UpdateCirculatingPack(ctx context.Context, db *gorm.DB, cpc *
 						collectibleIDs[i] = cadence.UInt64(c.FlowID.Int64)
 					}
 
+					openRequestValue, ok := evtValueMap["openRequest"]
+					if !ok { // TODO(nanuuki): rollback or use a default value for openRequest?
+						err := fmt.Errorf("could not read 'openRequest' from event %s", e)
+						return err // rollback
+					}
+
+					openRequest := openRequestValue.ToGoValue().(bool)
+					eventLogger = eventLogger.WithFields(log.Fields{"openRequest": openRequest})
+
 					arguments := []cadence.Value{
 						cadence.UInt64(distribution.FlowID.Int64),
 						cadence.UInt64(pack.FlowID.Int64),
@@ -779,7 +790,7 @@ func (c *Contract) UpdateCirculatingPack(ctx context.Context, db *gorm.DB, cpc *
 						cadence.NewArray(collectibleIDs),
 						cadence.String(pack.Salt.String()),
 						cadence.Address(owner),
-						cadence.NewBool(true),
+						cadence.NewBool(openRequest),
 					}
 
 					txScript := util.ParseCadenceTemplate(REVEAL_SCRIPT)
@@ -792,6 +803,14 @@ func (c *Contract) UpdateCirculatingPack(ctx context.Context, db *gorm.DB, cpc *
 						return err // rollback
 					}
 
+					if openRequest { // NOTE: This block should run only if we want to reveal AND open the pack
+						// Reset the ID to save a second indentical transaction
+						t.ID = uuid.Nil
+						if err := t.Save(db); err != nil {
+							return err // rollback
+						}
+					}
+
 					eventLogger.Info("Pack reveal transaction created")
 
 				// -- REVEALED, Pack has been revealed onchain ------------------------
@@ -799,6 +818,7 @@ func (c *Contract) UpdateCirculatingPack(ctx context.Context, db *gorm.DB, cpc *
 
 					// Make sure the pack is in correct state
 					if err := pack.Reveal(); err != nil {
+						err := fmt.Errorf("error while handling %s: %w", eventName, err)
 						return err // rollback
 					}
 
@@ -812,6 +832,7 @@ func (c *Contract) UpdateCirculatingPack(ctx context.Context, db *gorm.DB, cpc *
 
 					// Make sure the pack is in correct state
 					if err := pack.OpenRequestHandled(); err != nil {
+						err := fmt.Errorf("error while handling %s: %w", eventName, err)
 						return err // rollback
 					}
 
@@ -865,6 +886,7 @@ func (c *Contract) UpdateCirculatingPack(ctx context.Context, db *gorm.DB, cpc *
 
 					// Make sure the pack is in correct state
 					if err := pack.Open(); err != nil {
+						err := fmt.Errorf("error while handling %s: %w", eventName, err)
 						return err // rollback
 					}
 
