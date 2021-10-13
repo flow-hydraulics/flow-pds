@@ -755,6 +755,13 @@ func (c *Contract) UpdateCirculatingPack(ctx context.Context, db *gorm.DB, cpc *
 						return err // rollback
 					}
 
+					// Get the owner of the pack from the transaction that emitted the open request event
+					tx, err := c.flowClient.GetTransaction(ctx, e.TransactionID)
+					if err != nil {
+						return err // rollback
+					}
+					owner := tx.Authorizers[0]
+
 					collectibleCount := len(pack.Collectibles)
 					collectibleContractAddresses := make([]cadence.Value, collectibleCount)
 					collectibleContractNames := make([]cadence.Value, collectibleCount)
@@ -766,6 +773,8 @@ func (c *Contract) UpdateCirculatingPack(ctx context.Context, db *gorm.DB, cpc *
 						collectibleIDs[i] = cadence.UInt64(c.FlowID.Int64)
 					}
 
+					openRequest := true // TODO(nanuuki): read this from the event data (openRequest field)
+
 					arguments := []cadence.Value{
 						cadence.UInt64(distribution.FlowID.Int64),
 						cadence.UInt64(pack.FlowID.Int64),
@@ -773,17 +782,8 @@ func (c *Contract) UpdateCirculatingPack(ctx context.Context, db *gorm.DB, cpc *
 						cadence.NewArray(collectibleContractNames),
 						cadence.NewArray(collectibleIDs),
 						cadence.String(pack.Salt.String()),
-					}
-
-					{ // This block should run only if we want to reveal AND open the pack
-
-						// Get the owner of the pack from the transaction that emitted the reveal request event
-						tx, err := c.flowClient.GetTransaction(ctx, e.TransactionID)
-						if err != nil {
-							return err // rollback
-						}
-						owner := tx.Authorizers[0]
-						arguments = append(arguments, cadence.NewOptional(cadence.Address(owner)))
+						cadence.Address(owner),
+						cadence.NewBool(openRequest),
 					}
 
 					txScript := util.ParseCadenceTemplate(REVEAL_SCRIPT)
@@ -796,8 +796,7 @@ func (c *Contract) UpdateCirculatingPack(ctx context.Context, db *gorm.DB, cpc *
 						return err // rollback
 					}
 
-					{ // This block should run only if we want to reveal AND open the pack
-
+					if openRequest { // This block should run only if we want to reveal AND open the pack
 						// Reset the ID to save a second indentical transaction
 						t.ID = uuid.Nil
 						if err := t.Save(db); err != nil {

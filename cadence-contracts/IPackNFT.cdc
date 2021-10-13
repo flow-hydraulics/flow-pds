@@ -9,9 +9,18 @@ pub contract interface IPackNFT{
     /// PublicPath expected for deposit
     /// 
     pub let collectionPublicPath: PublicPath 
+    /// PublicPath for receiving PackNFT
+    ///
+    pub let collectionIPackNFTPublicPath: PublicPath
+    /// StoragePath for the PackNFT Operator Resource (issuer owns this)
+    ///
+    pub let operatorStoragePath: StoragePath
+    /// PrivatePath to share IOperator interfaces with Operator (typically with PDS account)
+    /// 
+    pub let operatorPrivPath: PrivatePath
     /// Request for Reveal
     ///
-    pub event RevealRequest(id: UInt64)
+    pub event RevealRequest(id: UInt64, openRequest: Bool)
     /// Request for Open
     ///
     /// This is emitted when owner of a PackNFT request for the entitled NFT to be
@@ -30,8 +39,11 @@ pub contract interface IPackNFT{
     /// Emitted when a packNFT has been opened
     pub event Opened(id: UInt64)
 
-    access(contract) fun revealRequest(id: UInt64)
-    access(contract) fun openRequest(id: UInt64)
+    pub enum Status: UInt8 {
+        pub case Sealed
+        pub case Revealed
+        pub case Opened
+    }
 
     pub struct interface Collectible {
         pub let address: Address
@@ -41,7 +53,18 @@ pub contract interface IPackNFT{
         init(address: Address, contractName: String, id: UInt64)
     }
 
-    // TODO Pack resource
+    pub resource interface IPack {
+        pub let commitHash: String
+        pub let issuer: Address
+        pub var status: Status 
+        pub var salt: String?
+
+        pub fun verify(nftString: String): Bool 
+
+        access(contract) fun reveal(id: UInt64, nfts: [{IPackNFT.Collectible}], salt: String) 
+        access(contract) fun open(id: UInt64, nfts: [{IPackNFT.Collectible}]) 
+        init(commitHash: String, issuer: Address) 
+    }
     
     pub resource interface IOperator {
         pub fun mint(distId: UInt64, commitHash: String, issuer: Address): @NFT
@@ -64,12 +87,12 @@ pub contract interface IPackNFT{
         pub let id: UInt64
         pub let commitHash: String
         pub let issuer: Address
-        pub fun reveal()
+        pub fun reveal(openRequest: Bool)
         pub fun open() 
     }
     
     pub resource interface IPackNFTOwnerOperator{
-        pub fun reveal()
+        pub fun reveal(openRequest: Bool)
         pub fun open() 
     }
     
@@ -86,4 +109,8 @@ pub contract interface IPackNFT{
             }
         }
     }
+
+    access(contract) fun revealRequest(id: UInt64, openRequest: Bool)
+    access(contract) fun openRequest(id: UInt64)
+    pub fun publicReveal(id: UInt64, nfts: [{IPackNFT.Collectible}], salt: String) 
 }
