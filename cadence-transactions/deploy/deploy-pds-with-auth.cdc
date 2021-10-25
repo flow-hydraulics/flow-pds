@@ -3,11 +3,11 @@
 transaction(
     contractName: String, 
     code: String,
-    packIssuerStoragePath: StoragePath,
-    packIssuerCapRecv: PublicPath,
-    distCreatorStoragePath: StoragePath,
-    distCreatorPrivPath: PrivatePath,
-    distManagerStoragePath: StoragePath,
+    PackIssuerStoragePath: StoragePath,
+    PackIssuerCapRecv: PublicPath,
+    DistCreatorStoragePath: StoragePath,
+    DistCreatorPrivPath: PrivatePath,
+    DistManagerStoragePath: StoragePath,
     version: String,
 ) {
     prepare(owner: AuthAccount) {
@@ -18,11 +18,11 @@ transaction(
             owner.contracts.add(
                 name: contractName, 
                 code: code.decodeHex(), 
-                packIssuerStoragePath: packIssuerStoragePath,
-                packIssuerCapRecv: packIssuerCapRecv,
-                distCreatorStoragePath: distCreatorStoragePath,
-                distCreatorPrivPath: distCreatorPrivPath,
-                distManagerStoragePath: distManagerStoragePath,
+                PackIssuerStoragePath: PackIssuerStoragePath,
+                PackIssuerCapRecv: PackIssuerCapRecv,
+                DistCreatorStoragePath: DistCreatorStoragePath,
+                DistCreatorPrivPath: DistCreatorPrivPath,
+                DistManagerStoragePath: DistManagerStoragePath,
                 version: version,
             )
         } else {

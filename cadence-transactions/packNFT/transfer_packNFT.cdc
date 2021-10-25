@@ -7,11 +7,11 @@ transaction(recipient: Address, withdrawID: UInt64) {
 
         // borrow a reference to the signer's NFT collection
         let collectionRef = signer
-            .borrow<&PackNFT.Collection>(from: PackNFT.collectionStoragePath)!
+            .borrow<&PackNFT.Collection>(from: PackNFT.CollectionStoragePath)!
 
         // borrow a public reference to the receivers collection
         let depositRef = recipient
-            .getCapability(PackNFT.collectionPublicPath)!
+            .getCapability(PackNFT.CollectionPublicPath)!
             .borrow<&{NonFungibleToken.CollectionPublic}>()!
 
         // withdraw the NFT from the owner's collection

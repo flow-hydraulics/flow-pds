@@ -3,11 +3,11 @@
 transaction(
     contractName: String, 
     code: String,
-    collectionStoragePath: StoragePath,
-    collectionPublicPath: PublicPath,
-    collectionIPackNFTPublicPath: PublicPath,
-    operatorStoragePath: StoragePath,
-    operatorPrivPath: PrivatePath,
+    CollectionStoragePath: StoragePath,
+    CollectionPublicPath: PublicPath,
+    CollectionIPackNFTPublicPath: PublicPath,
+    OperatorStoragePath: StoragePath,
+    OperatorPrivPath: PrivatePath,
     version: String,
 ) {
     prepare(owner: AuthAccount) {
@@ -18,11 +18,11 @@ transaction(
             owner.contracts.add(
                 name: contractName, 
                 code: code.decodeHex(), 
-                collectionStoragePath: collectionStoragePath,
-                collectionPublicPath: collectionPublicPath,
-                collectionIPackNFTPublicPath: collectionIPackNFTPublicPath,
-                operatorStoragePath: operatorStoragePath,
-                operatorPrivPath: operatorPrivPath,
+                CollectionStoragePath: CollectionStoragePath,
+                CollectionPublicPath: CollectionPublicPath,
+                CollectionIPackNFTPublicPath: CollectionIPackNFTPublicPath,
+                OperatorStoragePath: OperatorStoragePath,
+                OperatorPrivPath: OperatorPrivPath,
                 version: version,
             )
         } else {
