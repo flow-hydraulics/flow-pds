@@ -133,7 +133,7 @@ func (c *Contract) StartSettlement(ctx context.Context, db *gorm.DB, dist *Distr
 		CurrentCount:   0,
 		TotalCount:     uint(len(collectibles)),
 		StartAtBlock:   latestBlockHeader.Height - 1,
-		EscrowAddress:  common.FlowAddressFromString(c.cfg.AdminAddress),
+		EscrowAddress:  common.FlowAddressFromString(c.cfg.PDSAddress),
 		Collectibles:   settlementCollectibles,
 	}
 

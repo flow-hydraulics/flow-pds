@@ -14,6 +14,11 @@ type Config struct {
 	AdminPrivateKeyIndexes []int  `env:"FLOW_PDS_ADMIN_PRIVATE_KEY_INDEXES,notEmpty" envDefault:"0" envSeparator:","`
 	AdminPrivateKeyType    string `env:"FLOW_PDS_ADMIN_PRIVATE_KEY_TYPE,notEmpty" envDefault:"local"`
 
+	// -- Flow addresses --
+	// Address of the PDS account, usually this should equal to 'AdminAddress'
+	PDSAddress              string `env:"PDS_ADDRESS,notEmpty"`
+	NonFungibleTokenAddress string `env:"NON_FUNGIBLE_TOKEN_ADDRESS,notEmpty"`
+
 	// -- Database --
 
 	DatabaseDSN  string `env:"FLOW_PDS_DATABASE_DSN" envDefault:"pds.db"`
