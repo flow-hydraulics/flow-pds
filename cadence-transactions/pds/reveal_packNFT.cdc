@@ -5,7 +5,7 @@ import NonFungibleToken from 0x{{.NonFungibleToken}}
 
 transaction (distId: UInt64, packId: UInt64, nftContractAddrs: [Address], nftContractName: [String], nftIds: [UInt64], salt: String, owner: Address, openRequest: Bool) {
     prepare(pds: AuthAccount) {
-        let cap = pds.borrow<&PDS.DistributionManager>(from: PDS.distManagerStoragePath) ?? panic("pds does not have Dist manager")
+        let cap = pds.borrow<&PDS.DistributionManager>(from: PDS.DistManagerStoragePath) ?? panic("pds does not have Dist manager")
         let p = PackNFT.borrowPackRepresentation(id: packId) ?? panic ("No such pack")
         if openRequest && p.status == PackNFT.Status.Revealed {
             let recvAcct = getAccount(owner)

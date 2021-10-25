@@ -4,15 +4,15 @@ transaction() {
     prepare (issuer: AuthAccount) {
         
         // Check if account already have a PackIssuer resource, if so destroy it
-        if issuer.borrow<&PDS.PackIssuer>(from: PDS.packIssuerStoragePath) != nil {
-            issuer.unlink(PDS.packIssuerCapRecv)
-            let p <- issuer.load<@PDS.PackIssuer>(from: PDS.packIssuerStoragePath) 
+        if issuer.borrow<&PDS.PackIssuer>(from: PDS.PackIssuerStoragePath) != nil {
+            issuer.unlink(PDS.PackIssuerCapRecv)
+            let p <- issuer.load<@PDS.PackIssuer>(from: PDS.PackIssuerStoragePath) 
             destroy p
         }
         
-        issuer.save(<- PDS.createPackIssuer(), to: PDS.packIssuerStoragePath);
+        issuer.save(<- PDS.createPackIssuer(), to: PDS.PackIssuerStoragePath);
         
-        issuer.link<&PDS.PackIssuer{PDS.PackIssuerCapReciever}>(PDS.packIssuerCapRecv, target: PDS.packIssuerStoragePath)
+        issuer.link<&PDS.PackIssuer{PDS.PackIssuerCapReciever}>(PDS.PackIssuerCapRecv, target: PDS.PackIssuerStoragePath)
         ??  panic("Could not link packIssuerCapReceiver");
     } 
 }

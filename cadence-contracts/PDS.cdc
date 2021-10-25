@@ -5,11 +5,11 @@ pub contract PDS{
     /// The collection to hold all escrowed NFT
     /// Original collection created from PackNFT
     pub var version: String
-    pub let packIssuerStoragePath: StoragePath 
-    pub let packIssuerCapRecv: PublicPath 
-    pub let distCreatorStoragePath: StoragePath
-    pub let distCreatorPrivPath: PrivatePath
-    pub let distManagerStoragePath: StoragePath
+    pub let PackIssuerStoragePath: StoragePath 
+    pub let PackIssuerCapRecv: PublicPath 
+    pub let DistCreatorStoragePath: StoragePath
+    pub let DistCreatorPrivPath: PrivatePath
+    pub let DistManagerStoragePath: StoragePath
 
     pub var nextDistId: UInt64
     access(contract) let Distributions: {UInt64: DistInfo}
@@ -273,30 +273,30 @@ pub contract PDS{
 
     
     init(
-        packIssuerStoragePath: StoragePath,
-        packIssuerCapRecv: PublicPath,
-        distCreatorStoragePath: StoragePath,
-        distCreatorPrivPath: PrivatePath,
-        distManagerStoragePath: StoragePath,
+        PackIssuerStoragePath: StoragePath,
+        PackIssuerCapRecv: PublicPath,
+        DistCreatorStoragePath: StoragePath,
+        DistCreatorPrivPath: PrivatePath,
+        DistManagerStoragePath: StoragePath,
         version: String
     ) {
         self.nextDistId = 0
         self.DistSharedCap <- {}
         self.Distributions = {} 
-        self.packIssuerStoragePath = packIssuerStoragePath
-        self.packIssuerCapRecv = packIssuerCapRecv
-        self.distCreatorStoragePath = distCreatorStoragePath
-        self.distCreatorPrivPath = distCreatorPrivPath
-        self.distManagerStoragePath = distManagerStoragePath
+        self.PackIssuerStoragePath = PackIssuerStoragePath
+        self.PackIssuerCapRecv = PackIssuerCapRecv
+        self.DistCreatorStoragePath = DistCreatorStoragePath
+        self.DistCreatorPrivPath = DistCreatorPrivPath
+        self.DistManagerStoragePath = DistManagerStoragePath
         self.version = version
         
         // Create a distributionCreator to share create capability with PackIssuer 
         let d <- create DistributionCreator()
-        self.account.save(<-d, to: self.distCreatorStoragePath)
-        self.account.link<&DistributionCreator{PDS.IDistCreator}>(self.distCreatorPrivPath, target: self.distCreatorStoragePath)
+        self.account.save(<-d, to: self.DistCreatorStoragePath)
+        self.account.link<&DistributionCreator{PDS.IDistCreator}>(self.DistCreatorPrivPath, target: self.DistCreatorStoragePath)
 
         // Create a distributionManager to manager distributions (withdraw for escrow, mint PackNFT todo: reveal / transfer) 
         let m <- create DistributionManager()
-        self.account.save(<-m, to: self.distManagerStoragePath)
+        self.account.save(<-m, to: self.DistManagerStoragePath)
     }
 }

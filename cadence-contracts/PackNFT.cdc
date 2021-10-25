@@ -6,11 +6,11 @@ pub contract PackNFT: NonFungibleToken, IPackNFT {
 
     pub var totalSupply: UInt64
     pub let version: String
-    pub let collectionStoragePath: StoragePath
-    pub let collectionPublicPath: PublicPath
-    pub let collectionIPackNFTPublicPath: PublicPath
-    pub let operatorStoragePath: StoragePath
-    pub let operatorPrivPath: PrivatePath
+    pub let CollectionStoragePath: StoragePath
+    pub let CollectionPublicPath: PublicPath
+    pub let CollectionIPackNFTPublicPath: PublicPath
+    pub let OperatorStoragePath: StoragePath
+    pub let OperatorPrivPath: PrivatePath
 
     // representation of the NFT in this contract to keep track of states
     access(contract) let packs: @{UInt64: Pack}
@@ -216,32 +216,32 @@ pub contract PackNFT: NonFungibleToken, IPackNFT {
     }
 
     init(
-        collectionStoragePath: StoragePath,
-        collectionPublicPath: PublicPath,
-        collectionIPackNFTPublicPath: PublicPath,
-        operatorStoragePath: StoragePath,
-        operatorPrivPath: PrivatePath,
+        CollectionStoragePath: StoragePath,
+        CollectionPublicPath: PublicPath,
+        CollectionIPackNFTPublicPath: PublicPath,
+        OperatorStoragePath: StoragePath,
+        OperatorPrivPath: PrivatePath,
         version: String
     ){
         self.totalSupply = 0
         self.packs <- {}
-        self.collectionStoragePath = collectionStoragePath
-        self.collectionPublicPath = collectionPublicPath
-        self.collectionIPackNFTPublicPath = collectionIPackNFTPublicPath
-        self.operatorStoragePath = operatorStoragePath
-        self.operatorPrivPath = operatorPrivPath
+        self.CollectionStoragePath = CollectionStoragePath
+        self.CollectionPublicPath = CollectionPublicPath
+        self.CollectionIPackNFTPublicPath = CollectionIPackNFTPublicPath
+        self.OperatorStoragePath = OperatorStoragePath
+        self.OperatorPrivPath = OperatorPrivPath
         self.version = version
 
         // Create a collection to receive Pack NFTs
         let collection <- create Collection()
-        self.account.save(<-collection, to: self.collectionStoragePath)
-        self.account.link<&Collection{NonFungibleToken.CollectionPublic}>(self.collectionPublicPath, target: self.collectionStoragePath)
-        self.account.link<&Collection{IPackNFT.IPackNFTCollectionPublic}>(self.collectionIPackNFTPublicPath, target: self.collectionStoragePath)
+        self.account.save(<-collection, to: self.CollectionStoragePath)
+        self.account.link<&Collection{NonFungibleToken.CollectionPublic}>(self.CollectionPublicPath, target: self.CollectionStoragePath)
+        self.account.link<&Collection{IPackNFT.IPackNFTCollectionPublic}>(self.CollectionIPackNFTPublicPath, target: self.CollectionStoragePath)
 
         // Create a operator to share mint capability with proxy
         let operator <- create PackNFTOperator()
-        self.account.save(<-operator, to: self.operatorStoragePath)
-        self.account.link<&PackNFTOperator{IPackNFT.IOperator}>(self.operatorPrivPath, target: self.operatorStoragePath)
+        self.account.save(<-operator, to: self.OperatorStoragePath)
+        self.account.link<&PackNFTOperator{IPackNFT.IOperator}>(self.OperatorPrivPath, target: self.OperatorStoragePath)
     }
 
 }

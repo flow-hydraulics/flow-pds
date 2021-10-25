@@ -4,7 +4,7 @@ import NonFungibleToken from 0x{{.NonFungibleToken}}
 
 transaction (distId: UInt64, packId: UInt64, nftContractAddrs: [Address], nftContractName: [String], nftIds: [UInt64], owner: Address) {
     prepare(pds: AuthAccount) {
-        let cap = pds.borrow<&PDS.DistributionManager>(from: PDS.distManagerStoragePath) ?? panic("pds does not have Dist manager")
+        let cap = pds.borrow<&PDS.DistributionManager>(from: PDS.DistManagerStoragePath) ?? panic("pds does not have Dist manager")
         let recvAcct = getAccount(owner)
         let recv = recvAcct.getCapability(ExampleNFT.CollectionPublicPath).borrow<&{NonFungibleToken.CollectionPublic}>()
             ?? panic("Unable to borrow Collection Public reference for recipient")

@@ -7,7 +7,7 @@ transaction (distId: UInt64, state: UInt8) {
     // - 1: Invalid 
     // - 2: Complete 
     prepare(pds: AuthAccount) {
-        let cap = pds.borrow<&PDS.DistributionManager>(from: PDS.distManagerStoragePath) ?? panic("pds does not have Dist manager")
+        let cap = pds.borrow<&PDS.DistributionManager>(from: PDS.DistManagerStoragePath) ?? panic("pds does not have Dist manager")
         cap.updateDistState(
             distId: distId,
             state: PDS.DistState(rawValue: state)!, 
