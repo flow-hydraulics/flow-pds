@@ -163,23 +163,13 @@ func GetDistributionSettlement(db *gorm.DB, distributionID uuid.UUID) (*Settleme
 }
 
 // Get missing collectibles for a Settlement, grouped by collectible contract reference
-func MissingCollectibles(db *gorm.DB, settlementId uuid.UUID) (map[string]SettlementCollectibles, error) {
-	missing := []SettlementCollectible{}
-	err := db.Omit(clause.Associations).Where(&SettlementCollectible{SettlementID: settlementId, IsSettled: false}).Find(&missing).Error
+func MissingCollectibles(db *gorm.DB, settlementId uuid.UUID) (SettlementCollectibles, error) {
+	collectibles := []SettlementCollectible{}
+	err := db.Omit(clause.Associations).Where(&SettlementCollectible{SettlementID: settlementId, IsSettled: false}).Find(&collectibles).Error
 	if err != nil {
 		return nil, err
 	}
-
-	res := make(map[string]SettlementCollectibles)
-	for _, c := range missing {
-		key := c.ContractReference.String()
-		if _, ok := res[key]; !ok {
-			res[key] = SettlementCollectibles{}
-		}
-		res[key] = append(res[key], c)
-	}
-
-	return res, nil
+	return collectibles, nil
 }
 
 // Get Settlement

@@ -5,7 +5,6 @@ import (
 	"fmt"
 	"sort"
 
-	"github.com/flow-hydraulics/flow-pds/go-contracts/util"
 	"github.com/flow-hydraulics/flow-pds/service/common"
 	"github.com/flow-hydraulics/flow-pds/service/config"
 	"github.com/flow-hydraulics/flow-pds/service/flow_helpers"
@@ -33,8 +32,7 @@ const (
 )
 
 const (
-	// TODO (latenssi): this only handles ExampleNFTs currently
-	SETTLE_SCRIPT       = "./cadence-transactions/pds/settle_exampleNFT.cdc"
+	SETTLE_SCRIPT       = "./cadence-transactions/pds/settle.cdc"
 	MINT_SCRIPT         = "./cadence-transactions/pds/mint_packNFT.cdc"
 	REVEAL_SCRIPT       = "./cadence-transactions/pds/reveal_packNFT.cdc"
 	OPEN_SCRIPT         = "./cadence-transactions/pds/open_packNFT.cdc"
@@ -141,49 +139,60 @@ func (c *Contract) StartSettlement(ctx context.Context, db *gorm.DB, dist *Distr
 		return err // rollback
 	}
 
-	txScript := util.ParseCadenceTemplate(SETTLE_SCRIPT)
-
-	batchIndex := 0
-	for {
-		begin := batchIndex * SETTLE_BATCH_SIZE
-		end := minInt((batchIndex+1)*SETTLE_BATCH_SIZE, len(settlementCollectibles))
-
-		if begin > end {
-			break
-		}
-
-		batchLogger := logger.WithFields(log.Fields{
-			"batchNumber": batchIndex + 1,
-			"batchBegin":  begin,
-			"batchEnd":    end,
-		})
-
-		batchLogger.Debug("Initiating settle transaction")
-
-		batch := settlementCollectibles[begin:end]
-
-		flowIDs := make([]cadence.Value, len(batch))
-		for i, c := range batch {
-			flowIDs[i] = cadence.UInt64(c.FlowID.Int64)
-		}
-
-		arguments := []cadence.Value{
-			cadence.UInt64(dist.FlowID.Int64),
-			cadence.NewArray(flowIDs),
-		}
-
-		t, err := transactions.NewTransactionWithDistributionID(SETTLE_SCRIPT, txScript, arguments, dist.ID)
+	for contract, collectibles := range SettlementCollectibles(settlementCollectibles).GroupByContract() {
+		txScript, err := flow_helpers.ParseCadenceTemplate(
+			SETTLE_SCRIPT,
+			&flow_helpers.CadenceTemplateVars{
+				CollectibleNFTName:    contract.Name,
+				CollectibleNFTAddress: contract.Address.String(),
+			},
+		)
 		if err != nil {
 			return err // rollback
 		}
 
-		if err := t.Save(db); err != nil {
-			return err // rollback
+		batchIndex := 0
+		for {
+			begin := batchIndex * SETTLE_BATCH_SIZE
+			end := minInt((batchIndex+1)*SETTLE_BATCH_SIZE, len(collectibles))
+
+			if begin > end {
+				break
+			}
+
+			batchLogger := logger.WithFields(log.Fields{
+				"batchNumber": batchIndex + 1,
+				"batchBegin":  begin,
+				"batchEnd":    end,
+			})
+
+			batchLogger.Debug("Initiating settle transaction")
+
+			batch := collectibles[begin:end]
+
+			flowIDs := make([]cadence.Value, len(batch))
+			for i, c := range batch {
+				flowIDs[i] = cadence.UInt64(c.FlowID.Int64)
+			}
+
+			arguments := []cadence.Value{
+				cadence.UInt64(dist.FlowID.Int64),
+				cadence.NewArray(flowIDs),
+			}
+
+			t, err := transactions.NewTransactionWithDistributionID(SETTLE_SCRIPT, txScript, arguments, dist.ID)
+			if err != nil {
+				return err // rollback
+			}
+
+			if err := t.Save(db); err != nil {
+				return err // rollback
+			}
+
+			batchLogger.Trace("Settle transaction saved")
+
+			batchIndex++
 		}
-
-		batchLogger.Trace("Settle transaction saved")
-
-		batchIndex++
 	}
 
 	logger.Trace("Start settlement complete")
@@ -279,7 +288,16 @@ func (c *Contract) StartMinting(ctx context.Context, db *gorm.DB, dist *Distribu
 		return err // rollback
 	}
 
-	txScript := util.ParseCadenceTemplate(MINT_SCRIPT)
+	txScript, err := flow_helpers.ParseCadenceTemplate(
+		MINT_SCRIPT,
+		&flow_helpers.CadenceTemplateVars{
+			PackNFTName:    dist.PackTemplate.PackReference.Name,
+			PackNFTAddress: dist.PackTemplate.PackReference.Address.String(),
+		},
+	)
+	if err != nil {
+		return err // rollback
+	}
 
 	batchIndex := 0
 	for {
@@ -351,11 +369,17 @@ func (c *Contract) Abort(ctx context.Context, db *gorm.DB, dist *Distribution) e
 	}
 
 	// Update distribution state onchain
-	txScript := util.ParseCadenceTemplate(UPDATE_STATE_SCRIPT)
+
+	txScript, err := flow_helpers.ParseCadenceTemplate(UPDATE_STATE_SCRIPT, nil)
+	if err != nil {
+		return err // rollback
+	}
+
 	arguments := []cadence.Value{
 		cadence.UInt64(dist.FlowID.Int64),
 		cadence.UInt8(1),
 	}
+
 	t, err := transactions.NewTransactionWithDistributionID(UPDATE_STATE_SCRIPT, txScript, arguments, dist.ID)
 	if err != nil {
 		return err // rollback
@@ -410,14 +434,14 @@ func (c *Contract) UpdateSettlementStatus(ctx context.Context, db *gorm.DB, dist
 	}
 
 	// Group missing collectibles by their contract reference
-	groupedMissing, err := MissingCollectibles(db, settlement.ID)
+	missing, err := MissingCollectibles(db, settlement.ID)
 	if err != nil {
 		return err // rollback
 	}
 
-	for reference, missing := range groupedMissing {
+	for contract, collectibles := range missing.GroupByContract() {
 		arr, err := c.flowClient.GetEventsForHeightRange(ctx, client.EventRangeQuery{
-			Type:        fmt.Sprintf("%s.Deposit", reference),
+			Type:        fmt.Sprintf("%s.Deposit", contract.String()),
 			StartHeight: begin,
 			EndHeight:   end,
 		})
@@ -457,16 +481,16 @@ func (c *Contract) UpdateSettlementStatus(ctx context.Context, db *gorm.DB, dist
 				}
 
 				if address == settlement.EscrowAddress {
-					if i, ok := missing.ContainsID(collectibleFlowID); ok {
-						// Collectible in "missing" at index "i"
+					if i, ok := collectibles.ContainsID(collectibleFlowID); ok {
+						// Collectible in "collectibles" at index "i"
 
 						// Make sure the collectible is in correct state
-						if err := missing[i].SetSettled(); err != nil {
+						if err := collectibles[i].SetSettled(); err != nil {
 							return err // rollback
 						}
 
 						// Update the collectible in database
-						if err := UpdateSettlementCollectible(db, &missing[i]); err != nil {
+						if err := UpdateSettlementCollectible(db, &collectibles[i]); err != nil {
 							return err // rollback
 						}
 
@@ -629,11 +653,17 @@ func (c *Contract) UpdateMintingStatus(ctx context.Context, db *gorm.DB, dist *D
 		logger.Info("Minting complete")
 
 		// Update distribution state onchain
-		txScript := util.ParseCadenceTemplate(UPDATE_STATE_SCRIPT)
+
+		txScript, err := flow_helpers.ParseCadenceTemplate(UPDATE_STATE_SCRIPT, nil)
+		if err != nil {
+			return err // rollback
+		}
+
 		arguments := []cadence.Value{
 			cadence.UInt64(dist.FlowID.Int64),
 			cadence.UInt8(2),
 		}
+
 		t, err := transactions.NewTransactionWithDistributionID(UPDATE_STATE_SCRIPT, txScript, arguments, dist.ID)
 		if err != nil {
 			return err // rollback
@@ -801,7 +831,20 @@ func (c *Contract) UpdateCirculatingPack(ctx context.Context, db *gorm.DB, cpc *
 						cadence.Path{Domain: "private", Identifier: "NFTCollectionProvider"},
 					}
 
-					txScript := util.ParseCadenceTemplate(REVEAL_SCRIPT)
+					// NOTE: this only handles one collectible contract per pack
+					txScript, err := flow_helpers.ParseCadenceTemplate(
+						REVEAL_SCRIPT,
+						&flow_helpers.CadenceTemplateVars{
+							PackNFTName:           pack.ContractReference.Name,
+							PackNFTAddress:        pack.ContractReference.Address.String(),
+							CollectibleNFTName:    pack.Collectibles[0].ContractReference.Name,
+							CollectibleNFTAddress: pack.Collectibles[0].ContractReference.Address.String(),
+						},
+					)
+					if err != nil {
+						return err // rollback
+					}
+
 					t, err := transactions.NewTransactionWithDistributionID(REVEAL_SCRIPT, txScript, arguments, distribution.ID)
 					if err != nil {
 						return err // rollback
@@ -878,7 +921,18 @@ func (c *Contract) UpdateCirculatingPack(ctx context.Context, db *gorm.DB, cpc *
 						cadence.Path{Domain: "private", Identifier: "NFTCollectionProvider"},
 					}
 
-					txScript := util.ParseCadenceTemplate(OPEN_SCRIPT)
+					// NOTE: this only handles one collectible contract per pack
+					txScript, err := flow_helpers.ParseCadenceTemplate(
+						OPEN_SCRIPT,
+						&flow_helpers.CadenceTemplateVars{
+							CollectibleNFTName:    pack.Collectibles[0].ContractReference.Name,
+							CollectibleNFTAddress: pack.Collectibles[0].ContractReference.Address.String(),
+						},
+					)
+					if err != nil {
+						return err // rollback
+					}
+
 					t, err := transactions.NewTransactionWithDistributionID(OPEN_SCRIPT, txScript, arguments, distribution.ID)
 					if err != nil {
 						return err // rollback

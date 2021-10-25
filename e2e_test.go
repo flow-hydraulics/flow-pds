@@ -3,6 +3,7 @@ package main
 import (
 	"context"
 	"math"
+	"os"
 	"strings"
 	"testing"
 	"time"
@@ -11,6 +12,7 @@ import (
 	"github.com/flow-hydraulics/flow-pds/go-contracts/util"
 	"github.com/flow-hydraulics/flow-pds/service/app"
 	"github.com/flow-hydraulics/flow-pds/service/common"
+	"github.com/flow-hydraulics/flow-pds/service/flow_helpers"
 	"github.com/onflow/cadence"
 	"github.com/onflow/flow-go-sdk"
 	"github.com/stretchr/testify/assert"
@@ -181,7 +183,17 @@ func TestE2E(t *testing.T) {
 	expTitle := "ExampleDistTitle"
 
 	createDist := "./cadence-transactions/pds/create_distribution.cdc"
-	createDistCode := util.ParseCadenceTemplate(createDist)
+	createDistCode, err := flow_helpers.ParseCadenceTemplate(
+		createDist,
+		&flow_helpers.CadenceTemplateVars{
+			PackNFTName:    "PackNFT",
+			PackNFTAddress: os.Getenv("PACKNFT_ADDRESS"),
+		},
+	)
+	if err != nil {
+		t.Fatal(err)
+	}
+
 	// Private path must match the PackNFT contract
 	e, err := g.
 		TransactionFromFile(createDist, createDistCode).
