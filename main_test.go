@@ -37,13 +37,13 @@ func TestCreate(t *testing.T) {
 				Name:    "TestPackNFT",
 				Address: addr,
 			},
+			CollectibleReference: pds_http.AddressLocation{
+				Name:    "TestCollectibleNFT",
+				Address: addr,
+			},
 			PackCount: uint(packs),
 			Buckets: []pds_http.ReqBucket{
 				{
-					CollectibleReference: pds_http.AddressLocation{
-						Name:    "TestCollectibleNFT",
-						Address: addr,
-					},
 					CollectibleCount:      uint(slotsPerBucket),
 					CollectibleCollection: collection,
 				},

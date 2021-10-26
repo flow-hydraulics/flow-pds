@@ -1,7 +1,5 @@
 type: string
 title: Flow Address
-examples:
-  - '0x1'
 description: An accounts address on Flow.
 minLength: 3
 example: '0x1'

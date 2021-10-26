@@ -18,10 +18,16 @@ type ReqPackTemplate struct {
 	PackReference AddressLocation `json:"packReference"`
 	PackCount     uint            `json:"packCount"`
 	Buckets       []ReqBucket     `json:"buckets"`
+
+	// This is here to provide compatibility between backend and onchain contracts.
+	// Backend handles CollectibleReferences per bucket but onchain contracts
+	// currently handle CollectibleReferences per distribution.
+	CollectibleReference AddressLocation `json:"collectibleReference"`
 }
 
 type ReqBucket struct {
-	CollectibleReference  AddressLocation   `json:"collectibleReference"`
+	// NOTE: read about compatibility above
+	// CollectibleReference  AddressLocation   `json:"collectibleReference"`
 	CollectibleCount      uint              `json:"collectibleCount"`
 	CollectibleCollection common.FlowIDList `json:"collectibleCollection"`
 }
@@ -124,8 +130,11 @@ func (d ReqCreateDistribution) ToApp() app.Distribution {
 func (pt ReqPackTemplate) ToApp() app.PackTemplate {
 	buckets := make([]app.Bucket, len(pt.Buckets))
 	for i, b := range pt.Buckets {
+		// ref := b.CollectibleReference
+		ref := pt.CollectibleReference
+
 		buckets[i] = app.Bucket{
-			CollectibleReference:  app.AddressLocation(b.CollectibleReference),
+			CollectibleReference:  app.AddressLocation(ref),
 			CollectibleCount:      b.CollectibleCount,
 			CollectibleCollection: b.CollectibleCollection,
 		}
