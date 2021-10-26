@@ -1,24 +1,31 @@
 #!/bin/bash
 
+if ! command -v flow &> /dev/null
+then
+    echo "Flow CLI could not be found"
+    exit
+fi
+
+if ! command -v go &> /dev/null
+then
+    echo "Go could not be found"
+    exit
+fi
+
 # Check to see if it's running in the right directory
 if [ ! -f "./flow.json" ]; then
   echo "IMPORTANT: This script must be run from the 'flow-pds' root folder, not a subdirectory"
   exit 1
 fi
 
+set -a # Mark variables which are modified or created for export to the environment of subsequent commands. Needed for 'go run deploy/main.go' later in the script.
 source .env.test
+set +a
 
 # errexit + xtrace
 set -ex
 
-OS_NAME=$(uname -s | awk '{print tolower($0)}')
-CPU_ARCH=$(uname -m)
-PROJECT_ROOT=$(pwd)
-EXEC_PATH="$PROJECT_ROOT"/.github/flow-"$OS_NAME"-"$CPU_ARCH"
-# EXEC_PATH=/usr/local/bin/flow
-
 shopt -s expand_aliases
-alias flow='$EXEC_PATH -f $PROJECT_ROOT/flow.json'
 
 # Run the emulator with the config in ./flow.json
 if [ "${NETWORK}" == "emulator" ]; then

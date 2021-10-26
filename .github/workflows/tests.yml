@@ -7,16 +7,38 @@ on:
 jobs:
 
   emulator:
+    env:
+      FLOW_CLI_VERSION: v0.28.3
     runs-on: ubuntu-latest
     steps:
-      - uses: actions/checkout@v2
+      - name: Checkout
+        uses: actions/checkout@v2
 
       - name: Set up Go
         uses: actions/setup-go@v2
         with:
           go-version: 1.17
 
-      - name: Test
+      - name: Cache Flow CLI
+        id: cache-flow-cli
+        uses: actions/cache@v2
+        with:
+          path: ~/.local/bin/flow
+          key: ${{ runner.os }}-flow-cli-${{ env.FLOW_CLI_VERSION }}
+
+      - name: Install Flow CLI
+        if: steps.cache-flow-cli.outputs.cache-hit != 'true'
+        run: sh -c "$(curl -fsSL https://storage.googleapis.com/flow-cli/install.sh)" 0 $FLOW_CLI_VERSION
+
+      - name: Cache Go modules
+        uses: actions/cache@v1
+        with:
+          path: ~/go/pkg/mod
+          key: ${{ runner.os }}-go-${{ hashFiles('**/go.sum') }}
+          restore-keys: |
+            ${{ runner.os }}-go-
+
+      - name: Run tests
         env:
           NETWORK: emulator
           RPC_ADDRESS: localhost:3569
