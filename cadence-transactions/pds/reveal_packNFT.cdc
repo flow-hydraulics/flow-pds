@@ -3,7 +3,17 @@ import PackNFT from 0x{{.PackNFT}}
 import ExampleNFT from 0x{{.ExampleNFT}}
 import NonFungibleToken from 0x{{.NonFungibleToken}}
 
-transaction (distId: UInt64, packId: UInt64, nftContractAddrs: [Address], nftContractName: [String], nftIds: [UInt64], salt: String, owner: Address, openRequest: Bool) {
+transaction (
+    distId: UInt64, 
+    packId: UInt64, 
+    nftContractAddrs: [Address], 
+    nftContractName: [String], 
+    nftIds: [UInt64], 
+    salt: String, 
+    owner: Address, 
+    openRequest: Bool,
+    NFTProviderPath: PrivatePath
+) {
     prepare(pds: AuthAccount) {
         let cap = pds.borrow<&PDS.DistributionManager>(from: PDS.DistManagerStoragePath) ?? panic("pds does not have Dist manager")
         let p = PackNFT.borrowPackRepresentation(id: packId) ?? panic ("No such pack")
@@ -18,7 +28,7 @@ transaction (distId: UInt64, packId: UInt64, nftContractAddrs: [Address], nftCon
                 nftContractName: nftContractName, 
                 nftIds: nftIds, 
                 recvCap: recv, 
-                collectionProviderPath: ExampleNFT.CollectionProviderPrivPath, 
+                collectionProviderPath: NFTProviderPath 
             )
         } else {
             cap.revealPackNFT(
