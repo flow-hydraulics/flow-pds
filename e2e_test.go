@@ -30,9 +30,9 @@ func TestE2E(t *testing.T) {
 
 	t.Log("Setting up collectible NFT (ExampleNFT) collection for owner")
 
-	// API should allow for issuer to send in the string for the Private Path
-	// that they have linked for the PDS to withdraw from their collectible colletion resource
-	// e.g. "NFTCollectionProvider"
+	// The caller wishing to create the collection will choose which Private Path they would like to link the
+	// the Collection Provider Capability (when shared, to withdraw from their collection)
+	// The Private Path string in this case is "NFTCollectionProider"
 	setupExampleNFT := "./cadence-transactions/exampleNFT/setup_exampleNFT.cdc"
 	setupExampleNFTCode := util.ParseCadenceTemplate(setupExampleNFT)
 	_, err := g.
