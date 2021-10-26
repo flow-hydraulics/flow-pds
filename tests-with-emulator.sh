@@ -21,8 +21,12 @@ fi
 set -a # Mark variables which are modified or created for export to the environment of subsequent commands. Needed for 'go run deploy/main.go' later in the script.
 source .env.test
 set +a
+
+# errexit + xtrace
 set -ex
+
 shopt -s expand_aliases
+
 # Run the emulator with the config in ./flow.json
 if [ "${NETWORK}" == "emulator" ]; then
   # setting block-time of 1s to emulate testnet + mainnet tempo
