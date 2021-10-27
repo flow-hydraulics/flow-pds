@@ -139,7 +139,7 @@ func (svc *ContractService) SetupDistribution(ctx context.Context, db *gorm.DB, 
 			SetGasLimit(9999).
 			SetReferenceBlockID(latestBlockHeader.ID)
 
-		tx.AddArgument(cadence.Path{Domain: "private", Identifier: "NFTCollectionProvider"})
+		tx.AddArgument(cadence.Path{Domain: "private", Identifier: contract.ProviderPath()})
 
 		if err := flow_helpers.SignProposeAndPayAs(ctx, svc.flowClient, svc.account, tx); err != nil {
 			return err // rollback
@@ -883,6 +883,9 @@ func (svc *ContractService) UpdateCirculatingPack(ctx context.Context, db *gorm.
 					}
 					owner := tx.Authorizers[0]
 
+					// NOTE: this only handles one collectible contract per pack
+					contract := pack.Collectibles[0].ContractReference
+
 					collectibleCount := len(pack.Collectibles)
 					collectibleContractAddresses := make([]cadence.Value, collectibleCount)
 					collectibleContractNames := make([]cadence.Value, collectibleCount)
@@ -912,7 +915,7 @@ func (svc *ContractService) UpdateCirculatingPack(ctx context.Context, db *gorm.
 						cadence.String(pack.Salt.String()),
 						cadence.Address(owner),
 						cadence.NewBool(openRequest),
-						cadence.Path{Domain: "private", Identifier: "NFTCollectionProvider"},
+						cadence.Path{Domain: "private", Identifier: contract.ProviderPath()},
 					}
 
 					// NOTE: this only handles one collectible contract per pack
@@ -921,8 +924,8 @@ func (svc *ContractService) UpdateCirculatingPack(ctx context.Context, db *gorm.
 						&flow_helpers.CadenceTemplateVars{
 							PackNFTName:           pack.ContractReference.Name,
 							PackNFTAddress:        pack.ContractReference.Address.String(),
-							CollectibleNFTName:    pack.Collectibles[0].ContractReference.Name,
-							CollectibleNFTAddress: pack.Collectibles[0].ContractReference.Address.String(),
+							CollectibleNFTName:    contract.Name,
+							CollectibleNFTAddress: contract.Address.String(),
 						},
 					)
 					if err != nil {
@@ -983,6 +986,9 @@ func (svc *ContractService) UpdateCirculatingPack(ctx context.Context, db *gorm.
 					}
 					owner := tx.Authorizers[0]
 
+					// NOTE: this only handles one collectible contract per pack
+					contract := pack.Collectibles[0].ContractReference
+
 					collectibleCount := len(pack.Collectibles)
 
 					collectibleContractAddresses := make([]cadence.Value, collectibleCount)
@@ -1002,15 +1008,14 @@ func (svc *ContractService) UpdateCirculatingPack(ctx context.Context, db *gorm.
 						cadence.NewArray(collectibleContractNames),
 						cadence.NewArray(collectibleIDs),
 						cadence.Address(owner),
-						cadence.Path{Domain: "private", Identifier: "NFTCollectionProvider"},
+						cadence.Path{Domain: "private", Identifier: contract.ProviderPath()},
 					}
 
-					// NOTE: this only handles one collectible contract per pack
 					txScript, err := flow_helpers.ParseCadenceTemplate(
 						OPEN_SCRIPT,
 						&flow_helpers.CadenceTemplateVars{
-							CollectibleNFTName:    pack.Collectibles[0].ContractReference.Name,
-							CollectibleNFTAddress: pack.Collectibles[0].ContractReference.Address.String(),
+							CollectibleNFTName:    contract.Name,
+							CollectibleNFTAddress: contract.Address.String(),
 						},
 					)
 					if err != nil {
