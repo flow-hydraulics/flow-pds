@@ -78,8 +78,8 @@ func NewContractService(cfg *config.Config, logger *log.Logger, flowClient *clie
 }
 
 // SetupDistribution will make sure the PDS account has a collection onchain
-// for the collectible NFTs in the "dist" Distribution.
-// It also makes sure the the withdraw capability is linked in the collection.
+// for the collectible NFTs in the Distribution.
+// It also makes sure the withdraw capability is linked.
 func (svc *ContractService) SetupDistribution(ctx context.Context, db *gorm.DB, dist *Distribution) error {
 	logger := svc.logger.WithFields(log.Fields{
 		"method":     "SetupDistribution",
@@ -146,7 +146,7 @@ func (svc *ContractService) SetupDistribution(ctx context.Context, db *gorm.DB, 
 			return err // rollback
 		}
 
-		if _, err := flow_helpers.WaitForSeal(ctx, svc.flowClient, tx.ID(), time.Second*60); err != nil {
+		if _, err := flow_helpers.WaitForSeal(ctx, svc.flowClient, tx.ID(), time.Minute*10); err != nil {
 			return err // rollback
 		}
 	}
