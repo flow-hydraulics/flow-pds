@@ -2,7 +2,7 @@ import PDS from 0x{{.PDS}}
 import ExampleNFT from 0x{{.ExampleNFT}}
 import NonFungibleToken from 0x{{.NonFungibleToken}}
 
-transaction (distId: UInt64, packId: UInt64, nftContractAddrs: [Address], nftContractName: [String], nftIds: [UInt64], owner: Address) {
+transaction (distId: UInt64, packId: UInt64, nftContractAddrs: [Address], nftContractName: [String], nftIds: [UInt64], owner: Address, NFTProviderPath: PrivatePath) {
     prepare(pds: AuthAccount) {
         let cap = pds.borrow<&PDS.DistributionManager>(from: PDS.DistManagerStoragePath) ?? panic("pds does not have Dist manager")
         let recvAcct = getAccount(owner)
@@ -15,7 +15,7 @@ transaction (distId: UInt64, packId: UInt64, nftContractAddrs: [Address], nftCon
             nftContractName: nftContractName, 
             nftIds: nftIds, 
             recvCap: recv, 
-            collectionProviderPath: ExampleNFT.CollectionProviderPrivPath, 
+            collectionProviderPath: NFTProviderPath, 
         )
     }
 }

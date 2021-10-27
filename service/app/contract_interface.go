@@ -798,6 +798,7 @@ func (c *Contract) UpdateCirculatingPack(ctx context.Context, db *gorm.DB, cpc *
 						cadence.String(pack.Salt.String()),
 						cadence.Address(owner),
 						cadence.NewBool(openRequest),
+						cadence.Path{Domain: "private", Identifier: "NFTCollectionProvider"},
 					}
 
 					txScript := util.ParseCadenceTemplate(REVEAL_SCRIPT)
@@ -874,6 +875,7 @@ func (c *Contract) UpdateCirculatingPack(ctx context.Context, db *gorm.DB, cpc *
 						cadence.NewArray(collectibleContractNames),
 						cadence.NewArray(collectibleIDs),
 						cadence.Address(owner),
+						cadence.Path{Domain: "private", Identifier: "NFTCollectionProvider"},
 					}
 
 					txScript := util.ParseCadenceTemplate(OPEN_SCRIPT)
