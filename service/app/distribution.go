@@ -42,7 +42,7 @@ type Pack struct {
 	DistributionID uuid.UUID
 	ID             uuid.UUID `gorm:"column:id;primary_key;type:uuid;"`
 
-	ContractReference AddressLocation    `gorm:"embedded;embeddedPrefix:contract_ref_"` // Reference to the pack NFT contract
+	ContractReference AddressLocation    `gorm:"embedded;embeddedPrefix:contract_ref_"` // Reference to the collectible NFT contract
 	FlowID            common.FlowID      `gorm:"column:flow_id;index"`                  // ID of the pack NFT
 	State             common.PackState   `gorm:"column:state;not null;default:null"`    // public
 	Salt              common.BinaryValue `gorm:"column:salt"`                           // private
