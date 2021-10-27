@@ -73,6 +73,19 @@ func GetDistribution(db *gorm.DB, id uuid.UUID) (*Distribution, error) {
 	return &distribution, nil
 }
 
+type BucketSmall struct {
+	ID                   uuid.UUID       `gorm:"column:id;primary_key;type:uuid;"`
+	CollectibleReference AddressLocation `gorm:"embedded;embeddedPrefix:collectible_ref_"`
+}
+
+func GetDistributionBucketsSmall(db *gorm.DB, distributionID uuid.UUID) ([]BucketSmall, error) {
+	list := []BucketSmall{}
+	if err := db.Model(&Bucket{}).Where(&Bucket{DistributionID: distributionID}).Find(&list).Error; err != nil {
+		return nil, err
+	}
+	return list, nil
+}
+
 // Get pack
 func GetPack(db *gorm.DB, id uuid.UUID) (*Pack, error) {
 	pack := Pack{}

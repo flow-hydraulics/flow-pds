@@ -99,23 +99,22 @@ func (svc *ContractService) SetupDistribution(ctx context.Context, db *gorm.DB, 
 		return err // rollback
 	}
 
-	packs, err := GetDistributionPacks(db, dist.ID)
+	buckets, err := GetDistributionBucketsSmall(db, dist.ID)
 	if err != nil {
 		return err // rollback
 	}
 
-	collectibles := make(Collectibles, 0)
-	for _, pack := range packs {
-		collectibles = append(collectibles, pack.Collectibles...)
-	}
-	sort.Sort(collectibles)
-
 	contracts := make(map[AddressLocation]struct{})
-	for _, collectible := range collectibles {
-		contracts[collectible.ContractReference] = struct{}{}
+	for _, bucket := range buckets {
+		contracts[bucket.CollectibleReference] = struct{}{}
 	}
 
 	for contract := range contracts {
+		logger.WithFields(log.Fields{
+			"contract_name":    contract.Name,
+			"contract_address": contract.Address,
+		}).Debug("Setting up collection and linking")
+
 		latestBlockHeader, err := svc.flowClient.GetLatestBlockHeader(ctx, true)
 		if err != nil {
 			return err // rollback
