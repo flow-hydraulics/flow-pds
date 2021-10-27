@@ -28,6 +28,7 @@ func poller(app *App) {
 		select {
 		case <-ticker.C:
 			handlePollerError("handleResolved", handleResolved(ctx, app.db, app.service), app.logger)
+			handlePollerError("handleSetup", handleSetup(ctx, app.db, app.service), app.logger)
 			handlePollerError("handleSettling", handleSettling(ctx, app.db, app.service), app.logger)
 			handlePollerError("handleSettled", handleSettled(ctx, app.db, app.service), app.logger)
 			handlePollerError("handleMinting", handleMinting(ctx, app.db, app.service), app.logger)
@@ -86,6 +87,23 @@ func handleResolved(ctx context.Context, db *gorm.DB, contract *ContractService)
 		}
 
 		for _, dist := range resolved {
+			if err := contract.SetupDistribution(ctx, tx, &dist); err != nil {
+				return err
+			}
+		}
+
+		return nil
+	})
+}
+
+func handleSetup(ctx context.Context, db *gorm.DB, contract *ContractService) error {
+	return db.Transaction(func(tx *gorm.DB) error {
+		setup, err := listDistributionsByState(tx, common.DistributionStateSetup)
+		if err != nil {
+			return err
+		}
+
+		for _, dist := range setup {
 			if err := contract.StartSettlement(ctx, tx, &dist); err != nil {
 				return err
 			}

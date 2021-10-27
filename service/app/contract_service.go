@@ -4,6 +4,7 @@ import (
 	"context"
 	"fmt"
 	"sort"
+	"time"
 
 	"github.com/flow-hydraulics/flow-pds/service/common"
 	"github.com/flow-hydraulics/flow-pds/service/config"
@@ -32,11 +33,12 @@ const (
 )
 
 const (
-	SETTLE_SCRIPT       = "./cadence-transactions/pds/settle.cdc"
-	MINT_SCRIPT         = "./cadence-transactions/pds/mint_packNFT.cdc"
-	REVEAL_SCRIPT       = "./cadence-transactions/pds/reveal_packNFT.cdc"
-	OPEN_SCRIPT         = "./cadence-transactions/pds/open_packNFT.cdc"
-	UPDATE_STATE_SCRIPT = "./cadence-transactions/pds/update_dist_state.cdc"
+	SETUP_COLLECTION_SCRIPT = "./cadence-transactions/pds/setup_collection.cdc"
+	SETTLE_SCRIPT           = "./cadence-transactions/pds/settle.cdc"
+	MINT_SCRIPT             = "./cadence-transactions/pds/mint_packNFT.cdc"
+	REVEAL_SCRIPT           = "./cadence-transactions/pds/reveal_packNFT.cdc"
+	OPEN_SCRIPT             = "./cadence-transactions/pds/open_packNFT.cdc"
+	UPDATE_STATE_SCRIPT     = "./cadence-transactions/pds/update_dist_state.cdc"
 )
 
 const (
@@ -73,6 +75,86 @@ func NewContractService(cfg *config.Config, logger *log.Logger, flowClient *clie
 		return nil, fmt.Errorf("too many key indexes given for admin account")
 	}
 	return &ContractService{cfg, logger, flowClient, pdsAccount}, nil
+}
+
+// SetupDistribution will make sure the PDS account has a collection onchain
+// for the collectible NFTs in the "dist" Distribution.
+// It also makes sure the the withdraw capability is linked in the collection.
+func (svc *ContractService) SetupDistribution(ctx context.Context, db *gorm.DB, dist *Distribution) error {
+	logger := svc.logger.WithFields(log.Fields{
+		"method":     "SetupDistribution",
+		"distID":     dist.ID,
+		"distFlowID": dist.FlowID,
+	})
+
+	logger.Info("Setup distribution")
+
+	// Make sure the distribution is in correct state
+	if err := dist.SetSetup(); err != nil {
+		return err // rollback
+	}
+
+	// Update the distribution in database
+	if err := UpdateDistribution(db, dist); err != nil {
+		return err // rollback
+	}
+
+	packs, err := GetDistributionPacks(db, dist.ID)
+	if err != nil {
+		return err // rollback
+	}
+
+	collectibles := make(Collectibles, 0)
+	for _, pack := range packs {
+		collectibles = append(collectibles, pack.Collectibles...)
+	}
+	sort.Sort(collectibles)
+
+	contracts := make(map[AddressLocation]struct{})
+	for _, collectible := range collectibles {
+		contracts[collectible.ContractReference] = struct{}{}
+	}
+
+	for contract := range contracts {
+		latestBlockHeader, err := svc.flowClient.GetLatestBlockHeader(ctx, true)
+		if err != nil {
+			return err // rollback
+		}
+
+		// TODO (latenssi): instead of a transaction, query if we need to send a transaction
+
+		txScript, err := flow_helpers.ParseCadenceTemplate(
+			SETUP_COLLECTION_SCRIPT,
+			&flow_helpers.CadenceTemplateVars{
+				CollectibleNFTName:    contract.Name,
+				CollectibleNFTAddress: contract.Address.String(),
+			},
+		)
+		if err != nil {
+			return err // rollback
+		}
+
+		tx := flow.NewTransaction().
+			SetScript(txScript).
+			SetGasLimit(9999).
+			SetReferenceBlockID(latestBlockHeader.ID)
+
+		if err := flow_helpers.SignProposeAndPayAs(ctx, svc.flowClient, svc.account, tx); err != nil {
+			return err // rollback
+		}
+
+		if err := svc.flowClient.SendTransaction(ctx, *tx); err != nil {
+			return err // rollback
+		}
+
+		if _, err := flow_helpers.WaitForSeal(ctx, svc.flowClient, tx.ID(), time.Second*60); err != nil {
+			return err // rollback
+		}
+	}
+
+	logger.Trace("Setup distribution complete")
+
+	return nil
 }
 
 // StartSettlement sets the given distributions state to 'settling' and starts the settlement
