@@ -121,8 +121,6 @@ func (svc *ContractService) SetupDistribution(ctx context.Context, db *gorm.DB, 
 			return err // rollback
 		}
 
-		// TODO (latenssi): instead of a transaction, query if we need to send a transaction
-
 		txScript, err := flow_helpers.ParseCadenceTemplate(
 			SETUP_COLLECTION_SCRIPT,
 			&flow_helpers.CadenceTemplateVars{
