@@ -38,7 +38,6 @@ func TestE2E(t *testing.T) {
 	_, err := g.
 		TransactionFromFile(setupExampleNFT, setupExampleNFTCode).
 		SignProposeAndPayAs("owner").
-		Argument(cadence.Path{Domain: "private", Identifier: "NFTCollectionProvider"}).
 		RunE()
 	if err != nil {
 		t.Fatal(err)
@@ -49,16 +48,24 @@ func TestE2E(t *testing.T) {
 	_, err = g.
 		TransactionFromFile(setupExampleNFT, setupExampleNFTCode).
 		SignProposeAndPayAs("pds").
-		Argument(cadence.Path{Domain: "private", Identifier: "NFTCollectionProvider"}).
 		RunE()
 	if err != nil {
 		t.Fatal(err)
 	}
 
-	t.Log("Issuer link NFT collection capability to share when create dist")
+	t.Log("PSD link NFT collection capability to use with opening PackNFT")
 
 	linkScript := "./cadence-transactions/exampleNFT/link_providerCap_exampleNFT.cdc"
 	linkCode := util.ParseCadenceTemplate(linkScript)
+
+	_, err = g.TransactionFromFile(linkScript, linkCode).
+		SignProposeAndPayAs("pds").
+		Argument(cadence.Path{Domain: "private", Identifier: "NFTCollectionProvider"}).
+		RunE()
+	assert.NoError(t, err)
+
+	t.Log("Issuer link NFT collection capability to share when create dist")
+
 	_, err = g.TransactionFromFile(linkScript, linkCode).
 		SignProposeAndPayAs("issuer").
 		Argument(cadence.Path{Domain: "private", Identifier: "NFTCollectionProvider"}).

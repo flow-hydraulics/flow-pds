@@ -38,13 +38,11 @@ func TestCanCreateExampleCollection(t *testing.T) {
 	setupExampleNFTCode := util.ParseCadenceTemplate(setupExampleNFT)
 	_, err := g.TransactionFromFile(setupExampleNFT, setupExampleNFTCode).
 		SignProposeAndPayAs("owner").
-		Argument(cadence.Path{Domain: "private", Identifier: "NFTCollectionProvider"}).
 		RunE()
 	assert.NoError(t, err)
 
 	_, err = g.TransactionFromFile(setupExampleNFT, setupExampleNFTCode).
 		SignProposeAndPayAs("pds").
-		Argument(cadence.Path{Domain: "private", Identifier: "NFTCollectionProvider"}).
 		RunE()
 	assert.NoError(t, err)
 }
@@ -73,13 +71,21 @@ func TestCanCreatePackIssuer(t *testing.T) {
 	assert.NoError(t, err)
 }
 
-// Issuer must first link their NFT Provider Cap
+// Issuer and PDS  must first link their NFT Provider Cap
+// Issuer: for PDS to withdraw to escrow
+// PDS: for the PDS contract to release escrow
 func TestIssuerCanLinkProviderCap(t *testing.T) {
 	g := gwtf.NewGoWithTheFlow(util.FlowJSON, os.Getenv("NETWORK"), false, 3)
 	script := "../cadence-transactions/exampleNFT/link_providerCap_exampleNFT.cdc"
 	code := util.ParseCadenceTemplate(script)
 	_, err := g.TransactionFromFile(script, code).
 		SignProposeAndPayAs("issuer").
+		Argument(cadence.Path{Domain: "private", Identifier: "NFTCollectionProvider"}).
+		RunE()
+	assert.NoError(t, err)
+
+	_, err = g.TransactionFromFile(script, code).
+		SignProposeAndPayAs("pds").
 		Argument(cadence.Path{Domain: "private", Identifier: "NFTCollectionProvider"}).
 		RunE()
 	assert.NoError(t, err)
