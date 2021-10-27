@@ -43,8 +43,8 @@ const (
 	MAX_EVENTS_PER_CHECK = 100
 )
 
-// Contract handles all the onchain logic and functions
-type Contract struct {
+// ContractService handles interfacing with the chain
+type ContractService struct {
 	cfg        *config.Config
 	logger     *log.Logger
 	flowClient *client.Client
@@ -58,7 +58,7 @@ func minInt(a int, b int) int {
 	return a
 }
 
-func NewContract(cfg *config.Config, logger *log.Logger, flowClient *client.Client) (*Contract, error) {
+func NewContractService(cfg *config.Config, logger *log.Logger, flowClient *client.Client) (*ContractService, error) {
 	pdsAccount := flow_helpers.GetAccount(
 		flow.HexToAddress(cfg.AdminAddress),
 		cfg.AdminPrivateKey,
@@ -72,7 +72,7 @@ func NewContract(cfg *config.Config, logger *log.Logger, flowClient *client.Clie
 	if len(flowAccount.Keys) < len(pdsAccount.KeyIndexes) {
 		return nil, fmt.Errorf("too many key indexes given for admin account")
 	}
-	return &Contract{cfg, logger, flowClient, pdsAccount}, nil
+	return &ContractService{cfg, logger, flowClient, pdsAccount}, nil
 }
 
 // StartSettlement sets the given distributions state to 'settling' and starts the settlement
@@ -82,8 +82,8 @@ func NewContract(cfg *config.Config, logger *log.Logger, flowClient *client.Clie
 // It then creates and stores the settlement Flow transactions (PDS account withdraw from issuer to escrow) in
 // database to be later processed by a poller.
 // Batching needs to be done to control the transaction size.
-func (c *Contract) StartSettlement(ctx context.Context, db *gorm.DB, dist *Distribution) error {
-	logger := c.logger.WithFields(log.Fields{
+func (svc *ContractService) StartSettlement(ctx context.Context, db *gorm.DB, dist *Distribution) error {
+	logger := svc.logger.WithFields(log.Fields{
 		"method":     "StartSettlement",
 		"distID":     dist.ID,
 		"distFlowID": dist.FlowID,
@@ -101,7 +101,7 @@ func (c *Contract) StartSettlement(ctx context.Context, db *gorm.DB, dist *Distr
 		return err // rollback
 	}
 
-	latestBlockHeader, err := c.flowClient.GetLatestBlockHeader(ctx, true)
+	latestBlockHeader, err := svc.flowClient.GetLatestBlockHeader(ctx, true)
 	if err != nil {
 		return err // rollback
 	}
@@ -131,7 +131,7 @@ func (c *Contract) StartSettlement(ctx context.Context, db *gorm.DB, dist *Distr
 		CurrentCount:   0,
 		TotalCount:     uint(len(collectibles)),
 		StartAtBlock:   latestBlockHeader.Height - 1,
-		EscrowAddress:  common.FlowAddressFromString(c.cfg.PDSAddress),
+		EscrowAddress:  common.FlowAddressFromString(svc.cfg.PDSAddress),
 		Collectibles:   settlementCollectibles,
 	}
 
@@ -209,8 +209,8 @@ func (c *Contract) StartSettlement(ctx context.Context, db *gorm.DB, dist *Distr
 // It then creates and stores the minting Flow transactions in database to be
 // later processed by a poller.
 // Batching needs to be done to control the transaction size.
-func (c *Contract) StartMinting(ctx context.Context, db *gorm.DB, dist *Distribution) error {
-	logger := c.logger.WithFields(log.Fields{
+func (svc *ContractService) StartMinting(ctx context.Context, db *gorm.DB, dist *Distribution) error {
+	logger := svc.logger.WithFields(log.Fields{
 		"method":     "StartMinting",
 		"distID":     dist.ID,
 		"distFlowID": dist.FlowID,
@@ -228,7 +228,7 @@ func (c *Contract) StartMinting(ctx context.Context, db *gorm.DB, dist *Distribu
 		return err // rollback
 	}
 
-	latestBlockHeader, err := c.flowClient.GetLatestBlockHeader(ctx, true)
+	latestBlockHeader, err := svc.flowClient.GetLatestBlockHeader(ctx, true)
 	if err != nil {
 		return err // rollback
 	}
@@ -349,8 +349,8 @@ func (c *Contract) StartMinting(ctx context.Context, db *gorm.DB, dist *Distribu
 }
 
 // Abort a distribution
-func (c *Contract) Abort(ctx context.Context, db *gorm.DB, dist *Distribution) error {
-	logger := c.logger.WithFields(log.Fields{
+func (svc *ContractService) Abort(ctx context.Context, db *gorm.DB, dist *Distribution) error {
+	logger := svc.logger.WithFields(log.Fields{
 		"method":     "Abort",
 		"distID":     dist.ID,
 		"distFlowID": dist.FlowID,
@@ -400,8 +400,8 @@ func (c *Contract) Abort(ctx context.Context, db *gorm.DB, dist *Distribution) e
 // UpdateSettlementStatus polls for 'Deposit' events regarding the given distributions
 // collectible NFTs.
 // It updates the settelement status in database accordingly.
-func (c *Contract) UpdateSettlementStatus(ctx context.Context, db *gorm.DB, dist *Distribution) error {
-	logger := c.logger.WithFields(log.Fields{
+func (svc *ContractService) UpdateSettlementStatus(ctx context.Context, db *gorm.DB, dist *Distribution) error {
+	logger := svc.logger.WithFields(log.Fields{
 		"method":     "UpdateSettlementStatus",
 		"distID":     dist.ID,
 		"distFlowID": dist.FlowID,
@@ -414,7 +414,7 @@ func (c *Contract) UpdateSettlementStatus(ctx context.Context, db *gorm.DB, dist
 		return err // rollback
 	}
 
-	latestBlockHeader, err := c.flowClient.GetLatestBlockHeader(ctx, true)
+	latestBlockHeader, err := svc.flowClient.GetLatestBlockHeader(ctx, true)
 	if err != nil {
 		return err // rollback
 	}
@@ -440,7 +440,7 @@ func (c *Contract) UpdateSettlementStatus(ctx context.Context, db *gorm.DB, dist
 	}
 
 	for contract, collectibles := range missing.GroupByContract() {
-		arr, err := c.flowClient.GetEventsForHeightRange(ctx, client.EventRangeQuery{
+		arr, err := svc.flowClient.GetEventsForHeightRange(ctx, client.EventRangeQuery{
 			Type:        fmt.Sprintf("%s.Deposit", contract.String()),
 			StartHeight: begin,
 			EndHeight:   end,
@@ -534,8 +534,8 @@ func (c *Contract) UpdateSettlementStatus(ctx context.Context, db *gorm.DB, dist
 // UpdateMintingStatus polls for 'Mint' events regarding the given distributions
 // Pack NFTs.
 // It updates the minting status in database accordingly.
-func (c *Contract) UpdateMintingStatus(ctx context.Context, db *gorm.DB, dist *Distribution) error {
-	logger := c.logger.WithFields(log.Fields{
+func (svc *ContractService) UpdateMintingStatus(ctx context.Context, db *gorm.DB, dist *Distribution) error {
+	logger := svc.logger.WithFields(log.Fields{
 		"method":     "UpdateMintingStatus",
 		"distID":     dist.ID,
 		"distFlowID": dist.FlowID,
@@ -548,7 +548,7 @@ func (c *Contract) UpdateMintingStatus(ctx context.Context, db *gorm.DB, dist *D
 		return err // rollback
 	}
 
-	latestBlockHeader, err := c.flowClient.GetLatestBlockHeader(ctx, true)
+	latestBlockHeader, err := svc.flowClient.GetLatestBlockHeader(ctx, true)
 	if err != nil {
 		return err // rollback
 	}
@@ -569,7 +569,7 @@ func (c *Contract) UpdateMintingStatus(ctx context.Context, db *gorm.DB, dist *D
 
 	reference := dist.PackTemplate.PackReference.String()
 
-	arr, err := c.flowClient.GetEventsForHeightRange(ctx, client.EventRangeQuery{
+	arr, err := svc.flowClient.GetEventsForHeightRange(ctx, client.EventRangeQuery{
 		Type:        fmt.Sprintf("%s.Mint", reference),
 		StartHeight: begin,
 		EndHeight:   end,
@@ -696,8 +696,8 @@ func (c *Contract) UpdateMintingStatus(ctx context.Context, db *gorm.DB, dist *D
 // It handles each the 'REVEAL_REQUEST' and 'OPEN_REQUEST' events by creating
 // and storing an appropriate Flow transaction in database to be later processed by a poller.
 // 'REVEALED' and 'OPENED' events are used to sync the state of a pack in database with onchain state.
-func (c *Contract) UpdateCirculatingPack(ctx context.Context, db *gorm.DB, cpc *CirculatingPackContract) error {
-	logger := c.logger.WithFields(log.Fields{
+func (svc *ContractService) UpdateCirculatingPack(ctx context.Context, db *gorm.DB, cpc *CirculatingPackContract) error {
+	logger := svc.logger.WithFields(log.Fields{
 		"method": "UpdateCirculatingPack",
 		"cpcID":  cpc.ID,
 	})
@@ -711,7 +711,7 @@ func (c *Contract) UpdateCirculatingPack(ctx context.Context, db *gorm.DB, cpc *
 		OPENED,
 	}
 
-	latestBlockHeader, err := c.flowClient.GetLatestBlockHeader(ctx, true)
+	latestBlockHeader, err := svc.flowClient.GetLatestBlockHeader(ctx, true)
 	if err != nil {
 		return err // rollback
 	}
@@ -732,7 +732,7 @@ func (c *Contract) UpdateCirculatingPack(ctx context.Context, db *gorm.DB, cpc *
 	contractRef := AddressLocation{Name: cpc.Name, Address: cpc.Address}
 
 	for _, eventName := range eventNames {
-		arr, err := c.flowClient.GetEventsForHeightRange(ctx, client.EventRangeQuery{
+		arr, err := svc.flowClient.GetEventsForHeightRange(ctx, client.EventRangeQuery{
 			Type:        cpc.EventName(eventName),
 			StartHeight: begin,
 			EndHeight:   end,
@@ -793,7 +793,7 @@ func (c *Contract) UpdateCirculatingPack(ctx context.Context, db *gorm.DB, cpc *
 					}
 
 					// Get the owner of the pack from the transaction that emitted the open request event
-					tx, err := c.flowClient.GetTransaction(ctx, e.TransactionID)
+					tx, err := svc.flowClient.GetTransaction(ctx, e.TransactionID)
 					if err != nil {
 						return err // rollback
 					}
@@ -893,7 +893,7 @@ func (c *Contract) UpdateCirculatingPack(ctx context.Context, db *gorm.DB, cpc *
 					}
 
 					// Get the owner of the pack from the transaction that emitted the open request event
-					tx, err := c.flowClient.GetTransaction(ctx, e.TransactionID)
+					tx, err := svc.flowClient.GetTransaction(ctx, e.TransactionID)
 					if err != nil {
 						return err // rollback
 					}

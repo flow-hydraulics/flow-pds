@@ -27,16 +27,16 @@ func poller(app *App) {
 		app.logger.Trace("Poll start")
 		select {
 		case <-ticker.C:
-			handlePollerError("handleResolved", handleResolved(ctx, app.db, app.contract), app.logger)
-			handlePollerError("handleSettling", handleSettling(ctx, app.db, app.contract), app.logger)
-			handlePollerError("handleSettled", handleSettled(ctx, app.db, app.contract), app.logger)
-			handlePollerError("handleMinting", handleMinting(ctx, app.db, app.contract), app.logger)
-			handlePollerError("handleComplete", handleComplete(ctx, app.db, app.contract), app.logger)
+			handlePollerError("handleResolved", handleResolved(ctx, app.db, app.service), app.logger)
+			handlePollerError("handleSettling", handleSettling(ctx, app.db, app.service), app.logger)
+			handlePollerError("handleSettled", handleSettled(ctx, app.db, app.service), app.logger)
+			handlePollerError("handleMinting", handleMinting(ctx, app.db, app.service), app.logger)
+			handlePollerError("handleComplete", handleComplete(ctx, app.db, app.service), app.logger)
 
-			handlePollerError("pollCirculatingPackContractEvents", pollCirculatingPackContractEvents(ctx, app.db, app.contract), app.logger)
+			handlePollerError("pollCirculatingPackContractEvents", pollCirculatingPackContractEvents(ctx, app.db, app.service), app.logger)
 
-			handlePollerError("handleSentTransactions", handleSentTransactions(ctx, app.db, app.contract), app.logger)
-			handlePollerError("handleSendableTransactions", handleSendableTransactions(ctx, app.db, app.contract, transactionRatelimiter), app.logger)
+			handlePollerError("handleSentTransactions", handleSentTransactions(ctx, app.db, app.service), app.logger)
+			handlePollerError("handleSendableTransactions", handleSendableTransactions(ctx, app.db, app.service, transactionRatelimiter), app.logger)
 		case <-app.quit:
 			cancel()
 			ticker.Stop()
@@ -78,7 +78,7 @@ func listCirculatingPacks(db *gorm.DB) ([]CirculatingPackContract, error) {
 		Find(&list).Error
 }
 
-func handleResolved(ctx context.Context, db *gorm.DB, contract *Contract) error {
+func handleResolved(ctx context.Context, db *gorm.DB, contract *ContractService) error {
 	return db.Transaction(func(tx *gorm.DB) error {
 		resolved, err := listDistributionsByState(tx, common.DistributionStateResolved)
 		if err != nil {
@@ -95,7 +95,7 @@ func handleResolved(ctx context.Context, db *gorm.DB, contract *Contract) error 
 	})
 }
 
-func handleSettling(ctx context.Context, db *gorm.DB, contract *Contract) error {
+func handleSettling(ctx context.Context, db *gorm.DB, contract *ContractService) error {
 	return db.Transaction(func(tx *gorm.DB) error {
 		settling, err := listDistributionsByState(tx, common.DistributionStateSettling)
 		if err != nil {
@@ -111,7 +111,7 @@ func handleSettling(ctx context.Context, db *gorm.DB, contract *Contract) error 
 	})
 }
 
-func handleSettled(ctx context.Context, db *gorm.DB, contract *Contract) error {
+func handleSettled(ctx context.Context, db *gorm.DB, contract *ContractService) error {
 	return db.Transaction(func(tx *gorm.DB) error {
 		settled, err := listDistributionsByState(tx, common.DistributionStateSettled)
 		if err != nil {
@@ -128,7 +128,7 @@ func handleSettled(ctx context.Context, db *gorm.DB, contract *Contract) error {
 	})
 }
 
-func handleMinting(ctx context.Context, db *gorm.DB, contract *Contract) error {
+func handleMinting(ctx context.Context, db *gorm.DB, contract *ContractService) error {
 	return db.Transaction(func(tx *gorm.DB) error {
 		minting, err := listDistributionsByState(tx, common.DistributionStateMinting)
 		if err != nil {
@@ -146,7 +146,7 @@ func handleMinting(ctx context.Context, db *gorm.DB, contract *Contract) error {
 
 // handleComplete deletes obsolete Settlement, SettlementCollectible and Minting
 // objects from database.
-func handleComplete(ctx context.Context, db *gorm.DB, contract *Contract) error {
+func handleComplete(ctx context.Context, db *gorm.DB, contract *ContractService) error {
 	return db.Transaction(func(tx *gorm.DB) error {
 		complete, err := listDistributionsByState(tx, common.DistributionStateComplete)
 		if err != nil {
@@ -172,7 +172,7 @@ func handleComplete(ctx context.Context, db *gorm.DB, contract *Contract) error 
 	})
 }
 
-func pollCirculatingPackContractEvents(ctx context.Context, db *gorm.DB, contract *Contract) error {
+func pollCirculatingPackContractEvents(ctx context.Context, db *gorm.DB, contract *ContractService) error {
 	return db.Transaction(func(tx *gorm.DB) error {
 		cc, err := listCirculatingPacks(tx)
 		if err != nil {
@@ -194,7 +194,7 @@ func pollCirculatingPackContractEvents(ctx context.Context, db *gorm.DB, contrac
 // TODO (latenssi): this is basically brute forcing the sequence numbering
 // TODO (latenssi): this will currently iterate over all sendable transactions
 // in database while locking the poller from doing other actions
-func handleSendableTransactions(ctx context.Context, db *gorm.DB, contract *Contract, rateLimiter ratelimit.Limiter) error {
+func handleSendableTransactions(ctx context.Context, db *gorm.DB, contract *ContractService, rateLimiter ratelimit.Limiter) error {
 	logger := log.WithFields(log.Fields{
 		"function": "handleSendableTransactions",
 	})
@@ -271,7 +271,7 @@ func handleSendableTransactions(ctx context.Context, db *gorm.DB, contract *Cont
 
 // handleSentTransactions checks the results of sent transactions and updates
 // the state in database accordingly
-func handleSentTransactions(ctx context.Context, db *gorm.DB, contract *Contract) error {
+func handleSentTransactions(ctx context.Context, db *gorm.DB, contract *ContractService) error {
 	logger := log.WithFields(log.Fields{
 		"function": "handleSentTransactions",
 	})
