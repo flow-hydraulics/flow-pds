@@ -139,6 +139,8 @@ func (svc *ContractService) SetupDistribution(ctx context.Context, db *gorm.DB, 
 			SetGasLimit(9999).
 			SetReferenceBlockID(latestBlockHeader.ID)
 
+		tx.AddArgument(cadence.Path{Domain: "private", Identifier: "NFTCollectionProvider"})
+
 		if err := flow_helpers.SignProposeAndPayAs(ctx, svc.flowClient, svc.account, tx); err != nil {
 			return err // rollback
 		}

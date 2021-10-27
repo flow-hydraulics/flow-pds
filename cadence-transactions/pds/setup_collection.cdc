@@ -1,7 +1,7 @@
 import NonFungibleToken from 0x{{.NonFungibleToken}}
 import {{.CollectibleNFTName}} from 0x{{.CollectibleNFTAddress}}
 
-transaction () {
+transaction (NFTProviderPath: PrivatePath) {
     prepare(signer: AuthAccount) {
         // Setup the collection, if not already
         if signer.borrow<&{{.CollectibleNFTName}}.Collection>(from: {{.CollectibleNFTName}}.CollectionStoragePath) == nil {
@@ -17,9 +17,9 @@ transaction () {
         }
 
         // Link the private withdraw capability, if not already
-        if !signer.getCapability<&{NonFungibleToken.Provider}>({{.CollectibleNFTName}}.CollectionProviderPrivPath).check() {
-          signer.link<&{NonFungibleToken.Provider}>({{.CollectibleNFTName}}.CollectionProviderPrivPath, target: {{.CollectibleNFTName}}.CollectionStoragePath)
-          assert(signer.getCapability<&{NonFungibleToken.Provider}>({{.CollectibleNFTName}}.CollectionProviderPrivPath).check(), message: "did not link withdraw cap");
+        if !signer.getCapability<&{NonFungibleToken.Provider}>(NFTProviderPath).check() {
+          signer.link<&{NonFungibleToken.Provider}>(NFTProviderPath, target: {{.CollectibleNFTName}}.CollectionStoragePath)
+          assert(signer.getCapability<&{NonFungibleToken.Provider}>(NFTProviderPath).check(), message: "did not link withdraw cap");
         }
     }
 }
