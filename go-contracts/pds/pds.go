@@ -116,7 +116,7 @@ func PDSWithdrawNFT(
 	nftIds cadence.Value,
 	account string,
 ) (events []*gwtf.FormatedEvent, err error) {
-	withdraw := "../cadence-transactions/pds/settle_exampleNFT.cdc"
+	withdraw := "../cadence-transactions/pds/settle.cdc"
 	withdrawCode := util.ParseCadenceTemplate(withdraw)
 	e, err := g.
 		TransactionFromFile(withdraw, withdrawCode).
