@@ -4,6 +4,8 @@ description: A template from which to generate packs.
 properties:
   packReference:
     $ref: ./Contract-Reference.yaml
+  collectibleReference:
+    $ref: ./Contract-Reference.yaml
   packCount:
     type: integer
     minimum: 1
@@ -12,3 +14,8 @@ properties:
     type: array
     items:
       $ref: ./Bucket-Create.yaml
+required:
+  - packReference
+  - collectibleReference
+  - packCount
+  - buckets
