@@ -33,7 +33,7 @@ const (
 )
 
 const (
-	SETUP_COLLECTION_SCRIPT = "./cadence-transactions/pds/setup_collection_and_link_provider.cdc"
+	SETUP_COLLECTION_SCRIPT = "./cadence-transactions/collectibleNFT/setup_collection_and_link_provider.cdc"
 	SETTLE_SCRIPT           = "./cadence-transactions/pds/settle.cdc"
 	MINT_SCRIPT             = "./cadence-transactions/pds/mint_packNFT.cdc"
 	REVEAL_SCRIPT           = "./cadence-transactions/pds/reveal_packNFT.cdc"
