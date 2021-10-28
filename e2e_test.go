@@ -34,7 +34,7 @@ func TestE2E(t *testing.T) {
 
 	// The caller wishing to create the collection will choose which Private Path they would like to link the
 	// the Collection Provider Capability (when shared, to withdraw from their collection)
-	// The Private Path string in this case is "NFTCollectionProider"
+	// The Private Path string in this case is "NFTCollectionProvider"
 	setupExampleNFT := "./cadence-transactions/exampleNFT/setup_exampleNFT.cdc"
 	setupExampleNFTCode := util.ParseCadenceTemplate(setupExampleNFT)
 	_, err := g.
