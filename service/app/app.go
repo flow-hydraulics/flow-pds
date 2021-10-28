@@ -16,7 +16,7 @@ type App struct {
 	logger     *log.Logger
 	db         *gorm.DB
 	flowClient *client.Client
-	contract   *Contract
+	service    *ContractService
 	quit       chan bool // Chan type does not matter as we only use this to 'close'
 }
 
@@ -25,13 +25,13 @@ func New(cfg *config.Config, logger *log.Logger, db *gorm.DB, flowClient *client
 		panic("no logger")
 	}
 
-	contract, err := NewContract(cfg, logger, flowClient)
+	service, err := NewContractService(cfg, logger, flowClient)
 	if err != nil {
 		return nil, err
 	}
 
 	quit := make(chan bool)
-	app := &App{cfg, logger, db, flowClient, contract, quit}
+	app := &App{cfg, logger, db, flowClient, service, quit}
 
 	if poll {
 		go poller(app)
@@ -85,7 +85,7 @@ func (app *App) AbortDistribution(ctx context.Context, id uuid.UUID) error {
 			return err
 		}
 
-		if err := app.contract.Abort(ctx, tx, distribution); err != nil {
+		if err := app.service.Abort(ctx, tx, distribution); err != nil {
 			return err
 		}
 

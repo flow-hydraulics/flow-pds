@@ -42,7 +42,7 @@ type Pack struct {
 	DistributionID uuid.UUID
 	ID             uuid.UUID `gorm:"column:id;primary_key;type:uuid;"`
 
-	ContractReference AddressLocation    `gorm:"embedded;embeddedPrefix:contract_ref_"` // Reference to the pack NFT contract
+	ContractReference AddressLocation    `gorm:"embedded;embeddedPrefix:contract_ref_"` // Reference to the collectible NFT contract
 	FlowID            common.FlowID      `gorm:"column:flow_id;index"`                  // ID of the pack NFT
 	State             common.PackState   `gorm:"column:state;not null;default:null"`    // public
 	Salt              common.BinaryValue `gorm:"column:salt"`                           // private
@@ -148,54 +148,45 @@ func (dist *Distribution) Resolve() error {
 	return nil
 }
 
-// SetSettling sets the status to "settling" if preceding state was valid
-func (dist *Distribution) SetSettling() error {
-	if dist.State != common.DistributionStateResolved {
-		return fmt.Errorf("distribution can not start settling at this state: %s", dist.State)
+func (dist *Distribution) SetState(target common.DistributionState, prereq common.DistributionState) error {
+	if dist.State != prereq {
+		return fmt.Errorf("distribution can not be set to '%s' from '%s'", target, dist.State)
 	}
 
-	dist.State = common.DistributionStateSettling
+	dist.State = target
 
 	return nil
+}
+
+// SetSetup sets the status to "setup" if preceding state was valid
+func (dist *Distribution) SetSetup() error {
+	return dist.SetState(common.DistributionStateSetup, common.DistributionStateResolved)
+}
+
+// SetSettling sets the status to "settling" if preceding state was valid
+func (dist *Distribution) SetSettling() error {
+	return dist.SetState(common.DistributionStateSettling, common.DistributionStateSetup)
 }
 
 // SetSettled sets the status to "settled" if preceding state was valid
 func (dist *Distribution) SetSettled() error {
-	if dist.State != common.DistributionStateSettling {
-		return fmt.Errorf("distribution can not be set as settled at this state: %s", dist.State)
-	}
-
-	dist.State = common.DistributionStateSettled
-
-	return nil
+	return dist.SetState(common.DistributionStateSettled, common.DistributionStateSettling)
 }
 
 // SetMinting sets the status to "minting" if preceding state was valid
 func (dist *Distribution) SetMinting() error {
-	if dist.State != common.DistributionStateSettled {
-		return fmt.Errorf("distribution can not start minting at this state: %s", dist.State)
-	}
-
-	dist.State = common.DistributionStateMinting
-
-	return nil
+	return dist.SetState(common.DistributionStateMinting, common.DistributionStateSettled)
 }
 
 // SetComplete sets the status to "complete" if preceding state was valid
 func (dist *Distribution) SetComplete() error {
-	if dist.State != common.DistributionStateMinting {
-		return fmt.Errorf("distribution can not be set as complete at this state: %s", dist.State)
-	}
-
-	dist.State = common.DistributionStateComplete
-
-	return nil
+	return dist.SetState(common.DistributionStateComplete, common.DistributionStateMinting)
 }
 
 // SetInvalid sets the status to "invalid" if preceding state was valid
 func (dist *Distribution) SetInvalid() error {
 	if dist.State == common.DistributionStateComplete {
-		return fmt.Errorf("distribution can not be set as invalid at this state: %s", dist.State)
+		return fmt.Errorf("distribution can not be set to '%s' from '%s'", common.DistributionStateInvalid, dist.State)
 	}
 
 	dist.State = common.DistributionStateInvalid

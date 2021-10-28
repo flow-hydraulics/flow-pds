@@ -15,3 +15,7 @@ type AddressLocation struct {
 func (al AddressLocation) String() string {
 	return fmt.Sprintf("A.%s.%s", al.Address, al.Name)
 }
+
+func (al AddressLocation) ProviderPath() string {
+	return fmt.Sprintf("%s_%s_ProviderPath", al.Name, al.Address)
+}

@@ -79,3 +79,15 @@ func (cc SettlementCollectibles) ContainsID(id common.FlowID) (int, bool) {
 	}
 	return -1, false
 }
+
+func (cc SettlementCollectibles) GroupByContract() map[AddressLocation]SettlementCollectibles {
+	res := make(map[AddressLocation]SettlementCollectibles)
+	for _, c := range cc {
+		key := c.ContractReference
+		if _, ok := res[key]; !ok {
+			res[key] = SettlementCollectibles{}
+		}
+		res[key] = append(res[key], c)
+	}
+	return res
+}
