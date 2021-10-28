@@ -16,7 +16,7 @@ paths:
           description: OK
   /set-dist-cap:
     post:
-      summary: ''
+      summary: 'Set distribution capability'
       operationId: set-dist-cap
       responses:
         '200':
