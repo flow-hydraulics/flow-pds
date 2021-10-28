@@ -8,6 +8,8 @@ import (
 	"net/http/httptest"
 	"testing"
 
+	"github.com/bjartek/go-with-the-flow/v2/gwtf"
+	"github.com/flow-hydraulics/flow-pds/go-contracts/util"
 	"github.com/flow-hydraulics/flow-pds/service/common"
 	pds_http "github.com/flow-hydraulics/flow-pds/service/http"
 	"github.com/google/uuid"
@@ -104,4 +106,53 @@ func TestCreate(t *testing.T) {
 
 	AssertEqual(t, getRes.ID, createRes.ID)
 	AssertEqual(t, getRes.Issuer, addr)
+}
+
+func TestSetDistCap(t *testing.T) {
+	cfg := getTestCfg()
+	server, cleanup := getTestServer(cfg, false)
+	defer func() {
+		cleanup()
+	}()
+
+	g := gwtf.NewGoWithTheFlow([]string{"./flow.json"}, "emulator", false, 0)
+
+	t.Log("Issuer create PackIssuer resource to store DistCap")
+
+	createPackIssuer := "./cadence-transactions/pds/create_new_pack_issuer.cdc"
+	createPackIssuerCode := util.ParseCadenceTemplate(createPackIssuer)
+	_, err := g.
+		TransactionFromFile(createPackIssuer, createPackIssuerCode).
+		SignProposeAndPayAs("issuer").
+		RunE()
+	if err != nil {
+		t.Fatal(err)
+	}
+
+	issuer := common.FlowAddress(g.Account("issuer").Address())
+
+	dReq := pds_http.ReqCreateDistribution{
+		Issuer: issuer,
+	}
+
+	jReq, err := json.Marshal(dReq)
+	if err != nil {
+		t.Fatal(err)
+	}
+
+	r := httptest.NewRecorder()
+
+	req, err := http.NewRequest("POST", "/v1/set-dist-cap", bytes.NewBuffer(jReq))
+	if err != nil {
+		t.Fatal(err)
+	}
+
+	req.Header.Set("Content-Type", "application/json")
+
+	server.Server.Handler.ServeHTTP(r, req)
+
+	// Check the status code is what we expect.
+	if status := r.Code; status != http.StatusOK {
+		t.Fatalf("handler returned wrong status code: got %v want %v, error: %s", status, http.StatusOK, r.Body)
+	}
 }
