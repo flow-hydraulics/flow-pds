@@ -33,6 +33,7 @@ const (
 )
 
 const (
+	SET_DIST_CAP_SCRIPT     = "./cadence-transactions/pds/set_pack_issuer_cap.cdc"
 	SETUP_COLLECTION_SCRIPT = "./cadence-transactions/collectibleNFT/setup_collection_and_link_provider.cdc"
 	SETTLE_SCRIPT           = "./cadence-transactions/pds/settle.cdc"
 	MINT_SCRIPT             = "./cadence-transactions/pds/mint_packNFT.cdc"
@@ -75,6 +76,48 @@ func NewContractService(cfg *config.Config, logger *log.Logger, flowClient *clie
 		return nil, fmt.Errorf("too many key indexes given for admin account")
 	}
 	return &ContractService{cfg, logger, flowClient, pdsAccount}, nil
+}
+
+func (svc *ContractService) SetDistCap(ctx context.Context, db *gorm.DB, issuer common.FlowAddress) error {
+	logger := svc.logger.WithFields(log.Fields{
+		"method": "SetDistCap",
+		"issuer": issuer,
+	})
+
+	logger.Info("Set distribution capability")
+
+	latestBlockHeader, err := svc.flowClient.GetLatestBlockHeader(ctx, true)
+	if err != nil {
+		return err
+	}
+
+	txScript, err := flow_helpers.ParseCadenceTemplate(SET_DIST_CAP_SCRIPT, nil)
+	if err != nil {
+		return err
+	}
+
+	tx := flow.NewTransaction().
+		SetScript(txScript).
+		SetGasLimit(9999).
+		SetReferenceBlockID(latestBlockHeader.ID)
+
+	tx.AddArgument(cadence.Address(issuer))
+
+	if err := flow_helpers.SignProposeAndPayAs(ctx, svc.flowClient, svc.account, tx); err != nil {
+		return err
+	}
+
+	if err := svc.flowClient.SendTransaction(ctx, *tx); err != nil {
+		return err
+	}
+
+	if _, err := flow_helpers.WaitForSeal(ctx, svc.flowClient, tx.ID(), time.Minute*10); err != nil {
+		return err
+	}
+
+	logger.Trace("Set distribution capability complete")
+
+	return nil
 }
 
 // SetupDistribution will make sure the PDS account has a collection onchain

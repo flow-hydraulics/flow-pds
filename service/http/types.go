@@ -8,6 +8,10 @@ import (
 	"github.com/google/uuid"
 )
 
+type ReqSetDistCap struct {
+	Issuer common.FlowAddress `json:"issuer"`
+}
+
 type ReqCreateDistribution struct {
 	FlowID       common.FlowID      `json:"distFlowID"`
 	Issuer       common.FlowAddress `json:"issuer"`

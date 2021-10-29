@@ -3,6 +3,7 @@ package app
 import (
 	"context"
 
+	"github.com/flow-hydraulics/flow-pds/service/common"
 	"github.com/flow-hydraulics/flow-pds/service/config"
 	"github.com/google/uuid"
 	"github.com/onflow/flow-go-sdk/client"
@@ -43,6 +44,12 @@ func New(cfg *config.Config, logger *log.Logger, db *gorm.DB, flowClient *client
 // Closes allows the poller to close controllably
 func (app *App) Close() {
 	close(app.quit)
+}
+
+// SetDistCap calls ContractService.SetDistCap which sends a transaction
+// sharing the distribution capability to the issuer
+func (app *App) SetDistCap(ctx context.Context, issuer common.FlowAddress) error {
+	return app.service.SetDistCap(ctx, app.db, issuer)
 }
 
 // CreateDistribution validates a distribution, resolves it and stores it in database

@@ -14,7 +14,6 @@ import (
 	"github.com/flow-hydraulics/flow-pds/service/common"
 	"github.com/flow-hydraulics/flow-pds/service/flow_helpers"
 	"github.com/onflow/cadence"
-	"github.com/onflow/flow-go-sdk"
 	"github.com/stretchr/testify/assert"
 )
 
@@ -29,6 +28,8 @@ func TestE2E(t *testing.T) {
 	no_collectibles_per_pack := 10
 
 	g := gwtf.NewGoWithTheFlow([]string{"./flow.json"}, "emulator", false, 0)
+
+	issuer := common.FlowAddress(g.Account("issuer").Address())
 
 	t.Log("Setting up collectible NFT (ExampleNFT) collection for owner")
 
@@ -135,14 +136,7 @@ func TestE2E(t *testing.T) {
 	}
 
 	t.Log("PDS share DistCap to PackIssuer (owned by Issuer)")
-
-	setDistCap := "./cadence-transactions/pds/set_pack_issuer_cap.cdc"
-	setDistCapCode := util.ParseCadenceTemplate(setDistCap)
-	_, err = g.
-		TransactionFromFile(setDistCap, setDistCapCode).
-		SignProposeAndPayAs("pds").
-		AccountArgument("issuer").
-		RunE()
+	err = a.SetDistCap(context.Background(), issuer)
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -197,8 +191,6 @@ func TestE2E(t *testing.T) {
 	// -- Create distribution --
 
 	t.Log("Use available NFTs to create a distribution in backend")
-
-	issuer := common.FlowAddress(flow.HexToAddress(util.GetAccountAddr(g, "issuer")))
 
 	distId, err := common.FlowIDFromCadence(currentDistId)
 	if err != nil {

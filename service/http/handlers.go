@@ -11,6 +11,33 @@ import (
 	log "github.com/sirupsen/logrus"
 )
 
+// Set distribution capability
+func HandleSetDistCap(logger *log.Logger, app *app.App) http.HandlerFunc {
+	return func(rw http.ResponseWriter, r *http.Request) {
+		// Check body is not empty
+		if err := checkNonEmptyBody(r); err != nil {
+			handleError(rw, logger, err)
+			return
+		}
+
+		var reqData ReqSetDistCap
+
+		// Decode JSON
+		if err := json.NewDecoder(r.Body).Decode(&reqData); err != nil {
+			handleError(rw, logger, err)
+			return
+		}
+
+		if err := app.SetDistCap(r.Context(), reqData.Issuer); err != nil {
+			handleError(rw, logger, err)
+			return
+		}
+
+		handleJsonResponse(rw, http.StatusOK, "Ok")
+
+	}
+}
+
 // Create a distribution
 func HandleCreateDistribution(logger *log.Logger, app *app.App) http.HandlerFunc {
 	return func(rw http.ResponseWriter, r *http.Request) {
