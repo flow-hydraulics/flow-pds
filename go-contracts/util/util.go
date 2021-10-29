@@ -24,11 +24,15 @@ const flowPath = "../flow.json"
 var FlowJSON []string = []string{flowPath}
 
 type Addresses struct {
-	NonFungibleToken string
-	ExampleNFT       string
-	PackNFT          string
-	IPackNFT         string
-	PDS              string
+	NonFungibleToken      string
+	ExampleNFT            string
+	PackNFT               string
+	IPackNFT              string
+	PDS                   string
+	PackNFTName           string
+	PackNFTAddress        string
+	CollectibleNFTName    string
+	CollectibleNFTAddress string
 }
 
 type TestEvent struct {
@@ -51,7 +55,17 @@ func ParseCadenceTemplate(templatePath string) []byte {
 
 	// Addresss for emulator are
 	// addresses = Addresses{"f8d6e0586b0a20c7", "01cf0e2f2f715450", "01cf0e2f2f715450", "f3fcd2c1a78f5eee", "f3fcd2c1a78f5eee"}
-	addresses = Addresses{os.Getenv("NON_FUNGIBLE_TOKEN_ADDRESS"), os.Getenv("EXAMPLE_NFT_ADDRESS"), os.Getenv("PACKNFT_ADDRESS"), os.Getenv("PDS_ADDRESS"), os.Getenv("PDS_ADDRESS")}
+	addresses = Addresses{
+		NonFungibleToken:      os.Getenv("NON_FUNGIBLE_TOKEN_ADDRESS"),
+		ExampleNFT:            os.Getenv("EXAMPLE_NFT_ADDRESS"),
+		PackNFT:               os.Getenv("PACKNFT_ADDRESS"),
+		IPackNFT:              os.Getenv("PDS_ADDRESS"),
+		PDS:                   os.Getenv("PDS_ADDRESS"),
+		PackNFTName:           "PackNFT",
+		PackNFTAddress:        os.Getenv("PACKNFT_ADDRESS"),
+		CollectibleNFTName:    "ExampleNFT",
+		CollectibleNFTAddress: os.Getenv("EXAMPLE_NFT_ADDRESS"),
+	}
 
 	buf := &bytes.Buffer{}
 	err = tmpl.Execute(buf, addresses)

@@ -3,6 +3,7 @@ package main
 import (
 	"context"
 	"math"
+	"os"
 	"strings"
 	"testing"
 	"time"
@@ -11,6 +12,7 @@ import (
 	"github.com/flow-hydraulics/flow-pds/go-contracts/util"
 	"github.com/flow-hydraulics/flow-pds/service/app"
 	"github.com/flow-hydraulics/flow-pds/service/common"
+	"github.com/flow-hydraulics/flow-pds/service/flow_helpers"
 	"github.com/onflow/cadence"
 	"github.com/onflow/flow-go-sdk"
 	"github.com/stretchr/testify/assert"
@@ -30,6 +32,9 @@ func TestE2E(t *testing.T) {
 
 	t.Log("Setting up collectible NFT (ExampleNFT) collection for owner")
 
+	// The caller wishing to create the collection will choose which Private Path they would like to link the
+	// the Collection Provider Capability (when shared, to withdraw from their collection)
+	// The Private Path string in this case is "NFTCollectionProvider"
 	setupExampleNFT := "./cadence-transactions/exampleNFT/setup_exampleNFT.cdc"
 	setupExampleNFTCode := util.ParseCadenceTemplate(setupExampleNFT)
 	_, err := g.
@@ -40,15 +45,15 @@ func TestE2E(t *testing.T) {
 		t.Fatal(err)
 	}
 
-	t.Log("Setting up collectible NFT (ExampleNFT) collection for PDS")
+	t.Log("Issuer link NFT collection capability to share when create dist")
 
-	_, err = g.
-		TransactionFromFile(setupExampleNFT, setupExampleNFTCode).
-		SignProposeAndPayAs("pds").
+	linkScript := "./cadence-transactions/exampleNFT/link_providerCap_exampleNFT.cdc"
+	linkCode := util.ParseCadenceTemplate(linkScript)
+	_, err = g.TransactionFromFile(linkScript, linkCode).
+		SignProposeAndPayAs("issuer").
+		Argument(cadence.Path{Domain: "private", Identifier: "NFTCollectionProvider"}).
 		RunE()
-	if err != nil {
-		t.Fatal(err)
-	}
+	assert.NoError(t, err)
 
 	t.Log("Issuer create PackIssuer resource to store DistCap")
 
@@ -159,12 +164,22 @@ func TestE2E(t *testing.T) {
 	expTitle := "ExampleDistTitle"
 
 	createDist := "./cadence-transactions/pds/create_distribution.cdc"
-	createDistCode := util.ParseCadenceTemplate(createDist)
+	createDistCode, err := flow_helpers.ParseCadenceTemplate(
+		createDist,
+		&flow_helpers.CadenceTemplateVars{
+			PackNFTName:    "PackNFT",
+			PackNFTAddress: os.Getenv("PACKNFT_ADDRESS"),
+		},
+	)
+	if err != nil {
+		t.Fatal(err)
+	}
+
 	// Private path must match the PackNFT contract
 	e, err := g.
 		TransactionFromFile(createDist, createDistCode).
 		SignProposeAndPayAs("issuer").
-		Argument(cadence.Path{Domain: "private", Identifier: "exampleNFTCollectionProvider"}).
+		Argument(cadence.Path{Domain: "private", Identifier: "NFTCollectionProvider"}).
 		StringArgument(expTitle).
 		Argument(expMetadata).
 		RunE()

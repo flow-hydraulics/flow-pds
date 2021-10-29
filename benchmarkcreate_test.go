@@ -30,13 +30,13 @@ func benchmarkCreate(packs, slots uint, b *testing.B) {
 				Name:    "TestPackNFT",
 				Address: addr,
 			},
+			CollectibleReference: pds_http.AddressLocation{
+				Name:    "TestCollectibleNFT",
+				Address: addr,
+			},
 			PackCount: packs,
 			Buckets: []pds_http.ReqBucket{
 				{
-					CollectibleReference: pds_http.AddressLocation{
-						Name:    "TestCollectibleNFT",
-						Address: addr,
-					},
 					CollectibleCount:      slots,
 					CollectibleCollection: collection,
 				},

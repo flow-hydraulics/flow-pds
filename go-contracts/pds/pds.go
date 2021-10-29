@@ -39,6 +39,7 @@ func SetPackIssuerCap(
 
 func CreateDistribution(
 	g *gwtf.GoWithTheFlow,
+	privPath string,
 	account string,
 	title string,
 	metadata cadence.Value,
@@ -50,7 +51,7 @@ func CreateDistribution(
 	e, err := g.
 		TransactionFromFile(createDist, createDistCode).
 		SignProposeAndPayAs("issuer").
-		Argument(cadence.Path{Domain: "private", Identifier: "exampleNFTCollectionProvider"}).
+		Argument(cadence.Path{Domain: "private", Identifier: privPath}).
 		StringArgument(title).
 		Argument(metadata).
 		RunE()
@@ -115,7 +116,7 @@ func PDSWithdrawNFT(
 	nftIds cadence.Value,
 	account string,
 ) (events []*gwtf.FormatedEvent, err error) {
-	withdraw := "../cadence-transactions/pds/settle_exampleNFT.cdc"
+	withdraw := "../cadence-transactions/pds/settle.cdc"
 	withdrawCode := util.ParseCadenceTemplate(withdraw)
 	e, err := g.
 		TransactionFromFile(withdraw, withdrawCode).
@@ -185,23 +186,25 @@ func PDSRevealPackNFT(
 	nftContractNames cadence.Value,
 	nftIds cadence.Value,
 	salt string,
-    owner string,
+	owner string,
 	openReq bool,
+	privPath string,
 	account string,
 ) (events []*gwtf.FormatedEvent, err error) {
 	txScript := "../cadence-transactions/pds/reveal_packNFT.cdc"
 	code := util.ParseCadenceTemplate(txScript)
 	e, err := g.
 		TransactionFromFile(txScript, code).
-		SignProposeAndPayAs("pds").
+		SignProposeAndPayAs(account).
 		UInt64Argument(distId).
 		UInt64Argument(packId).
 		Argument(nftContractAddrs).
 		Argument(nftContractNames).
 		Argument(nftIds).
 		StringArgument(salt).
-		AccountArgument("owner").
+		AccountArgument(owner).
 		BooleanArgument(openReq).
+		Argument(cadence.Path{Domain: "private", Identifier: privPath}).
 		RunE()
 	events = util.ParseTestEvents(e)
 	return
@@ -215,19 +218,21 @@ func PDSOpenPackNFT(
 	nftContractNames cadence.Value,
 	nftIds cadence.Value,
 	owner string,
+	privPath string,
 	account string,
 ) (events []*gwtf.FormatedEvent, err error) {
 	txScript := "../cadence-transactions/pds/open_packNFT.cdc"
 	code := util.ParseCadenceTemplate(txScript)
 	e, err := g.
 		TransactionFromFile(txScript, code).
-		SignProposeAndPayAs("pds").
+		SignProposeAndPayAs(account).
 		UInt64Argument(distId).
 		UInt64Argument(packId).
 		Argument(nftContractAddrs).
 		Argument(nftContractNames).
 		Argument(nftIds).
 		AccountArgument(owner).
+		Argument(cadence.Path{Domain: "private", Identifier: privPath}).
 		RunE()
 	events = util.ParseTestEvents(e)
 	return

@@ -9,12 +9,11 @@ paths:
   /health/ready:
     get:
       summary: Health check
-      description: Simple health check, will always respond with 200 OK
+      description: 'Simple health check, will always respond with 200 OK'
       operationId: health-ready
       responses:
         '200':
           description: OK
-
   /distributions:
     post:
       summary: Create Distribution
@@ -45,18 +44,18 @@ paths:
             examples:
               example-1:
                 value:
-                  distFlowID: 12
+                  distFlowID: 1
                   issuer: '0x1'
                   packTemplate:
                     packReference:
-                      name: string
+                      name: ExampleNFT
                       address: '0x1'
-                    packCount: 3
+                    collectibleReference:
+                      name: ExampleNFT
+                      address: '0x1'
+                    packCount: 1
                     buckets:
-                      - collectibleReference:
-                          name: string
-                          address: '0x1'
-                        collectibleCount: 2
+                      - collectibleCount: 4
                         collectibleCollection:
                           - 1
                           - 2
@@ -130,8 +129,7 @@ paths:
       responses:
         '200':
           description: OK
-      description: Forcibly abort the process, which will put the Distribution into the Invalid state.
-
+      description: 'Forcibly abort the process, which will put the Distribution into the Invalid state.'
 components:
   schemas: {}
   responses:

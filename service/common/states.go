@@ -8,6 +8,7 @@ const (
 	DistributionStateInit     DistributionState = "init"
 	DistributionStateInvalid  DistributionState = "invalid"
 	DistributionStateResolved DistributionState = "resolved"
+	DistributionStateSetup    DistributionState = "setup"
 	DistributionStateSettling DistributionState = "settling"
 	DistributionStateSettled  DistributionState = "settled"
 	DistributionStateMinting  DistributionState = "minting"

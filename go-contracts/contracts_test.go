@@ -71,6 +71,26 @@ func TestCanCreatePackIssuer(t *testing.T) {
 	assert.NoError(t, err)
 }
 
+// Issuer and PDS  must first link their NFT Provider Cap
+// Issuer: for PDS to withdraw to escrow
+// PDS: for the PDS contract to release escrow
+func TestIssuerCanLinkProviderCap(t *testing.T) {
+	g := gwtf.NewGoWithTheFlow(util.FlowJSON, os.Getenv("NETWORK"), false, 3)
+	script := "../cadence-transactions/exampleNFT/link_providerCap_exampleNFT.cdc"
+	code := util.ParseCadenceTemplate(script)
+	_, err := g.TransactionFromFile(script, code).
+		SignProposeAndPayAs("issuer").
+		Argument(cadence.Path{Domain: "private", Identifier: "NFTCollectionProvider"}).
+		RunE()
+	assert.NoError(t, err)
+
+	_, err = g.TransactionFromFile(script, code).
+		SignProposeAndPayAs("pds").
+		Argument(cadence.Path{Domain: "private", Identifier: "NFTCollectionProvider"}).
+		RunE()
+	assert.NoError(t, err)
+}
+
 // Setup - sharing capabilities
 
 func TestCannotCreateDistWithoutCap(t *testing.T) {
@@ -79,7 +99,7 @@ func TestCannotCreateDistWithoutCap(t *testing.T) {
 	var keypairArr []cadence.KeyValuePair
 	keypairArr = append(keypairArr, keyPair)
 	metadata := cadence.NewDictionary(keypairArr)
-	_, err := pds.CreateDistribution(g, "issuer", "title", metadata)
+	_, err := pds.CreateDistribution(g, "NFTCollectionProvider", "issuer", "title", metadata)
 	assert.Error(t, err)
 }
 
@@ -103,7 +123,7 @@ func TestCreateDistWithCap(t *testing.T) {
 	expMetadata := cadence.NewDictionary(keypairArr)
 	expTitle := "ExampleDistTitle"
 
-	events, err := pds.CreateDistribution(g, "issuer", expTitle, expMetadata)
+	events, err := pds.CreateDistribution(g, "NFTCollectionProvider", "issuer", expTitle, expMetadata)
 	assert.NoError(t, err)
 
 	util.NewExpectedPDSEvent("DistributionCreated").
@@ -255,7 +275,7 @@ func TestOwnerRevealReq(t *testing.T) {
 
 	util.NewExpectedPackNFTEvent("RevealRequest").
 		AddField("id", strconv.Itoa(int(currentPack))).
-        AddField("openRequest", "false").
+		AddField("openRequest", "false").
 		AssertEqual(t, events[0])
 
 	// Request should not change the state
@@ -312,8 +332,9 @@ func TestPDSCannotRevealwithWrongSalt(t *testing.T) {
 		cadence.NewArray(name),
 		cadence.NewArray(ids),
 		incorrectSalt,
-        "owner",
-        false,
+		"owner",
+		false,
+		"NFTCollectionProvider",
 		"pds",
 	)
 
@@ -357,7 +378,8 @@ func TestPDSCannotRevealwithWrongNFTs(t *testing.T) {
 		cadence.NewArray(ids),
 		salt,
 		"owner",
-        false,
+		false,
+		"NFTCollectionProvider",
 		"pds",
 	)
 	assert.Error(t, err)
@@ -405,7 +427,8 @@ func TestPDSRevealPackNFTs(t *testing.T) {
 		cadence.NewArray(ids),
 		salt,
 		"owner",
-        false,
+		false,
+		"NFTCollectionProvider",
 		"pds",
 	)
 	assert.NoError(t, err)
@@ -540,7 +563,8 @@ func TestPDSRevealAndOpenPackNFT(t *testing.T) {
 		cadence.NewArray(ids),
 		salt,
 		"owner",
-        true,
+		true,
+		"NFTCollectionProvider",
 		"pds",
 	)
 	assert.NoError(t, err)
@@ -562,7 +586,8 @@ func TestPDSRevealAndOpenPackNFT(t *testing.T) {
 		cadence.NewArray(ids),
 		salt,
 		"owner",
-        true,
+		true,
+		"NFTCollectionProvider",
 		"pds",
 	)
 	assert.NoError(t, err)
@@ -628,7 +653,9 @@ func TestPDSFailOpenPackNFTsWithWrongIds(t *testing.T) {
 		cadence.NewArray(addrs),
 		cadence.NewArray(name),
 		cadence.NewArray(ids),
-		"owner", "pds",
+		"owner",
+		"NFTCollectionProvider",
+		"pds",
 	)
 	assert.Error(t, err)
 
@@ -667,7 +694,7 @@ func TestPDSOpenPackNFTs(t *testing.T) {
 		cadence.NewArray(addrs),
 		cadence.NewArray(name),
 		cadence.NewArray(ids),
-		"owner", "pds",
+		"owner", "NFTCollectionProvider", "pds",
 	)
 	assert.NoError(t, err)
 
