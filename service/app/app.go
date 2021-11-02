@@ -2,6 +2,7 @@ package app
 
 import (
 	"context"
+	"fmt"
 
 	"github.com/flow-hydraulics/flow-pds/service/common"
 	"github.com/flow-hydraulics/flow-pds/service/config"
@@ -54,6 +55,11 @@ func (app *App) SetDistCap(ctx context.Context, issuer common.FlowAddress) error
 
 // CreateDistribution validates a distribution, resolves it and stores it in database
 func (app *App) CreateDistribution(ctx context.Context, distribution *Distribution) error {
+	// Check that distribution issuer address does not equal to AdminAddress
+	if distribution.Issuer == common.FlowAddressFromString(app.cfg.AdminAddress) {
+		return fmt.Errorf("issuer account should not be the same as PDS admin account")
+	}
+
 	// Resolve will also validate the distribution
 	if err := distribution.Resolve(); err != nil {
 		return err
