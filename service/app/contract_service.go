@@ -62,6 +62,10 @@ func minInt(a int, b int) int {
 }
 
 func NewContractService(cfg *config.Config, logger *log.Logger, flowClient *client.Client) (*ContractService, error) {
+	if cfg.AdminAddress != cfg.PDSAddress {
+		return nil, fmt.Errorf("admin (FLOW_PDS_ADMIN_ADDRESS) and pds (PDS_ADDRESS) addresses should equal")
+	}
+
 	pdsAccount := flow_helpers.GetAccount(
 		flow.HexToAddress(cfg.AdminAddress),
 		cfg.AdminPrivateKey,
@@ -255,7 +259,7 @@ func (svc *ContractService) StartSettlement(ctx context.Context, db *gorm.DB, di
 		CurrentCount:   0,
 		TotalCount:     uint(len(collectibles)),
 		StartAtBlock:   latestBlockHeader.Height - 1,
-		EscrowAddress:  common.FlowAddressFromString(svc.cfg.PDSAddress),
+		EscrowAddress:  common.FlowAddressFromString(svc.cfg.AdminAddress),
 		Collectibles:   settlementCollectibles,
 	}
 
