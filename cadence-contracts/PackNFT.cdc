@@ -5,6 +5,7 @@ import IPackNFT from 0x{{.IPackNFT}}
 pub contract PackNFT: NonFungibleToken, IPackNFT {
 
     pub var totalSupply: UInt64
+    pub var nextPackNFTID: UInt64
     pub let version: String
     pub let CollectionStoragePath: StoragePath
     pub let CollectionPublicPath: PublicPath
@@ -33,9 +34,9 @@ pub contract PackNFT: NonFungibleToken, IPackNFT {
     pub resource PackNFTOperator: IPackNFT.IOperator {
 
          pub fun mint(distId: UInt64, commitHash: String, issuer: Address): @NFT{
-            let id = PackNFT.totalSupply
+            let id = PackNFT.nextPackNFTID
             let nft <- create NFT(initID: id, commitHash: commitHash, issuer: issuer)
-            PackNFT.totalSupply = id + 1
+            PackNFT.totalSupply = PackNFT.totalSupply + 1
             let p  <-create Pack(commitHash: commitHash, issuer: issuer)
             PackNFT.packs[id] <-! p
             emit Mint(id: id, commitHash: commitHash, distId: distId)
@@ -224,6 +225,7 @@ pub contract PackNFT: NonFungibleToken, IPackNFT {
         version: String
     ){
         self.totalSupply = 0
+        self.nextPackNFTID = 1
         self.packs <- {}
         self.CollectionStoragePath = CollectionStoragePath
         self.CollectionPublicPath = CollectionPublicPath
