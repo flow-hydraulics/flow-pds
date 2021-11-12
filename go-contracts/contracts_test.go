@@ -191,13 +191,14 @@ func TestPDSMintPackNFTs(t *testing.T) {
 	assert.NoError(t, err)
 
 	expectedId, err := packnft.GetTotalPacks(g)
+	expectedId = expectedId + 1
 	assert.NoError(t, err)
 
 	events, err := pds.PDSMintPackNFT(g, nextDistId-1, hash, "issuer", "pds")
 	assert.NoError(t, err)
 
 	util.NewExpectedPackNFTEvent("Mint").
-		AddField("id", strconv.Itoa(int(expectedId+1))).
+		AddField("id", strconv.Itoa(int(expectedId))).
 		AddField("commitHash", hash).
 		AddField("distId", strconv.Itoa(int(nextDistId-1))).
 		AssertEqual(t, events[0])
