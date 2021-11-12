@@ -30,8 +30,8 @@ func NewServer(cfg *config.Config, logger *log.Logger, app *app.App) *Server {
 	srv := &http.Server{
 		Handler:      r,
 		Addr:         fmt.Sprintf("%s:%d", cfg.Host, cfg.Port),
-		WriteTimeout: 15 * time.Second,
-		ReadTimeout:  15 * time.Second,
+		WriteTimeout: 15 * time.Minute,
+		ReadTimeout:  15 * time.Minute,
 	}
 
 	return &Server{srv, cfg, logger}
