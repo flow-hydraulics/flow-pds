@@ -268,7 +268,7 @@ func TestTransfeToOwner(t *testing.T) {
 func TestOwnerRevealReq(t *testing.T) {
 	g := gwtf.NewGoWithTheFlow(util.FlowJSON, os.Getenv("NETWORK"), false, 3)
 	nextPackNFTId, err := packnft.GetTotalPacks(g)
-	currentPack := nextPackNFTId - 1
+	currentPack := nextPackNFTId
 	assert.NoError(t, err)
 
 	events, err := packnft.OwnerRevealReq(g, currentPack, false)
