@@ -199,7 +199,7 @@ func TestPDSMintPackNFTs(t *testing.T) {
 	util.NewExpectedPackNFTEvent("Mint").
 		AddField("id", strconv.Itoa(int(expectedId))).
 		AddField("commitHash", hash).
-		AddField("distId", strconv.Itoa(int(nextDistId-1))).
+		AddField("distId", strconv.Itoa(int(nextDistId))).
 		AssertEqual(t, events[0])
 
 	nextPackNFTId, err := packnft.GetTotalPacks(g)
