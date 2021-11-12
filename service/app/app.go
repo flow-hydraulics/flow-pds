@@ -82,7 +82,7 @@ func (app *App) ListDistributions(ctx context.Context, limit, offset int) ([]Dis
 
 // GetDistribution returns a distribution from database based on its offchain ID (uuid).
 func (app *App) GetDistribution(ctx context.Context, id uuid.UUID) (*Distribution, error) {
-	distribution, err := GetDistribution(app.db, id)
+	distribution, err := GetDistributionBig(app.db, id)
 	if err != nil {
 		return nil, err
 	}
@@ -93,7 +93,7 @@ func (app *App) GetDistribution(ctx context.Context, id uuid.UUID) (*Distributio
 // AbortDistribution aborts a distribution.
 func (app *App) AbortDistribution(ctx context.Context, id uuid.UUID) error {
 	return app.db.Transaction(func(tx *gorm.DB) error {
-		distribution, err := GetDistribution(tx, id)
+		distribution, err := GetDistributionSmall(tx, id)
 		if err != nil {
 			return err
 		}
