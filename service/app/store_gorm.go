@@ -65,9 +65,17 @@ func ListDistributions(db *gorm.DB, opt ListOptions) ([]Distribution, error) {
 }
 
 // Get distribution
-func GetDistribution(db *gorm.DB, id uuid.UUID) (*Distribution, error) {
+func GetDistributionBig(db *gorm.DB, id uuid.UUID) (*Distribution, error) {
 	distribution := Distribution{}
 	if err := db.Preload(clause.Associations).First(&distribution, id).Error; err != nil {
+		return nil, err
+	}
+	return &distribution, nil
+}
+
+func GetDistributionSmall(db *gorm.DB, id uuid.UUID) (*Distribution, error) {
+	distribution := Distribution{}
+	if err := db.Omit(clause.Associations).First(&distribution, id).Error; err != nil {
 		return nil, err
 	}
 	return &distribution, nil

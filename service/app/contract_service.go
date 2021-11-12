@@ -893,7 +893,7 @@ func (svc *ContractService) UpdateCirculatingPack(ctx context.Context, db *gorm.
 					return err // rollback
 				}
 
-				distribution, err := GetDistribution(db, pack.DistributionID)
+				distribution, err := GetDistributionSmall(db, pack.DistributionID)
 				if err != nil {
 					return err // rollback
 				}
