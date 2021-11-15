@@ -24,26 +24,28 @@ func poller(app *App) {
 	ctx, cancel := context.WithCancel(ctx)
 
 	for {
-		app.logger.Trace("Poll start")
 		select {
 		case <-ticker.C:
-			handlePollerError("handleResolved", handleResolved(ctx, app.db, app.service), app.logger)
-			handlePollerError("handleSetup", handleSetup(ctx, app.db, app.service), app.logger)
-			handlePollerError("handleSettling", handleSettling(ctx, app.db, app.service), app.logger)
-			handlePollerError("handleSettled", handleSettled(ctx, app.db, app.service), app.logger)
-			handlePollerError("handleMinting", handleMinting(ctx, app.db, app.service), app.logger)
-			handlePollerError("handleComplete", handleComplete(ctx, app.db, app.service), app.logger)
+			app.logger.Debug("Poll start")
 
-			handlePollerError("pollCirculatingPackContractEvents", pollCirculatingPackContractEvents(ctx, app.db, app.service), app.logger)
+			logPollerRun("handleResolved", handleResolved(ctx, app.db, app.service), app.logger)
+			logPollerRun("handleSetup", handleSetup(ctx, app.db, app.service), app.logger)
+			logPollerRun("handleSettling", handleSettling(ctx, app.db, app.service), app.logger)
+			logPollerRun("handleSettled", handleSettled(ctx, app.db, app.service), app.logger)
+			logPollerRun("handleMinting", handleMinting(ctx, app.db, app.service), app.logger)
+			logPollerRun("handleComplete", handleComplete(ctx, app.db, app.service), app.logger)
 
-			handlePollerError("handleSentTransactions", handleSentTransactions(ctx, app.db, app.service), app.logger)
-			handlePollerError("handleSendableTransactions", handleSendableTransactions(ctx, app.db, app.service, transactionRatelimiter), app.logger)
+			logPollerRun("pollCirculatingPackContractEvents", pollCirculatingPackContractEvents(ctx, app.db, app.service), app.logger)
+
+			logPollerRun("handleSentTransactions", handleSentTransactions(ctx, app.db, app.service), app.logger)
+			logPollerRun("handleSendableTransactions", handleSendableTransactions(ctx, app.db, app.service, transactionRatelimiter), app.logger)
+
+			app.logger.Debug("Poll end")
 		case <-app.quit:
 			cancel()
 			ticker.Stop()
 			return
 		}
-		app.logger.Trace("Poll end")
 	}
 }
 
@@ -54,12 +56,16 @@ func min(x, y uint64) uint64 {
 	return x
 }
 
-func handlePollerError(pollerName string, err error, logger *log.Logger) {
+func logPollerRun(pollerName string, err error, logger *log.Logger) {
 	if err != nil {
 		logger.WithFields(log.Fields{
 			"pollerName": pollerName,
 			"error":      err,
 		}).Warn("Error while running poller")
+	} else {
+		logger.WithFields(log.Fields{
+			"pollerName": pollerName,
+		}).Debug("Done")
 	}
 }
 
@@ -211,15 +217,17 @@ func pollCirculatingPackContractEvents(ctx context.Context, db *gorm.DB, contrac
 // with no regard to account proposal key sequence number
 // TODO (latenssi): this is basically brute forcing the sequence numbering
 // TODO (latenssi): this will currently iterate over all sendable transactions
-// in database while locking the poller from doing other actions
+// in database while locking the poller from doing other actions (limited by maxHandleCount)
 func handleSendableTransactions(ctx context.Context, db *gorm.DB, contract *ContractService, rateLimiter ratelimit.Limiter) error {
 	logger := log.WithFields(log.Fields{
 		"function": "handleSendableTransactions",
 	})
 
 	run := true
+	handleCount := 0
+	maxHandleCount := 100
 
-	for run {
+	for run && handleCount < maxHandleCount {
 		// Rate limit
 		rateLimiter.Take()
 
@@ -282,6 +290,8 @@ func handleSendableTransactions(ctx context.Context, db *gorm.DB, contract *Cont
 
 			return nil
 		})
+
+		handleCount++
 	}
 
 	return nil

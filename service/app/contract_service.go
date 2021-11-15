@@ -284,7 +284,7 @@ func (svc *ContractService) StartSettlement(ctx context.Context, db *gorm.DB, di
 			begin := batchIndex * SETTLE_BATCH_SIZE
 			end := minInt((batchIndex+1)*SETTLE_BATCH_SIZE, len(collectibles))
 
-			if begin > end {
+			if begin >= end {
 				break
 			}
 
@@ -432,7 +432,7 @@ func (svc *ContractService) StartMinting(ctx context.Context, db *gorm.DB, dist 
 		begin := batchIndex * MINT_BATCH_SIZE
 		end := minInt((batchIndex+1)*MINT_BATCH_SIZE, len(packs))
 
-		if begin > end {
+		if begin >= end {
 			break
 		}
 

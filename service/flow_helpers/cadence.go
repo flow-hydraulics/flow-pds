@@ -10,9 +10,9 @@ import (
 )
 
 type CadenceTemplateVars struct {
-	PDS                   string `env:"PDS_ADDRESS,notEmpty"`
-	IPackNFT              string `env:"PDS_ADDRESS,notEmpty"`
-	NonFungibleToken      string `env:"NON_FUNGIBLE_TOKEN_ADDRESS,notEmpty"`
+	PDS                   string `env:"PDS_ADDRESS"`
+	IPackNFT              string `env:"PDS_ADDRESS"`
+	NonFungibleToken      string `env:"NON_FUNGIBLE_TOKEN_ADDRESS"`
 	PackNFTName           string
 	PackNFTAddress        string
 	CollectibleNFTName    string
