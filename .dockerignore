@@ -19,6 +19,8 @@ __debug_bin
 .vscode
 tmp/
 *.log
+flowdb/
+*.pid
 
 flow.json
 Dockerfile

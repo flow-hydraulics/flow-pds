@@ -1,6 +1,8 @@
 package main
 
 import (
+	"context"
+	"math/big"
 	"reflect"
 	"strings"
 	"testing"
@@ -8,22 +10,15 @@ import (
 	"github.com/flow-hydraulics/flow-pds/service/app"
 	"github.com/flow-hydraulics/flow-pds/service/common"
 	"github.com/flow-hydraulics/flow-pds/service/config"
+	"github.com/flow-hydraulics/flow-pds/service/flow_helpers"
 	"github.com/flow-hydraulics/flow-pds/service/http"
 	"github.com/flow-hydraulics/flow-pds/service/transactions"
+	"github.com/onflow/cadence"
+	"github.com/onflow/flow-go-sdk"
 	"github.com/onflow/flow-go-sdk/client"
-	log "github.com/sirupsen/logrus"
 	"google.golang.org/grpc"
 	"gorm.io/gorm"
 )
-
-var testLogger *log.Logger
-
-func initTestLogger() {
-	if testLogger == nil {
-		testLogger = log.New()
-		testLogger.SetLevel(log.InfoLevel)
-	}
-}
 
 func cleanTestDatabase(cfg *config.Config, db *gorm.DB) {
 	// Only run this if database DSN contains "test"
@@ -57,7 +52,6 @@ func getTestCfg() *config.Config {
 }
 
 func getTestApp(cfg *config.Config, poll bool) (*app.App, func()) {
-	initTestLogger()
 
 	flowClient, err := client.New(cfg.AccessAPIHost, grpc.WithInsecure())
 	if err != nil {
@@ -79,7 +73,7 @@ func getTestApp(cfg *config.Config, poll bool) (*app.App, func()) {
 		panic(err)
 	}
 
-	app, err := app.New(cfg, testLogger, db, flowClient, poll)
+	app, err := app.New(cfg, logger, db, flowClient, poll)
 	if err != nil {
 		panic(err)
 	}
@@ -94,14 +88,13 @@ func getTestApp(cfg *config.Config, poll bool) (*app.App, func()) {
 }
 
 func getTestServer(cfg *config.Config, poll bool) (*http.Server, func()) {
-	initTestLogger()
 
 	app, cleanupApp := getTestApp(cfg, poll)
 	clean := func() {
 		cleanupApp()
 	}
 
-	return http.NewServer(cfg, testLogger, app), clean
+	return http.NewServer(cfg, logger, app), clean
 }
 
 func makeTestCollection(size int) []common.FlowID {
@@ -110,6 +103,74 @@ func makeTestCollection(size int) []common.FlowID {
 		collection[i] = common.FlowID{Int64: int64(i + 1), Valid: true}
 	}
 	return collection
+}
+
+func getExampleNFTBalance(flowClient *client.Client, address flow.Address) (uint64, error) {
+
+	balanceScript, err := flow_helpers.ParseCadenceTemplate(
+		"./cadence-scripts/collectibleNFT/balance.cdc",
+		&flow_helpers.CadenceTemplateVars{
+			NonFungibleToken:      "f8d6e0586b0a20c7",
+			CollectibleNFTName:    "ExampleNFT",
+			CollectibleNFTAddress: "01cf0e2f2f715450",
+		},
+	)
+	if err != nil {
+		return 0, err
+	}
+
+	balanceArgs := []cadence.Value{
+		cadence.NewAddress(address),
+	}
+
+	v, err := flowClient.ExecuteScriptAtLatestBlock(context.Background(), balanceScript, balanceArgs)
+	if err != nil {
+		return 0, err
+	}
+
+	return v.ToGoValue().(*big.Int).Uint64(), err
+}
+
+func getExampleNFTIDs(flowClient *client.Client, address flow.Address, balance uint64) (common.FlowIDList, error) {
+
+	idsScript, err := flow_helpers.ParseCadenceTemplate(
+		"./cadence-scripts/collectibleNFT/balance_ids.cdc",
+		&flow_helpers.CadenceTemplateVars{
+			NonFungibleToken:      "f8d6e0586b0a20c7",
+			CollectibleNFTName:    "ExampleNFT",
+			CollectibleNFTAddress: "01cf0e2f2f715450",
+		},
+	)
+	if err != nil {
+		return nil, err
+	}
+
+	var res common.FlowIDList
+
+	limit := uint64(10000)
+
+	for offset := uint64(0); offset < balance; offset = offset + limit {
+		idsArgs := []cadence.Value{
+			cadence.NewAddress(address),
+			cadence.NewUInt64(offset),
+			cadence.NewUInt64(limit),
+		}
+
+		ids, err := flowClient.ExecuteScriptAtLatestBlock(context.Background(), idsScript, idsArgs)
+		if err != nil {
+			return nil, err
+		}
+
+		for _, v := range ids.ToGoValue().([]interface{}) {
+			uintID, ok := v.(uint64)
+			if !ok {
+				panic("unable to parse uint")
+			}
+			res = append(res, common.FlowID{Int64: int64(uintID), Valid: true})
+		}
+	}
+
+	return res, err
 }
 
 func AssertEqual(t *testing.T, a interface{}, b interface{}) {

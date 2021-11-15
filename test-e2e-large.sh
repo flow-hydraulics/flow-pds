@@ -1,4 +1,4 @@
 #/bin/bash
 
 go clean -testcache
-TEST_COLLECTIBLES=1000 go test -timeout 180m -v -run ^TestE2E$ .
+TEST_PACK_COUNT=100 go test -timeout 24h -v -run ^TestE2E$ .

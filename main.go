@@ -21,7 +21,24 @@ const version = "0.1.0"
 var (
 	sha1ver   string // sha1 revision used to build the program
 	buildTime string // when the executable was built
+	logger    *log.Logger
 )
+
+func init() {
+	lvl, ok := os.LookupEnv("FLOW_PDS_LOG_LEVEL")
+	if !ok {
+		// LOG_LEVEL not set, default to info
+		lvl = "info"
+	}
+
+	ll, err := log.ParseLevel(lvl)
+	if err != nil {
+		ll = log.DebugLevel
+	}
+
+	logger = log.New()
+	logger.SetLevel(ll)
+}
 
 func main() {
 	var (
@@ -60,9 +77,6 @@ func runServer(cfg *config.Config) error {
 	if cfg == nil {
 		return fmt.Errorf("config not provided")
 	}
-
-	logger := log.New()
-	logger.SetLevel(log.InfoLevel)
 
 	logger.Printf("Starting server (v%s)...\n", version)
 
