@@ -205,7 +205,7 @@ func TestPDSMintPackNFTs(t *testing.T) {
 
 	nextPackNFTId, err := packnft.GetTotalPacks(g)
 	assert.NoError(t, err)
-	assert.Equal(t, expectedId+1, nextPackNFTId)
+	assert.Equal(t, expectedId, nextPackNFTId)
 
 	actualHash, err := packnft.GetPackCommitHash(g, expectedId)
 	assert.NoError(t, err)
@@ -395,7 +395,7 @@ func TestPDSRevealPackNFTs(t *testing.T) {
 	numOfPacks, err := packnft.GetTotalPacks(g)
 	assert.NoError(t, err)
 	// This is the first minted pack
-	currentPack := numOfPacks
+	currentPack := numOfPacks - 2
 
 	nextDistId, err := pds.GetNextDistID(g)
 	currentDistId := nextDistId - 1
