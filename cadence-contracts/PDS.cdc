@@ -280,7 +280,7 @@ pub contract PDS{
         DistManagerStoragePath: StoragePath,
         version: String
     ) {
-        self.nextDistId = 0
+        self.nextDistId = 1
         self.DistSharedCap <- {}
         self.Distributions = {} 
         self.PackIssuerStoragePath = PackIssuerStoragePath
