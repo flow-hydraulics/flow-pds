@@ -59,10 +59,10 @@ func CreateDistribution(
 	return
 }
 
-func GetDistID(
+func GetNextDistID(
 	g *gwtf.GoWithTheFlow,
 ) (distId uint64, err error) {
-	pdsDistId := "../cadence-scripts/pds/get_current_dist_id.cdc"
+	pdsDistId := "../cadence-scripts/pds/get_next_dist_id.cdc"
 	pdsDistIdCode := util.ParseCadenceTemplate(pdsDistId)
 	d, err := g.ScriptFromFile(pdsDistId, pdsDistIdCode).RunReturns()
 	distId = d.ToGoValue().(uint64)
