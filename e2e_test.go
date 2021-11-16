@@ -143,7 +143,7 @@ func TestE2E(t *testing.T) {
 
 	t.Log("Issuer creates distribution on chain")
 
-	pdsDistId := "./cadence-scripts/pds/get_current_dist_id.cdc"
+	pdsDistId := "./cadence-scripts/pds/get_next_dist_id.cdc"
 	pdsDistIdCode := util.ParseCadenceTemplate(pdsDistId)
 	currentDistId, err := g.ScriptFromFile(pdsDistId, pdsDistIdCode).RunReturns()
 	if err != nil {
