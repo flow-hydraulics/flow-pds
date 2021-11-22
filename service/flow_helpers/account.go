@@ -19,7 +19,6 @@ var keyIndexLock = &sync.Mutex{}
 
 var seqNumLock = &sync.Mutex{}
 var lastAccountKeySeqNumber map[flow.Address]map[int]uint64
-var lastAccountKeyBlock map[flow.Address]map[int]flow.Identifier
 
 const GOOGLE_KMS_KEY_TYPE = "google_kms"
 
@@ -133,7 +132,7 @@ func getGoogleKMSSigner(address flow.Address, resourceId string) (crypto.Signer,
 // the latest SequenceNumber on-chain but it might be outdated as we may be
 // sending multiple transactions in the current block
 // NOTE: This breaks if running in a multi-instance setup
-func getSequenceNumber(address flow.Address, accountKey *flow.AccountKey, currentBlockID flow.Identifier) uint64 {
+func getSequenceNumber(address flow.Address, accountKey *flow.AccountKey, _ flow.Identifier) uint64 {
 	seqNumLock.Lock()
 	defer seqNumLock.Unlock()
 
@@ -146,31 +145,12 @@ func getSequenceNumber(address flow.Address, accountKey *flow.AccountKey, curren
 		lastAccountKeySeqNumber[address] = make(map[int]uint64)
 	}
 
-	// Init lastAccountKeyBlock
-	if lastAccountKeyBlock == nil {
-		lastAccountKeyBlock = make(map[flow.Address]map[int]flow.Identifier)
-	}
-
-	if lastAccountKeyBlock[address] == nil {
-		lastAccountKeyBlock[address] = make(map[int]flow.Identifier)
-	}
-
-	useGiven := true
-
-	// Check if operating in the same block as before
-	if prevID, ok := lastAccountKeyBlock[address][accountKey.Index]; ok && prevID == currentBlockID {
-		// Check if we have a previous number stored and if it is larger or equal to new number
-		if prevNumber, ok := lastAccountKeySeqNumber[address][accountKey.Index]; ok && accountKey.SequenceNumber <= prevNumber {
-			lastAccountKeySeqNumber[address][accountKey.Index]++
-			useGiven = false
-		}
-	}
-
-	if useGiven {
+	// Check if we have a previous sequence number stored
+	if _, ok := lastAccountKeySeqNumber[address][accountKey.Index]; !ok {
 		lastAccountKeySeqNumber[address][accountKey.Index] = accountKey.SequenceNumber
+	} else {
+		lastAccountKeySeqNumber[address][accountKey.Index]++
 	}
-
-	lastAccountKeyBlock[address][accountKey.Index] = currentBlockID
 
 	return lastAccountKeySeqNumber[address][accountKey.Index]
 }
