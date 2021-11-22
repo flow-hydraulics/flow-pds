@@ -102,7 +102,6 @@ func (svc *ContractService) SetDistCap(ctx context.Context, db *gorm.DB, issuer 
 
 	tx := flow.NewTransaction().
 		SetScript(txScript).
-		SetGasLimit(9999).
 		SetReferenceBlockID(latestBlockHeader.ID)
 
 	tx.AddArgument(cadence.Address(issuer))
@@ -180,7 +179,6 @@ func (svc *ContractService) SetupDistribution(ctx context.Context, db *gorm.DB, 
 
 		tx := flow.NewTransaction().
 			SetScript(txScript).
-			SetGasLimit(9999).
 			SetReferenceBlockID(latestBlockHeader.ID)
 
 		tx.AddArgument(cadence.Path{Domain: "private", Identifier: contract.ProviderPath()})
