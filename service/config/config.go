@@ -33,7 +33,11 @@ type Config struct {
 	// -- Rates etc. ---
 
 	// How many transactions to send per second at max
-	SendTransactionRate int `env:"FLOW_PDS_SEND_RATE" envDefault:"10"`
+	TransactionSendRate int    `env:"FLOW_PDS_SEND_RATE" envDefault:"10"`
+	TransactionGasLimit uint64 `env:"FLOW_PDS_GAS_LIMIT" envDefault:"9999"`
+	// Going much above 40 will cause the transactions to use more than 9999 gas
+	SettlementBatchSize int `env:"FLOW_PDS_SETTLEMENT_BATCH_SIZE" envDefault:"40"`
+	MintingBatchSize    int `env:"FLOW_PDS_MINTING_BATCH_SIZE" envDefault:"40"`
 
 	// -- Testing --
 

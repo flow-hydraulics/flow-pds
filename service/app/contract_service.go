@@ -26,12 +26,6 @@ const (
 	OPENED         = "Opened"
 )
 
-// Going much above these will cause the transactions to use more than 9999 gas
-const (
-	SETTLE_BATCH_SIZE = 40
-	MINT_BATCH_SIZE   = 40
-)
-
 const (
 	SET_DIST_CAP_SCRIPT     = "./cadence-transactions/pds/set_pack_issuer_cap.cdc"
 	SETUP_COLLECTION_SCRIPT = "./cadence-transactions/collectibleNFT/setup_collection_and_link_provider.cdc"
@@ -102,7 +96,7 @@ func (svc *ContractService) SetDistCap(ctx context.Context, db *gorm.DB, issuer 
 
 	tx := flow.NewTransaction().
 		SetScript(txScript).
-		SetGasLimit(9999).
+		SetGasLimit(svc.cfg.TransactionGasLimit).
 		SetReferenceBlockID(latestBlockHeader.ID)
 
 	tx.AddArgument(cadence.Address(issuer))
@@ -180,7 +174,7 @@ func (svc *ContractService) SetupDistribution(ctx context.Context, db *gorm.DB, 
 
 		tx := flow.NewTransaction().
 			SetScript(txScript).
-			SetGasLimit(9999).
+			SetGasLimit(svc.cfg.TransactionGasLimit).
 			SetReferenceBlockID(latestBlockHeader.ID)
 
 		tx.AddArgument(cadence.Path{Domain: "private", Identifier: contract.ProviderPath()})
@@ -279,10 +273,12 @@ func (svc *ContractService) StartSettlement(ctx context.Context, db *gorm.DB, di
 			return err // rollback
 		}
 
+		batchSize := svc.cfg.SettlementBatchSize
 		batchIndex := 0
+
 		for {
-			begin := batchIndex * SETTLE_BATCH_SIZE
-			end := minInt((batchIndex+1)*SETTLE_BATCH_SIZE, len(collectibles))
+			begin := batchIndex * batchSize
+			end := minInt((batchIndex+1)*batchSize, len(collectibles))
 
 			if begin >= end {
 				break
@@ -427,10 +423,12 @@ func (svc *ContractService) StartMinting(ctx context.Context, db *gorm.DB, dist 
 		return err // rollback
 	}
 
+	batchSize := svc.cfg.MintingBatchSize
 	batchIndex := 0
+
 	for {
-		begin := batchIndex * MINT_BATCH_SIZE
-		end := minInt((batchIndex+1)*MINT_BATCH_SIZE, len(packs))
+		begin := batchIndex * batchSize
+		end := minInt((batchIndex+1)*batchSize, len(packs))
 
 		if begin >= end {
 			break
@@ -581,7 +579,7 @@ func (svc *ContractService) UpdateSettlementStatus(ctx context.Context, db *gorm
 			for _, e := range be.Events {
 				eventLogger := logger.WithFields(log.Fields{"eventType": e.Type, "eventID": e.ID()})
 
-				eventLogger.Debug("Handling event")
+				eventLogger.Trace("Handling event")
 
 				evtValueMap := flow_helpers.EventValuesToMap(e)
 
@@ -710,7 +708,7 @@ func (svc *ContractService) UpdateMintingStatus(ctx context.Context, db *gorm.DB
 		for _, e := range be.Events {
 			eventLogger := logger.WithFields(log.Fields{"eventType": e.Type, "eventID": e.ID()})
 
-			eventLogger.Debug("Handling event")
+			eventLogger.Trace("Handling event")
 
 			evtValueMap := flow_helpers.EventValuesToMap(e)
 

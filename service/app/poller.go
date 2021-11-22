@@ -18,7 +18,7 @@ import (
 func poller(app *App) {
 
 	ticker := time.NewTicker(time.Second) // TODO (latenssi): configurable?
-	transactionRatelimiter := ratelimit.New(app.cfg.SendTransactionRate)
+	transactionRatelimiter := ratelimit.New(app.cfg.TransactionSendRate)
 
 	ctx := context.Background()
 	ctx, cancel := context.WithCancel(ctx)
@@ -26,7 +26,7 @@ func poller(app *App) {
 	for {
 		select {
 		case <-ticker.C:
-			app.logger.Debug("Poll start")
+			app.logger.Trace("Poll start")
 
 			logPollerRun("handleResolved", handleResolved(ctx, app.db, app.service), app.logger)
 			logPollerRun("handleSetup", handleSetup(ctx, app.db, app.service), app.logger)
@@ -40,7 +40,7 @@ func poller(app *App) {
 			logPollerRun("handleSentTransactions", handleSentTransactions(ctx, app.db, app.service), app.logger)
 			logPollerRun("handleSendableTransactions", handleSendableTransactions(ctx, app.db, app.service, transactionRatelimiter), app.logger)
 
-			app.logger.Debug("Poll end")
+			app.logger.Trace("Poll end")
 		case <-app.quit:
 			cancel()
 			ticker.Stop()
@@ -65,7 +65,7 @@ func logPollerRun(pollerName string, err error, logger *log.Logger) {
 	} else {
 		logger.WithFields(log.Fields{
 			"pollerName": pollerName,
-		}).Debug("Done")
+		}).Trace("Done")
 	}
 }
 
@@ -249,7 +249,7 @@ func handleSendableTransactions(ctx context.Context, db *gorm.DB, contract *Cont
 				"distributionID": t.DistributionID,
 			})
 
-			tx, err := t.Prepare(ctx, contract.flowClient, contract.account)
+			tx, err := t.Prepare(ctx, contract.flowClient, contract.account, contract.cfg.TransactionGasLimit)
 			if err != nil {
 				logger.WithFields(log.Fields{"error": err.Error()}).Warn("Error while preparing transaction")
 				return err
