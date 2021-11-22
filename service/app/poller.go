@@ -26,7 +26,7 @@ func poller(app *App) {
 	for {
 		select {
 		case <-ticker.C:
-			app.logger.Debug("Poll start")
+			app.logger.Trace("Poll start")
 
 			logPollerRun("handleResolved", handleResolved(ctx, app.db, app.service), app.logger)
 			logPollerRun("handleSetup", handleSetup(ctx, app.db, app.service), app.logger)
@@ -40,7 +40,7 @@ func poller(app *App) {
 			logPollerRun("handleSentTransactions", handleSentTransactions(ctx, app.db, app.service), app.logger)
 			logPollerRun("handleSendableTransactions", handleSendableTransactions(ctx, app.db, app.service, transactionRatelimiter), app.logger)
 
-			app.logger.Debug("Poll end")
+			app.logger.Trace("Poll end")
 		case <-app.quit:
 			cancel()
 			ticker.Stop()
@@ -65,7 +65,7 @@ func logPollerRun(pollerName string, err error, logger *log.Logger) {
 	} else {
 		logger.WithFields(log.Fields{
 			"pollerName": pollerName,
-		}).Debug("Done")
+		}).Trace("Done")
 	}
 }
 

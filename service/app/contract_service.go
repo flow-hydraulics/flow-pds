@@ -581,7 +581,7 @@ func (svc *ContractService) UpdateSettlementStatus(ctx context.Context, db *gorm
 			for _, e := range be.Events {
 				eventLogger := logger.WithFields(log.Fields{"eventType": e.Type, "eventID": e.ID()})
 
-				eventLogger.Debug("Handling event")
+				eventLogger.Trace("Handling event")
 
 				evtValueMap := flow_helpers.EventValuesToMap(e)
 
@@ -710,7 +710,7 @@ func (svc *ContractService) UpdateMintingStatus(ctx context.Context, db *gorm.DB
 		for _, e := range be.Events {
 			eventLogger := logger.WithFields(log.Fields{"eventType": e.Type, "eventID": e.ID()})
 
-			eventLogger.Debug("Handling event")
+			eventLogger.Trace("Handling event")
 
 			evtValueMap := flow_helpers.EventValuesToMap(e)
 
