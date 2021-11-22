@@ -89,7 +89,7 @@ func (t *StorableTransaction) ArgumentsAsCadence() ([]cadence.Value, error) {
 }
 
 // Prepare parses the transaction into a sendable state.
-func (t *StorableTransaction) Prepare(ctx context.Context, flowClient *client.Client, account *flow_helpers.Account) (*flow.Transaction, error) {
+func (t *StorableTransaction) Prepare(ctx context.Context, flowClient *client.Client, account *flow_helpers.Account, gasLimit uint64) (*flow.Transaction, error) {
 	args, err := t.ArgumentsAsCadence()
 	if err != nil {
 		return nil, err
@@ -97,7 +97,7 @@ func (t *StorableTransaction) Prepare(ctx context.Context, flowClient *client.Cl
 
 	tx := flow.NewTransaction().
 		SetScript([]byte(t.Script)).
-		SetGasLimit(9999)
+		SetGasLimit(gasLimit)
 
 	for _, a := range args {
 		if err := tx.AddArgument(a); err != nil {

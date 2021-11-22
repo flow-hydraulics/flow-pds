@@ -18,7 +18,7 @@ import (
 func poller(app *App) {
 
 	ticker := time.NewTicker(time.Second) // TODO (latenssi): configurable?
-	transactionRatelimiter := ratelimit.New(app.cfg.SendTransactionRate)
+	transactionRatelimiter := ratelimit.New(app.cfg.TransactionSendRate)
 
 	ctx := context.Background()
 	ctx, cancel := context.WithCancel(ctx)
@@ -249,7 +249,7 @@ func handleSendableTransactions(ctx context.Context, db *gorm.DB, contract *Cont
 				"distributionID": t.DistributionID,
 			})
 
-			tx, err := t.Prepare(ctx, contract.flowClient, contract.account)
+			tx, err := t.Prepare(ctx, contract.flowClient, contract.account, contract.cfg.TransactionGasLimit)
 			if err != nil {
 				logger.WithFields(log.Fields{"error": err.Error()}).Warn("Error while preparing transaction")
 				return err
