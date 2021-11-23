@@ -34,6 +34,7 @@ func GetTransaction(db *gorm.DB, id uuid.UUID) (*StorableTransaction, error) {
 func GetNextSendable(db *gorm.DB) (*StorableTransaction, error) {
 	t := StorableTransaction{}
 	err := db.Order("updated_at asc").
+		Clauses(clause.Locking{Strength: "UPDATE SKIP LOCKED"}).
 		Where(map[string]interface{}{"state": common.TransactionStateInit}).
 		Or(map[string]interface{}{"state": common.TransactionStateRetry}).
 		First(&t).Error
