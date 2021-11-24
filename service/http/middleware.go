@@ -32,7 +32,7 @@ func UseJson(h http.Handler) http.Handler {
 // handleError is a helper function for unified HTTP error handling.
 func handleError(rw http.ResponseWriter, logger *log.Logger, err error) {
 	if logger != nil {
-		logger.Printf("Error: %v\n", err)
+		logger.Error(err)
 	}
 
 	// Check for "record not found" database error

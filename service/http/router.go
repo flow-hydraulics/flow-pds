@@ -8,24 +8,26 @@ import (
 	log "github.com/sirupsen/logrus"
 )
 
-func NewRouter(logger *log.Logger, app *app.App) http.Handler {
+func NewRouter(app *app.App) http.Handler {
 	r := mux.NewRouter()
+
+	requestLogger := log.New()
 
 	// Catch the api version
 	rv := r.PathPrefix("/{apiVersion}").Subrouter()
 
 	rv.HandleFunc("/health/ready", HandleHealthReady()).Methods(http.MethodGet)
 
-	rv.HandleFunc("/set-dist-cap", HandleSetDistCap(logger, app)).Methods(http.MethodPost)
+	rv.HandleFunc("/set-dist-cap", HandleSetDistCap(requestLogger, app)).Methods(http.MethodPost)
 
-	rv.HandleFunc("/distributions", HandleCreateDistribution(logger, app)).Methods(http.MethodPost)
-	rv.HandleFunc("/distributions", HandleListDistributions(logger, app)).Methods(http.MethodGet)
-	rv.HandleFunc("/distributions/{id}", HandleGetDistribution(logger, app)).Methods(http.MethodGet)
-	rv.HandleFunc("/distributions/{id}/abort", HandleAbortDistribution(logger, app)).Methods(http.MethodPost)
+	rv.HandleFunc("/distributions", HandleCreateDistribution(requestLogger, app)).Methods(http.MethodPost)
+	rv.HandleFunc("/distributions", HandleListDistributions(requestLogger, app)).Methods(http.MethodGet)
+	rv.HandleFunc("/distributions/{id}", HandleGetDistribution(requestLogger, app)).Methods(http.MethodGet)
+	rv.HandleFunc("/distributions/{id}/abort", HandleAbortDistribution(requestLogger, app)).Methods(http.MethodPost)
 
 	// Use middleware
 	h := UseCors(r)
-	h = UseLogging(logger.Writer(), h)
+	h = UseLogging(requestLogger.Writer(), h)
 	h = UseCompress(h)
 	h = UseJson(h)
 
