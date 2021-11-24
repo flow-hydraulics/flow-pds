@@ -3,6 +3,8 @@ package transactions
 import (
 	"context"
 	"encoding/json"
+	"fmt"
+	"time"
 
 	"github.com/flow-hydraulics/flow-pds/service/common"
 	"github.com/flow-hydraulics/flow-pds/service/flow_helpers"
@@ -26,6 +28,7 @@ type StorableTransaction struct {
 	Error         string                  `gorm:"column:error"`
 	RetryCount    uint                    `gorm:"column:retry_count"` // TODO increment this
 	TransactionID string                  `gorm:"column:transaction_id"`
+	Wait          bool                    `gorm:"column:wait"`
 
 	Name      string         `gorm:"column:name"` // Just a way to identify a transaction
 	Script    string         `gorm:"column:script"`
@@ -54,6 +57,7 @@ func NewTransaction(name string, script []byte, arguments []cadence.Value) (*Sto
 		Name:      name,
 		Script:    string(script),
 		Arguments: argsJSON,
+		Wait:      true, // Wait by default
 	}
 
 	return &transaction, nil
@@ -161,4 +165,22 @@ func (t *StorableTransaction) HandleResult(ctx context.Context, flowClient *clie
 	}
 
 	return nil
+}
+
+func (t *StorableTransaction) WaitForFinalize(ctx context.Context, flowClient *client.Client) (*flow.TransactionResult, error) {
+	for ctx.Err() == nil {
+		result, err := flowClient.GetTransactionResult(ctx, flow.HexToID(t.TransactionID))
+		if err != nil {
+			return nil, fmt.Errorf("error getting transaction result: %w", err)
+		}
+		if result.Status == flow.TransactionStatusFinalized || result.Status == flow.TransactionStatusSealed {
+			return result, result.Error
+		}
+
+		if deadline, hasDeadline := ctx.Deadline(); hasDeadline && deadline.Before(time.Now()) {
+			return nil, fmt.Errorf("error getting transaction result within timeout")
+		}
+		time.Sleep(time.Duration(100) * time.Millisecond)
+	}
+	return nil, ctx.Err()
 }

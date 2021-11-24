@@ -308,6 +308,9 @@ func (svc *ContractService) StartSettlement(ctx context.Context, db *gorm.DB, di
 				return err // rollback
 			}
 
+			// Do not wait for the transaction to finalize before sending the next
+			t.Wait = false
+
 			if err := t.Save(db); err != nil {
 				return err // rollback
 			}
