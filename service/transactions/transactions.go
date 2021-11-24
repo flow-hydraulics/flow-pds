@@ -28,6 +28,7 @@ type StorableTransaction struct {
 	Error         string                  `gorm:"column:error"`
 	RetryCount    uint                    `gorm:"column:retry_count"` // TODO increment this
 	TransactionID string                  `gorm:"column:transaction_id"`
+	Wait          bool                    `gorm:"column:wait"`
 
 	Name      string         `gorm:"column:name"` // Just a way to identify a transaction
 	Script    string         `gorm:"column:script"`
@@ -56,6 +57,7 @@ func NewTransaction(name string, script []byte, arguments []cadence.Value) (*Sto
 		Name:      name,
 		Script:    string(script),
 		Arguments: argsJSON,
+		Wait:      true, // Wait by default
 	}
 
 	return &transaction, nil
