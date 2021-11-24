@@ -28,7 +28,6 @@ type StorableTransaction struct {
 	Error         string                  `gorm:"column:error"`
 	RetryCount    uint                    `gorm:"column:retry_count"` // TODO increment this
 	TransactionID string                  `gorm:"column:transaction_id"`
-	Wait          bool                    `gorm:"column:wait"`
 
 	Name      string         `gorm:"column:name"` // Just a way to identify a transaction
 	Script    string         `gorm:"column:script"`
@@ -57,7 +56,6 @@ func NewTransaction(name string, script []byte, arguments []cadence.Value) (*Sto
 		Name:      name,
 		Script:    string(script),
 		Arguments: argsJSON,
-		Wait:      true, // Wait by default
 	}
 
 	return &transaction, nil
@@ -93,10 +91,10 @@ func (t *StorableTransaction) ArgumentsAsCadence() ([]cadence.Value, error) {
 }
 
 // Prepare parses the transaction into a sendable state.
-func (t *StorableTransaction) Prepare(ctx context.Context, flowClient *client.Client, account *flow_helpers.Account, gasLimit uint64) (*flow.Transaction, error) {
+func (t *StorableTransaction) Prepare(ctx context.Context, flowClient *client.Client, account *flow_helpers.Account, gasLimit uint64) (*flow.Transaction, flow_helpers.UnlockKeyFunc, error) {
 	args, err := t.ArgumentsAsCadence()
 	if err != nil {
-		return nil, err
+		return nil, nil, err
 	}
 
 	tx := flow.NewTransaction().
@@ -105,22 +103,23 @@ func (t *StorableTransaction) Prepare(ctx context.Context, flowClient *client.Cl
 
 	for _, a := range args {
 		if err := tx.AddArgument(a); err != nil {
-			return nil, err
+			return nil, nil, err
 		}
 	}
 
 	latestBlockHeader, err := flowClient.GetLatestBlockHeader(ctx, true)
 	if err != nil {
-		return nil, err
+		return nil, nil, err
 	}
 
 	tx.SetReferenceBlockID(latestBlockHeader.ID)
 
-	if err := flow_helpers.SignProposeAndPayAs(ctx, flowClient, account, tx); err != nil {
-		return nil, err
+	unlock, err := flow_helpers.SignProposeAndPayAs(ctx, flowClient, account, tx)
+	if err != nil {
+		return nil, nil, err
 	}
 
-	return tx, nil
+	return tx, unlock, nil
 }
 
 // HandleResult checks the results of a transaction onchain and updates the

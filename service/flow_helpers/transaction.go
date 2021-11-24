@@ -9,15 +9,15 @@ import (
 	"github.com/onflow/flow-go-sdk/client"
 )
 
-func SignProposeAndPayAs(ctx context.Context, flowClient *client.Client, account *Account, tx *flow.Transaction) error {
-	key, err := account.GetProposalKey(ctx, flowClient, tx.ReferenceBlockID)
-	if err != nil {
-		return err
-	}
-
+func SignProposeAndPayAs(ctx context.Context, flowClient *client.Client, account *Account, tx *flow.Transaction) (UnlockKeyFunc, error) {
 	signer, err := account.GetSigner()
 	if err != nil {
-		return err
+		return nil, err
+	}
+
+	key, unlock, err := account.GetProposalKey(ctx, flowClient)
+	if err != nil {
+		return nil, err
 	}
 
 	tx.
@@ -26,7 +26,7 @@ func SignProposeAndPayAs(ctx context.Context, flowClient *client.Client, account
 		AddAuthorizer(account.Address).
 		SignEnvelope(account.Address, key.Index, signer)
 
-	return nil
+	return unlock, nil
 }
 
 // WaitForSeal blocks until

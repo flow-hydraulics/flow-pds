@@ -69,7 +69,7 @@ func NewContractService(cfg *config.Config, flowClient *client.Client) (*Contrac
 	if err != nil {
 		return nil, err
 	}
-	if len(flowAccount.Keys) < len(pdsAccount.KeyIndexes) {
+	if len(flowAccount.Keys) < len(pdsAccount.PKeyIndexes) {
 		return nil, fmt.Errorf("too many key indexes given for admin account")
 	}
 	return &ContractService{cfg, flowClient, pdsAccount}, nil
@@ -100,9 +100,12 @@ func (svc *ContractService) SetDistCap(ctx context.Context, db *gorm.DB, issuer 
 
 	tx.AddArgument(cadence.Address(issuer))
 
-	if err := flow_helpers.SignProposeAndPayAs(ctx, svc.flowClient, svc.account, tx); err != nil {
+	unlockKey, err := flow_helpers.SignProposeAndPayAs(ctx, svc.flowClient, svc.account, tx)
+	if err != nil {
 		return err
 	}
+
+	defer unlockKey()
 
 	if err := svc.flowClient.SendTransaction(ctx, *tx); err != nil {
 		return err
@@ -178,16 +181,28 @@ func (svc *ContractService) SetupDistribution(ctx context.Context, db *gorm.DB, 
 
 		tx.AddArgument(cadence.Path{Domain: "private", Identifier: contract.ProviderPath()})
 
-		if err := flow_helpers.SignProposeAndPayAs(ctx, svc.flowClient, svc.account, tx); err != nil {
-			return err // rollback
-		}
+		// Use anon function here to allow defer as soon as possible
+		err = func() error {
+			unlockKey, err := flow_helpers.SignProposeAndPayAs(ctx, svc.flowClient, svc.account, tx)
+			if err != nil {
+				return err // rollback
+			}
 
-		if err := svc.flowClient.SendTransaction(ctx, *tx); err != nil {
-			return err // rollback
-		}
+			defer unlockKey()
 
-		if _, err := flow_helpers.WaitForSeal(ctx, svc.flowClient, tx.ID(), time.Minute*10); err != nil {
-			return err // rollback
+			if err := svc.flowClient.SendTransaction(ctx, *tx); err != nil {
+				return err // rollback
+			}
+
+			if _, err := flow_helpers.WaitForSeal(ctx, svc.flowClient, tx.ID(), time.Minute*10); err != nil {
+				return err // rollback
+			}
+
+			return nil
+		}()
+
+		if err != nil {
+			return err
 		}
 	}
 
@@ -307,9 +322,6 @@ func (svc *ContractService) StartSettlement(ctx context.Context, db *gorm.DB, di
 			if err != nil {
 				return err // rollback
 			}
-
-			// Do not wait for the transaction to finalize before sending the next
-			t.Wait = false
 
 			if err := t.Save(db); err != nil {
 				return err // rollback
