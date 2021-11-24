@@ -288,7 +288,7 @@ func handleSendableTransactions(ctx context.Context, app *App, rateLimiter ratel
 				logger.Debug("Transaction sent")
 			}
 
-			if _, err := t.WaitForFinalize(ctx, contract.flowClient); err != nil {
+			if _, err := t.WaitForFinalize(ctx, app.service.flowClient); err != nil {
 				logger.WithFields(log.Fields{"error": err.Error()}).Warn("Error while waiting for transaction to finalize")
 				return err
 			}
