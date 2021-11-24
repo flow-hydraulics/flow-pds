@@ -16,15 +16,11 @@ import (
 type Server struct {
 	Server *http.Server
 	cfg    *config.Config
-	logger *log.Logger
 }
 
-func NewServer(cfg *config.Config, logger *log.Logger, app *app.App) *Server {
-	if logger == nil {
-		panic("no logger")
-	}
+func NewServer(cfg *config.Config, app *app.App) *Server {
 
-	r := NewRouter(logger, app)
+	r := NewRouter(app)
 
 	// Server boilerplate
 	srv := &http.Server{
@@ -34,14 +30,14 @@ func NewServer(cfg *config.Config, logger *log.Logger, app *app.App) *Server {
 		ReadTimeout:  15 * time.Minute,
 	}
 
-	return &Server{srv, cfg, logger}
+	return &Server{srv, cfg}
 }
 
 func (s *Server) ListenAndServe() {
 	// Run our server in a goroutine so that it doesn't block.
 	go func() {
-		s.logger.Printf("Server listening on %s:%d\n", s.cfg.Host, s.cfg.Port)
-		s.logger.Print(s.Server.ListenAndServe())
+		log.Infof("Server listening on %s:%d", s.cfg.Host, s.cfg.Port)
+		log.Error(s.Server.ListenAndServe())
 	}()
 
 	// Trap interupt or sigterm and gracefully shutdown the server
@@ -53,13 +49,13 @@ func (s *Server) ListenAndServe() {
 	// Block until we receive our signal.
 	sig := <-c
 
-	s.logger.Printf("Got signal: %s. Shutting down..\n", sig)
+	log.Infof("Got signal: %s. Shutting down...", sig)
 
 	// Create a deadline to wait for.
 	ctx, cancel := context.WithTimeout(context.Background(), time.Second*15)
 	defer cancel()
 
 	if err := s.Server.Shutdown(ctx); err != nil {
-		s.logger.Fatal("Error in server shutdown; ", err)
+		log.Fatalf("Error in server shutdown: %s", err)
 	}
 }

@@ -43,7 +43,6 @@ const (
 // ContractService handles interfacing with the chain
 type ContractService struct {
 	cfg        *config.Config
-	logger     *log.Logger
 	flowClient *client.Client
 	account    *flow_helpers.Account
 }
@@ -55,7 +54,7 @@ func minInt(a int, b int) int {
 	return a
 }
 
-func NewContractService(cfg *config.Config, logger *log.Logger, flowClient *client.Client) (*ContractService, error) {
+func NewContractService(cfg *config.Config, flowClient *client.Client) (*ContractService, error) {
 	if cfg.AdminAddress != cfg.PDSAddress {
 		return nil, fmt.Errorf("admin (FLOW_PDS_ADMIN_ADDRESS) and pds (PDS_ADDRESS) addresses should equal")
 	}
@@ -73,11 +72,11 @@ func NewContractService(cfg *config.Config, logger *log.Logger, flowClient *clie
 	if len(flowAccount.Keys) < len(pdsAccount.KeyIndexes) {
 		return nil, fmt.Errorf("too many key indexes given for admin account")
 	}
-	return &ContractService{cfg, logger, flowClient, pdsAccount}, nil
+	return &ContractService{cfg, flowClient, pdsAccount}, nil
 }
 
 func (svc *ContractService) SetDistCap(ctx context.Context, db *gorm.DB, issuer common.FlowAddress) error {
-	logger := svc.logger.WithFields(log.Fields{
+	logger := log.WithFields(log.Fields{
 		"method": "SetDistCap",
 		"issuer": issuer,
 	})
@@ -122,7 +121,7 @@ func (svc *ContractService) SetDistCap(ctx context.Context, db *gorm.DB, issuer 
 // for the collectible NFTs in the Distribution.
 // It also makes sure the withdraw capability is linked.
 func (svc *ContractService) SetupDistribution(ctx context.Context, db *gorm.DB, dist *Distribution) error {
-	logger := svc.logger.WithFields(log.Fields{
+	logger := log.WithFields(log.Fields{
 		"method":     "SetupDistribution",
 		"distID":     dist.ID,
 		"distFlowID": dist.FlowID,
@@ -205,7 +204,7 @@ func (svc *ContractService) SetupDistribution(ctx context.Context, db *gorm.DB, 
 // database to be later processed by a poller.
 // Batching needs to be done to control the transaction size.
 func (svc *ContractService) StartSettlement(ctx context.Context, db *gorm.DB, dist *Distribution) error {
-	logger := svc.logger.WithFields(log.Fields{
+	logger := log.WithFields(log.Fields{
 		"method":     "StartSettlement",
 		"distID":     dist.ID,
 		"distFlowID": dist.FlowID,
@@ -334,7 +333,7 @@ func (svc *ContractService) StartSettlement(ctx context.Context, db *gorm.DB, di
 // later processed by a poller.
 // Batching needs to be done to control the transaction size.
 func (svc *ContractService) StartMinting(ctx context.Context, db *gorm.DB, dist *Distribution) error {
-	logger := svc.logger.WithFields(log.Fields{
+	logger := log.WithFields(log.Fields{
 		"method":     "StartMinting",
 		"distID":     dist.ID,
 		"distFlowID": dist.FlowID,
@@ -476,7 +475,7 @@ func (svc *ContractService) StartMinting(ctx context.Context, db *gorm.DB, dist 
 
 // Abort a distribution
 func (svc *ContractService) Abort(ctx context.Context, db *gorm.DB, dist *Distribution) error {
-	logger := svc.logger.WithFields(log.Fields{
+	logger := log.WithFields(log.Fields{
 		"method":     "Abort",
 		"distID":     dist.ID,
 		"distFlowID": dist.FlowID,
@@ -527,7 +526,7 @@ func (svc *ContractService) Abort(ctx context.Context, db *gorm.DB, dist *Distri
 // collectible NFTs.
 // It updates the settelement status in database accordingly.
 func (svc *ContractService) UpdateSettlementStatus(ctx context.Context, db *gorm.DB, dist *Distribution) error {
-	logger := svc.logger.WithFields(log.Fields{
+	logger := log.WithFields(log.Fields{
 		"method":     "UpdateSettlementStatus",
 		"distID":     dist.ID,
 		"distFlowID": dist.FlowID,
@@ -661,7 +660,7 @@ func (svc *ContractService) UpdateSettlementStatus(ctx context.Context, db *gorm
 // Pack NFTs.
 // It updates the minting status in database accordingly.
 func (svc *ContractService) UpdateMintingStatus(ctx context.Context, db *gorm.DB, dist *Distribution) error {
-	logger := svc.logger.WithFields(log.Fields{
+	logger := log.WithFields(log.Fields{
 		"method":     "UpdateMintingStatus",
 		"distID":     dist.ID,
 		"distFlowID": dist.FlowID,
@@ -823,7 +822,7 @@ func (svc *ContractService) UpdateMintingStatus(ctx context.Context, db *gorm.DB
 // and storing an appropriate Flow transaction in database to be later processed by a poller.
 // 'REVEALED' and 'OPENED' events are used to sync the state of a pack in database with onchain state.
 func (svc *ContractService) UpdateCirculatingPack(ctx context.Context, db *gorm.DB, cpc *CirculatingPackContract) error {
-	logger := svc.logger.WithFields(log.Fields{
+	logger := log.WithFields(log.Fields{
 		"method": "UpdateCirculatingPack",
 		"cpcID":  cpc.ID,
 	})

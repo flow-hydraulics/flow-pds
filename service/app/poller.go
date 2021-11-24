@@ -26,21 +26,21 @@ func poller(app *App) {
 	for {
 		select {
 		case <-ticker.C:
-			app.logger.Trace("Poll start")
+			log.Trace("Poll start")
 
-			logPollerRun("handleResolved", handleResolved(ctx, app.db, app.service), app.logger)
-			logPollerRun("handleSetup", handleSetup(ctx, app.db, app.service), app.logger)
-			logPollerRun("handleSettling", handleSettling(ctx, app.db, app.service), app.logger)
-			logPollerRun("handleSettled", handleSettled(ctx, app.db, app.service), app.logger)
-			logPollerRun("handleMinting", handleMinting(ctx, app.db, app.service), app.logger)
-			logPollerRun("handleComplete", handleComplete(ctx, app.db, app.service), app.logger)
+			logPollerRun("handleResolved", handleResolved(ctx, app))
+			logPollerRun("handleSetup", handleSetup(ctx, app))
+			logPollerRun("handleSettling", handleSettling(ctx, app))
+			logPollerRun("handleSettled", handleSettled(ctx, app))
+			logPollerRun("handleMinting", handleMinting(ctx, app))
+			logPollerRun("handleComplete", handleComplete(ctx, app))
 
-			logPollerRun("pollCirculatingPackContractEvents", pollCirculatingPackContractEvents(ctx, app.db, app.service), app.logger)
+			logPollerRun("pollCirculatingPackContractEvents", pollCirculatingPackContractEvents(ctx, app))
 
-			logPollerRun("handleSentTransactions", handleSentTransactions(ctx, app.db, app.service), app.logger)
-			logPollerRun("handleSendableTransactions", handleSendableTransactions(ctx, app.db, app.service, transactionRatelimiter), app.logger)
+			logPollerRun("handleSentTransactions", handleSentTransactions(ctx, app))
+			logPollerRun("handleSendableTransactions", handleSendableTransactions(ctx, app, transactionRatelimiter))
 
-			app.logger.Trace("Poll end")
+			log.Trace("Poll end")
 		case <-app.quit:
 			cancel()
 			ticker.Stop()
@@ -56,14 +56,14 @@ func min(x, y uint64) uint64 {
 	return x
 }
 
-func logPollerRun(pollerName string, err error, logger *log.Logger) {
+func logPollerRun(pollerName string, err error) {
 	if err != nil {
-		logger.WithFields(log.Fields{
+		log.WithFields(log.Fields{
 			"pollerName": pollerName,
 			"error":      err,
 		}).Warn("Error while running poller")
 	} else {
-		logger.WithFields(log.Fields{
+		log.WithFields(log.Fields{
 			"pollerName": pollerName,
 		}).Trace("Done")
 	}
@@ -85,15 +85,15 @@ func listCirculatingPacks(db *gorm.DB) ([]CirculatingPackContract, error) {
 		Find(&list).Error
 }
 
-func handleResolved(ctx context.Context, db *gorm.DB, contract *ContractService) error {
-	return db.Transaction(func(tx *gorm.DB) error {
+func handleResolved(ctx context.Context, app *App) error {
+	return app.db.Transaction(func(tx *gorm.DB) error {
 		resolved, err := listDistributionsByState(tx, common.DistributionStateResolved)
 		if err != nil {
 			return err
 		}
 
 		for _, dist := range resolved {
-			if err := contract.SetupDistribution(ctx, tx, &dist); err != nil {
+			if err := app.service.SetupDistribution(ctx, tx, &dist); err != nil {
 				return err
 			}
 		}
@@ -102,15 +102,15 @@ func handleResolved(ctx context.Context, db *gorm.DB, contract *ContractService)
 	})
 }
 
-func handleSetup(ctx context.Context, db *gorm.DB, contract *ContractService) error {
-	return db.Transaction(func(tx *gorm.DB) error {
+func handleSetup(ctx context.Context, app *App) error {
+	return app.db.Transaction(func(tx *gorm.DB) error {
 		setup, err := listDistributionsByState(tx, common.DistributionStateSetup)
 		if err != nil {
 			return err
 		}
 
 		for _, dist := range setup {
-			if err := contract.StartSettlement(ctx, tx, &dist); err != nil {
+			if err := app.service.StartSettlement(ctx, tx, &dist); err != nil {
 				return err
 			}
 		}
@@ -119,15 +119,15 @@ func handleSetup(ctx context.Context, db *gorm.DB, contract *ContractService) er
 	})
 }
 
-func handleSettling(ctx context.Context, db *gorm.DB, contract *ContractService) error {
-	return db.Transaction(func(tx *gorm.DB) error {
+func handleSettling(ctx context.Context, app *App) error {
+	return app.db.Transaction(func(tx *gorm.DB) error {
 		settling, err := listDistributionsByState(tx, common.DistributionStateSettling)
 		if err != nil {
 			return err
 		}
 
 		for _, dist := range settling {
-			if err := contract.UpdateSettlementStatus(ctx, tx, &dist); err != nil {
+			if err := app.service.UpdateSettlementStatus(ctx, tx, &dist); err != nil {
 				return err
 			}
 		}
@@ -135,15 +135,15 @@ func handleSettling(ctx context.Context, db *gorm.DB, contract *ContractService)
 	})
 }
 
-func handleSettled(ctx context.Context, db *gorm.DB, contract *ContractService) error {
-	return db.Transaction(func(tx *gorm.DB) error {
+func handleSettled(ctx context.Context, app *App) error {
+	return app.db.Transaction(func(tx *gorm.DB) error {
 		settled, err := listDistributionsByState(tx, common.DistributionStateSettled)
 		if err != nil {
 			return err
 		}
 
 		for _, dist := range settled {
-			if err := contract.StartMinting(ctx, tx, &dist); err != nil {
+			if err := app.service.StartMinting(ctx, tx, &dist); err != nil {
 				return err
 			}
 		}
@@ -152,15 +152,15 @@ func handleSettled(ctx context.Context, db *gorm.DB, contract *ContractService) 
 	})
 }
 
-func handleMinting(ctx context.Context, db *gorm.DB, contract *ContractService) error {
-	return db.Transaction(func(tx *gorm.DB) error {
+func handleMinting(ctx context.Context, app *App) error {
+	return app.db.Transaction(func(tx *gorm.DB) error {
 		minting, err := listDistributionsByState(tx, common.DistributionStateMinting)
 		if err != nil {
 			return err
 		}
 
 		for _, dist := range minting {
-			if err := contract.UpdateMintingStatus(ctx, tx, &dist); err != nil {
+			if err := app.service.UpdateMintingStatus(ctx, tx, &dist); err != nil {
 				return err
 			}
 		}
@@ -170,8 +170,8 @@ func handleMinting(ctx context.Context, db *gorm.DB, contract *ContractService) 
 
 // handleComplete deletes obsolete Settlement, SettlementCollectible and Minting
 // objects from database.
-func handleComplete(ctx context.Context, db *gorm.DB, contract *ContractService) error {
-	return db.Transaction(func(tx *gorm.DB) error {
+func handleComplete(ctx context.Context, app *App) error {
+	return app.db.Transaction(func(tx *gorm.DB) error {
 		complete, err := listDistributionsByState(tx, common.DistributionStateComplete)
 		if err != nil {
 			return err
@@ -196,15 +196,15 @@ func handleComplete(ctx context.Context, db *gorm.DB, contract *ContractService)
 	})
 }
 
-func pollCirculatingPackContractEvents(ctx context.Context, db *gorm.DB, contract *ContractService) error {
-	return db.Transaction(func(tx *gorm.DB) error {
+func pollCirculatingPackContractEvents(ctx context.Context, app *App) error {
+	return app.db.Transaction(func(tx *gorm.DB) error {
 		cc, err := listCirculatingPacks(tx)
 		if err != nil {
 			return err
 		}
 
 		for _, c := range cc {
-			if err := contract.UpdateCirculatingPack(ctx, tx, &c); err != nil {
+			if err := app.service.UpdateCirculatingPack(ctx, tx, &c); err != nil {
 				return err
 			}
 		}
@@ -218,7 +218,7 @@ func pollCirculatingPackContractEvents(ctx context.Context, db *gorm.DB, contrac
 // TODO (latenssi): this is basically brute forcing the sequence numbering
 // TODO (latenssi): this will currently iterate over all sendable transactions
 // in database while locking the poller from doing other actions (limited by maxHandleCount)
-func handleSendableTransactions(ctx context.Context, db *gorm.DB, contract *ContractService, rateLimiter ratelimit.Limiter) error {
+func handleSendableTransactions(ctx context.Context, app *App, rateLimiter ratelimit.Limiter) error {
 	logger := log.WithFields(log.Fields{
 		"function": "handleSendableTransactions",
 	})
@@ -232,7 +232,7 @@ func handleSendableTransactions(ctx context.Context, db *gorm.DB, contract *Cont
 		rateLimiter.Take()
 
 		// Ignoring error for now, as they are already logged with context
-		db.Transaction(func(dbtx *gorm.DB) error {
+		app.db.Transaction(func(dbtx *gorm.DB) error {
 			t, err := transactions.GetNextSendable(dbtx)
 			if err != nil {
 				if errors.Is(err, gorm.ErrRecordNotFound) {
@@ -249,7 +249,7 @@ func handleSendableTransactions(ctx context.Context, db *gorm.DB, contract *Cont
 				"distributionID": t.DistributionID,
 			})
 
-			tx, err := t.Prepare(ctx, contract.flowClient, contract.account, contract.cfg.TransactionGasLimit)
+			tx, err := t.Prepare(ctx, app.service.flowClient, app.service.account, app.service.cfg.TransactionGasLimit)
 			if err != nil {
 				logger.WithFields(log.Fields{"error": err.Error()}).Warn("Error while preparing transaction")
 				return err
@@ -272,7 +272,7 @@ func handleSendableTransactions(ctx context.Context, db *gorm.DB, contract *Cont
 				return err
 			}
 
-			if err := contract.flowClient.SendTransaction(ctx, *tx); err != nil {
+			if err := app.service.flowClient.SendTransaction(ctx, *tx); err != nil {
 				logger.WithFields(log.Fields{"error": err.Error()}).Warn("Error while sending transaction")
 
 				t.State = common.TransactionStateFailed
@@ -299,7 +299,7 @@ func handleSendableTransactions(ctx context.Context, db *gorm.DB, contract *Cont
 
 // handleSentTransactions checks the results of sent transactions and updates
 // the state in database accordingly
-func handleSentTransactions(ctx context.Context, db *gorm.DB, contract *ContractService) error {
+func handleSentTransactions(ctx context.Context, app *App) error {
 	logger := log.WithFields(log.Fields{
 		"function": "handleSentTransactions",
 	})
@@ -308,7 +308,7 @@ func handleSentTransactions(ctx context.Context, db *gorm.DB, contract *Contract
 
 	for run {
 		// Ignoring error for now, as they are already logged with context
-		db.Transaction(func(dbtx *gorm.DB) error {
+		app.db.Transaction(func(dbtx *gorm.DB) error {
 			t, err := transactions.GetNextSent(dbtx)
 			if err != nil {
 				if errors.Is(err, gorm.ErrRecordNotFound) {
@@ -325,10 +325,12 @@ func handleSentTransactions(ctx context.Context, db *gorm.DB, contract *Contract
 				"distributionID": t.DistributionID,
 			})
 
-			if err := t.HandleResult(ctx, contract.flowClient); err != nil {
+			if err := t.HandleResult(ctx, app.service.flowClient); err != nil {
 				logger.WithFields(log.Fields{"error": err.Error()}).Warn("Error while handling transaction result")
 				return err
 			}
+
+			logger.Trace("sent transaction handled")
 
 			if err := t.Save(dbtx); err != nil {
 				logger.WithFields(log.Fields{"error": err.Error()}).Warn("Error while saving transaction")

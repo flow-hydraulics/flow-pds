@@ -21,7 +21,6 @@ const version = "0.1.0"
 var (
 	sha1ver   string // sha1 revision used to build the program
 	buildTime string // when the executable was built
-	logger    *log.Logger
 )
 
 func init() {
@@ -36,8 +35,12 @@ func init() {
 		ll = log.DebugLevel
 	}
 
-	logger = log.New()
-	logger.SetLevel(ll)
+	log.SetFormatter(&log.TextFormatter{
+		DisableColors: true,
+		FullTimestamp: true,
+	})
+
+	log.SetLevel(ll)
 }
 
 func main() {
@@ -78,7 +81,7 @@ func runServer(cfg *config.Config) error {
 		return fmt.Errorf("config not provided")
 	}
 
-	logger.Printf("Starting server (v%s)...\n", version)
+	log.Infof("Starting server (v%s)...", version)
 
 	// Flow client
 	// TODO: WithInsecure()?
@@ -88,7 +91,7 @@ func runServer(cfg *config.Config) error {
 	}
 	defer func() {
 		if err := flowClient.Close(); err != nil {
-			logger.Println(err)
+			log.Error(err)
 		}
 	}()
 
@@ -108,7 +111,7 @@ func runServer(cfg *config.Config) error {
 	}
 
 	// Application
-	app, err := app.New(cfg, logger, db, flowClient, true)
+	app, err := app.New(cfg, db, flowClient, true)
 	if err != nil {
 		return err
 	}
@@ -116,7 +119,7 @@ func runServer(cfg *config.Config) error {
 	defer app.Close()
 
 	// HTTP server
-	server := http.NewServer(cfg, logger, app)
+	server := http.NewServer(cfg, app)
 
 	server.ListenAndServe()
 

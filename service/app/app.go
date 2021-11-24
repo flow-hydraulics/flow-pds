@@ -8,32 +8,26 @@ import (
 	"github.com/flow-hydraulics/flow-pds/service/config"
 	"github.com/google/uuid"
 	"github.com/onflow/flow-go-sdk/client"
-	log "github.com/sirupsen/logrus"
 	"gorm.io/gorm"
 )
 
 // App handles all the application logic and interfaces directly with the database
 type App struct {
 	cfg        *config.Config
-	logger     *log.Logger
 	db         *gorm.DB
 	flowClient *client.Client
 	service    *ContractService
 	quit       chan bool // Chan type does not matter as we only use this to 'close'
 }
 
-func New(cfg *config.Config, logger *log.Logger, db *gorm.DB, flowClient *client.Client, poll bool) (*App, error) {
-	if logger == nil {
-		panic("no logger")
-	}
-
-	service, err := NewContractService(cfg, logger, flowClient)
+func New(cfg *config.Config, db *gorm.DB, flowClient *client.Client, poll bool) (*App, error) {
+	service, err := NewContractService(cfg, flowClient)
 	if err != nil {
 		return nil, err
 	}
 
 	quit := make(chan bool)
-	app := &App{cfg, logger, db, flowClient, service, quit}
+	app := &App{cfg, db, flowClient, service, quit}
 
 	if poll {
 		go poller(app)

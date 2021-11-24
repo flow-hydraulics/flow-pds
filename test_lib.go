@@ -73,7 +73,7 @@ func getTestApp(cfg *config.Config, poll bool) (*app.App, func()) {
 		panic(err)
 	}
 
-	app, err := app.New(cfg, logger, db, flowClient, poll)
+	app, err := app.New(cfg, db, flowClient, poll)
 	if err != nil {
 		panic(err)
 	}
@@ -94,7 +94,7 @@ func getTestServer(cfg *config.Config, poll bool) (*http.Server, func()) {
 		cleanupApp()
 	}
 
-	return http.NewServer(cfg, logger, app), clean
+	return http.NewServer(cfg, app), clean
 }
 
 func makeTestCollection(size int) []common.FlowID {
