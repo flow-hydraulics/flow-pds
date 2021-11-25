@@ -220,35 +220,19 @@ func pollCirculatingPackContractEvents(ctx context.Context, app *App) error {
 // TODO (latenssi): this will currently iterate over all sendable transactions
 // in database while locking the poller from doing other actions (limited by maxHandleCount)
 func handleSendableTransactions(ctx context.Context, app *App, rateLimiter ratelimit.Limiter) error {
-	logger := log.WithFields(log.Fields{
-		"function": "handleSendableTransactions",
-	})
-
-	run := true
 	handleCount := 0
 	maxHandleCount := 100
 
-	for run && handleCount < maxHandleCount {
+	for handleCount < maxHandleCount {
 		// Rate limit
 		rateLimiter.Take()
 
-		// Ignoring error for now, as they are already logged with context
-		app.db.Transaction(func(dbtx *gorm.DB) (err error) {
+		err := app.db.Transaction(func(dbtx *gorm.DB) (err error) {
 			t, err := transactions.GetNextSendable(dbtx)
 			if err != nil {
-				if errors.Is(err, gorm.ErrRecordNotFound) {
-					run = false
-				} else {
-					logger.WithFields(log.Fields{"error": err.Error()}).Warn("Error while getting transaction from database")
-				}
+				err = fmt.Errorf("error while getting transaction from database: %w", err)
 				return
 			}
-
-			logger = logger.WithFields(log.Fields{
-				"ID":             t.ID,
-				"name":           t.Name,
-				"distributionID": t.DistributionID,
-			})
 
 			tx, unlockKey, err := t.Prepare(ctx, app.service.flowClient, app.service.account, app.service.cfg.TransactionGasLimit)
 
@@ -260,15 +244,7 @@ func handleSendableTransactions(ctx context.Context, app *App, rateLimiter ratel
 			}()
 
 			if err != nil {
-				logEntry := logger.WithFields(log.Fields{"error": err.Error()})
-				logMsg := "Error while preparing transaction"
-
-				if errors.Is(err, flow_helpers.ErrNoAccountKeyAvailable) {
-					logEntry.Trace(logMsg)
-				} else {
-					logEntry.Warn(logMsg)
-				}
-
+				err = fmt.Errorf("error while preparing transaction: %w", err)
 				return
 			}
 
@@ -278,25 +254,21 @@ func handleSendableTransactions(ctx context.Context, app *App, rateLimiter ratel
 			// Update state
 			t.State = common.TransactionStateSent
 
-			logger = logger.WithFields(log.Fields{
-				"transactionID": t.TransactionID,
-			})
-
 			// Save early as the database might be locked and not allow us to
 			// save after sending. This way we fail before actually sending.
 			if err = t.Save(dbtx); err != nil {
-				logger.WithFields(log.Fields{"error": err.Error()}).Warn("Error while saving transaction")
+				err = fmt.Errorf("error while saving transaction: %w", err)
 				return
 			}
 
 			if err = app.service.flowClient.SendTransaction(ctx, *tx); err != nil {
-				logger.WithFields(log.Fields{"error": err.Error()}).Warn("Error while sending transaction")
+				err = fmt.Errorf("error while sending transaction: %w", err)
 
 				t.State = common.TransactionStateFailed
 				t.Error = err.Error()
 
 				if err = t.Save(dbtx); err != nil {
-					logger.WithFields(log.Fields{"error": err.Error()}).Warn("Error while saving transaction")
+					err = fmt.Errorf("error while saving transaction: %w", err)
 					return
 				}
 
@@ -308,19 +280,35 @@ func handleSendableTransactions(ctx context.Context, app *App, rateLimiter ratel
 				return
 			}
 
+			logger := log.WithFields(log.Fields{
+				"function":       "handleSendableTransactions",
+				"ID":             t.ID,
+				"name":           t.Name,
+				"distributionID": t.DistributionID,
+				"transactionID":  t.TransactionID,
+			})
+
 			logger.Debug("Transaction sent")
 
 			// Wait for the transaction to finalize (be included in a block, not yet sealed)
 			// in a goroutine to unlock the used key
 			go func(ctx context.Context, app *App, unlockKey flow_helpers.UnlockKeyFunc, logger *log.Entry) {
+				defer unlockKey()
 				if _, err := t.WaitForFinalize(ctx, app.service.flowClient); err != nil {
 					logger.WithFields(log.Fields{"error": err.Error()}).Warn("Error while waiting for transaction to finalize")
 				}
-				unlockKey()
 			}(context.Background(), app, unlockKey, logger)
 
 			return
 		})
+
+		if err != nil {
+			// Ignore ErrRecordNotFound and ErrNoAccountKeyAvailable and stop iteration
+			if errors.Is(err, gorm.ErrRecordNotFound) || errors.Is(err, flow_helpers.ErrNoAccountKeyAvailable) {
+				break
+			}
+			return err
+		}
 
 		handleCount++
 	}
@@ -331,45 +319,46 @@ func handleSendableTransactions(ctx context.Context, app *App, rateLimiter ratel
 // handleSentTransactions checks the results of sent transactions and updates
 // the state in database accordingly
 func handleSentTransactions(ctx context.Context, app *App) error {
-	logger := log.WithFields(log.Fields{
-		"function": "handleSentTransactions",
-	})
+	handleCount := 0
+	maxHandleCount := 100
 
-	run := true
-
-	for run {
-		// Ignoring error for now, as they are already logged with context
-		app.db.Transaction(func(dbtx *gorm.DB) error {
+	for handleCount < maxHandleCount {
+		err := app.db.Transaction(func(dbtx *gorm.DB) (err error) {
 			t, err := transactions.GetNextSent(dbtx)
 			if err != nil {
-				if errors.Is(err, gorm.ErrRecordNotFound) {
-					run = false
-				} else {
-					logger.WithFields(log.Fields{"error": err.Error()}).Warn("Error while getting transaction from database")
-				}
-				return err
+				err = fmt.Errorf("error while getting transaction from database: %w", err)
+				return
 			}
 
-			logger = logger.WithFields(log.Fields{
+			if err = t.HandleResult(ctx, app.service.flowClient); err != nil {
+				err = fmt.Errorf("error while handling transaction result: %w", err)
+				return
+			}
+
+			log.WithFields(log.Fields{
+				"function":       "handleSentTransactions",
 				"ID":             t.ID,
 				"name":           t.Name,
 				"distributionID": t.DistributionID,
-			})
+			}).Trace("Sent transaction handled")
 
-			if err := t.HandleResult(ctx, app.service.flowClient); err != nil {
-				logger.WithFields(log.Fields{"error": err.Error()}).Warn("Error while handling transaction result")
-				return err
-			}
-
-			logger.Trace("Sent transaction handled")
-
-			if err := t.Save(dbtx); err != nil {
-				logger.WithFields(log.Fields{"error": err.Error()}).Warn("Error while saving transaction")
-				return err
+			if err = t.Save(dbtx); err != nil {
+				err = fmt.Errorf("error while saving transaction: %w", err)
+				return
 			}
 
 			return nil
 		})
+
+		if err != nil {
+			// Ignore ErrRecordNotFound and stop iteration
+			if errors.Is(err, gorm.ErrRecordNotFound) {
+				break
+			}
+			return err
+		}
+
+		handleCount++
 	}
 
 	return nil
