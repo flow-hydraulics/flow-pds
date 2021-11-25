@@ -59,7 +59,7 @@ func (app *App) CreateDistribution(ctx context.Context, distribution *Distributi
 		return err
 	}
 
-	if err := InsertDistribution(app.db, distribution, app.cfg.QueryBatchSize); err != nil {
+	if err := InsertDistribution(app.db, distribution, app.cfg.BatchInsertSize); err != nil {
 		return err
 	}
 
