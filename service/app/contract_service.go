@@ -283,7 +283,7 @@ func (svc *ContractService) StartSettlement(ctx context.Context, db *gorm.DB, di
 		return err // rollback
 	}
 
-	err = MissingCollectiblesInBatches(db, settlement.ID, svc.cfg.SettlementBatchSize, func(tx *gorm.DB, batchNumber int, batch SettlementCollectibles) error {
+	err = NotSettledCollectiblesInBatches(db, settlement.ID, svc.cfg.SettlementBatchSize, func(tx *gorm.DB, batchNumber int, batch SettlementCollectibles) error {
 		for contract, collectibles := range batch.GroupByContract() {
 			txScript, err := flow_helpers.ParseCadenceTemplate(
 				SETTLE_SCRIPT,
@@ -566,7 +566,7 @@ func (svc *ContractService) UpdateSettlementStatus(ctx context.Context, db *gorm
 		return nil // commit
 	}
 
-	err = MissingCollectiblesInBatches(db, settlement.ID, 1000, func(tx *gorm.DB, batchNumber int, missing SettlementCollectibles) error {
+	err = NotSettledCollectiblesInBatches(db, settlement.ID, 1000, func(tx *gorm.DB, batchNumber int, missing SettlementCollectibles) error {
 		for contract, collectibles := range missing.GroupByContract() {
 			arr, err := svc.flowClient.GetEventsForHeightRange(ctx, client.EventRangeQuery{
 				Type:        fmt.Sprintf("%s.Deposit", contract.String()),

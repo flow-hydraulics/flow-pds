@@ -171,8 +171,8 @@ func GetDistributionSettlement(db *gorm.DB, distributionID uuid.UUID) (*Settleme
 	return &settlement, nil
 }
 
-// Get missing collectibles for a Settlement and process in batches of 'batchSize'
-func MissingCollectiblesInBatches(db *gorm.DB, settlementId uuid.UUID, batchSize int, processBatch func(tx *gorm.DB, batchNumber int, batch SettlementCollectibles) error) error {
+// Get SettlementCollectibles that have not been settled for a Settlement and process in batches of 'batchSize'
+func NotSettledCollectiblesInBatches(db *gorm.DB, settlementId uuid.UUID, batchSize int, processBatch func(tx *gorm.DB, batchNumber int, batch SettlementCollectibles) error) error {
 	batch := SettlementCollectibles{}
 	return db.
 		Omit(clause.Associations).
