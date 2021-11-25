@@ -217,14 +217,10 @@ func pollCirculatingPackContractEvents(ctx context.Context, app *App) error {
 
 // handleSendableTransactions sends all transactions which are sendable (state is init or retry)
 // with no regard to account proposal key sequence number
-// TODO (latenssi): this is basically brute forcing the sequence numbering
-// TODO (latenssi): this will currently iterate over all sendable transactions
-// in database while locking the poller from doing other actions (limited by maxHandleCount)
 func handleSendableTransactions(ctx context.Context, app *App, rateLimiter ratelimit.Limiter) error {
 	handleCount := 0
-	maxHandleCount := 100
 
-	for handleCount < maxHandleCount {
+	for handleCount < app.cfg.BatchProcessSize {
 		// Rate limit
 		rateLimiter.Take()
 
@@ -321,9 +317,8 @@ func handleSendableTransactions(ctx context.Context, app *App, rateLimiter ratel
 // the state in database accordingly
 func handleSentTransactions(ctx context.Context, app *App) error {
 	handleCount := 0
-	maxHandleCount := 100
 
-	for handleCount < maxHandleCount {
+	for handleCount < app.cfg.BatchProcessSize {
 		err := app.db.Transaction(func(dbtx *gorm.DB) (err error) {
 			t, err := transactions.GetNextSent(dbtx)
 			if err != nil {
