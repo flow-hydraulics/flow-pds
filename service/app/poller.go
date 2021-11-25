@@ -3,6 +3,7 @@ package app
 import (
 	"context"
 	"errors"
+	"fmt"
 	"time"
 
 	"github.com/flow-hydraulics/flow-pds/service/common"
@@ -78,7 +79,7 @@ func listDistributionsByState(db *gorm.DB, state common.DistributionState) ([]Di
 		Find(&list).Error
 }
 
-func listCirculatingPacks(db *gorm.DB) ([]CirculatingPackContract, error) {
+func listCirculatingPackContracts(db *gorm.DB) ([]CirculatingPackContract, error) {
 	list := []CirculatingPackContract{}
 	return list, db.
 		Order("updated_at asc").
@@ -199,13 +200,13 @@ func handleComplete(ctx context.Context, app *App) error {
 
 func pollCirculatingPackContractEvents(ctx context.Context, app *App) error {
 	return app.db.Transaction(func(tx *gorm.DB) error {
-		cc, err := listCirculatingPacks(tx)
+		cc, err := listCirculatingPackContracts(tx)
 		if err != nil {
 			return err
 		}
 
 		for _, c := range cc {
-			if err := app.service.UpdateCirculatingPack(ctx, tx, &c); err != nil {
+			if err := app.service.UpdateCirculatingPackContract(ctx, tx, &c); err != nil {
 				return err
 			}
 		}

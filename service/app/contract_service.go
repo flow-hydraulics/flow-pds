@@ -831,12 +831,12 @@ func (svc *ContractService) UpdateMintingStatus(ctx context.Context, db *gorm.DB
 	return nil // commit
 }
 
-// UpdateCirculatingPack polls for 'REVEAL_REQUEST', 'REVEALED', 'OPEN_REQUEST' and 'OPENED' events
+// UpdateCirculatingPackContract polls for 'REVEAL_REQUEST', 'REVEALED', 'OPEN_REQUEST' and 'OPENED' events
 // regarding the given CirculatingPackContract.
 // It handles each the 'REVEAL_REQUEST' and 'OPEN_REQUEST' events by creating
 // and storing an appropriate Flow transaction in database to be later processed by a poller.
 // 'REVEALED' and 'OPENED' events are used to sync the state of a pack in database with onchain state.
-func (svc *ContractService) UpdateCirculatingPack(ctx context.Context, db *gorm.DB, cpc *CirculatingPackContract) error {
+func (svc *ContractService) UpdateCirculatingPackContract(ctx context.Context, db *gorm.DB, cpc *CirculatingPackContract) error {
 	logger := log.WithFields(log.Fields{
 		"method": "UpdateCirculatingPack",
 		"cpcID":  cpc.ID,
