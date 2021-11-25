@@ -250,14 +250,21 @@ func TestE2E(t *testing.T) {
 	t.Log("Wait for the distribution to complete")
 
 	for {
-		d, err := a.GetDistribution(context.Background(), distribution.ID)
+		state, err := a.GetDistributionState(context.Background(), distribution.ID)
 		if err != nil {
 			if strings.Contains(err.Error(), "database is locked") {
 				continue
 			}
 			t.Fatal(err)
 		}
-		if d.State == common.DistributionStateComplete {
+		if state == common.DistributionStateComplete {
+			d, err := a.GetDistribution(context.Background(), distribution.ID)
+			if err != nil {
+				if strings.Contains(err.Error(), "database is locked") {
+					continue
+				}
+				t.Fatal(err)
+			}
 			distribution = *d
 			break
 		}

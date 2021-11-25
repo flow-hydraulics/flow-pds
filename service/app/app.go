@@ -84,6 +84,15 @@ func (app *App) GetDistribution(ctx context.Context, id uuid.UUID) (*Distributio
 	return distribution, nil
 }
 
+func (app *App) GetDistributionState(ctx context.Context, id uuid.UUID) (common.DistributionState, error) {
+	distribution, err := GetDistributionSmall(app.db, id)
+	if err != nil {
+		return "", err
+	}
+
+	return distribution.State, nil
+}
+
 // AbortDistribution aborts a distribution.
 func (app *App) AbortDistribution(ctx context.Context, id uuid.UUID) error {
 	return app.db.Transaction(func(tx *gorm.DB) error {
