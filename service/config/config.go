@@ -41,7 +41,7 @@ type Config struct {
 
 	// The batch sizes for database batch handling (big inserts or batch processing)
 	BatchInsertSize  int `env:"FLOW_PDS_BATCH_INSERT_SIZE" envDefault:"1000"`
-	BatchProcessSize int `env:"FLOW_PDS_BATCH_PROCESS_SIZE" envDefault:"100"`
+	BatchProcessSize int `env:"FLOW_PDS_BATCH_PROCESS_SIZE" envDefault:"1000"`
 
 	// -- Testing --
 
