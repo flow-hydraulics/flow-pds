@@ -39,6 +39,9 @@ type Config struct {
 	SettlementBatchSize int `env:"FLOW_PDS_SETTLEMENT_BATCH_SIZE" envDefault:"40"`
 	MintingBatchSize    int `env:"FLOW_PDS_MINTING_BATCH_SIZE" envDefault:"40"`
 
+	// The batchSize for database batch handling (big inserts or batch processing)
+	QueryBatchSize int `env:"FLOW_PDS_QUERY_BATCH_SIZE" envDefault:"1000"`
+
 	// -- Testing --
 
 	TestPackCount int `env:"TEST_PACK_COUNT" envDefault:"4"`

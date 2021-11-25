@@ -248,7 +248,7 @@ func (svc *ContractService) StartSettlement(ctx context.Context, db *gorm.DB, di
 
 	totalCollectibleCount := 0
 
-	err = DistributionPacksInBatches(db, dist.ID, 1000, func(tx *gorm.DB, batchNumber int, batch []Pack) error {
+	err = DistributionPacksInBatches(db, dist.ID, svc.cfg.QueryBatchSize, func(tx *gorm.DB, batchNumber int, batch []Pack) error {
 		collectibles := make(Collectibles, 0)
 		for _, pack := range batch {
 			collectibles = append(collectibles, pack.Collectibles...)
@@ -266,7 +266,7 @@ func (svc *ContractService) StartSettlement(ctx context.Context, db *gorm.DB, di
 			}
 		}
 
-		if err := InsertSettlementCollectibles(db, settlementCollectibles); err != nil {
+		if err := InsertSettlementCollectibles(db, settlementCollectibles, svc.cfg.QueryBatchSize); err != nil {
 			return err
 		}
 
@@ -566,7 +566,7 @@ func (svc *ContractService) UpdateSettlementStatus(ctx context.Context, db *gorm
 		return nil // commit
 	}
 
-	err = NotSettledCollectiblesInBatches(db, settlement.ID, 1000, func(tx *gorm.DB, batchNumber int, missing SettlementCollectibles) error {
+	err = NotSettledCollectiblesInBatches(db, settlement.ID, svc.cfg.QueryBatchSize, func(tx *gorm.DB, batchNumber int, missing SettlementCollectibles) error {
 		for contract, collectibles := range missing.GroupByContract() {
 			arr, err := svc.flowClient.GetEventsForHeightRange(ctx, client.EventRangeQuery{
 				Type:        fmt.Sprintf("%s.Deposit", contract.String()),

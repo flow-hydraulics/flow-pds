@@ -16,7 +16,7 @@ func Migrate(db *gorm.DB) error {
 }
 
 // Insert distribution
-func InsertDistribution(db *gorm.DB, d *Distribution) error {
+func InsertDistribution(db *gorm.DB, d *Distribution, batchSize int) error {
 	return db.Transaction(func(tx *gorm.DB) error {
 		// Store distribution
 		if err := tx.Omit(clause.Associations).Create(d).Error; err != nil {
@@ -32,13 +32,13 @@ func InsertDistribution(db *gorm.DB, d *Distribution) error {
 			d.Packs[i].DistributionID = d.ID
 		}
 
-		// Store buckets, assuming we won't have too many buckets per distribution
-		if err := tx.Omit(clause.Associations).Create(d.PackTemplate.Buckets).Error; err != nil {
+		// Store buckets in batches
+		if err := tx.Omit(clause.Associations).CreateInBatches(d.PackTemplate.Buckets, batchSize).Error; err != nil {
 			return err
 		}
 
 		// Store packs in batches
-		if err := tx.Omit(clause.Associations).CreateInBatches(d.Packs, 1000).Error; err != nil {
+		if err := tx.Omit(clause.Associations).CreateInBatches(d.Packs, batchSize).Error; err != nil {
 			return err
 		}
 
@@ -139,8 +139,8 @@ func InsertSettlement(db *gorm.DB, d *Settlement) error {
 	return db.Omit(clause.Associations).Create(d).Error
 }
 
-func InsertSettlementCollectibles(db *gorm.DB, cc []SettlementCollectible) error {
-	return db.Omit(clause.Associations).CreateInBatches(cc, 1000).Error
+func InsertSettlementCollectibles(db *gorm.DB, cc []SettlementCollectible, batchSize int) error {
+	return db.Omit(clause.Associations).CreateInBatches(cc, batchSize).Error
 }
 
 // Delete Settlement
