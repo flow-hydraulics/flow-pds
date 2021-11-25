@@ -17,7 +17,7 @@ func TestAccountKeyRotation(t *testing.T) {
 	for i := 0; i < 4; i++ {
 		index, _, err := pdsAccount.PKeyIndexes.Next()
 		if err != nil && i < 3 {
-			t.Fatalf("didn't expected an error, got: %s\n", err)
+			t.Fatalf("didn't expect an error, got: %s\n", err)
 		}
 		if index == i && i > 2 {
 			t.Fatal("expected KeyIndex to rotate")
