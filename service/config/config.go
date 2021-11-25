@@ -43,6 +43,9 @@ type Config struct {
 	BatchInsertSize  int `env:"FLOW_PDS_BATCH_INSERT_SIZE" envDefault:"1000"`
 	BatchProcessSize int `env:"FLOW_PDS_BATCH_PROCESS_SIZE" envDefault:"1000"`
 
+	// Maximum number of blocks to query for when fetching events from Flow gateway
+	MaxBlocksPerCheck uint64 `env:"FLOW_PDS_MAX_BLOCKS_PER_CHECK" envDefault:"10"`
+
 	// -- Testing --
 
 	TestPackCount int `env:"TEST_PACK_COUNT" envDefault:"4"`

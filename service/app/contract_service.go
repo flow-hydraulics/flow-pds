@@ -35,10 +35,6 @@ const (
 	UPDATE_STATE_SCRIPT     = "./cadence-transactions/pds/update_dist_state.cdc"
 )
 
-const (
-	MAX_EVENTS_PER_CHECK = 100
-)
-
 // ContractService handles interfacing with the chain
 type ContractService struct {
 	cfg        *config.Config
@@ -553,7 +549,7 @@ func (svc *ContractService) UpdateSettlementStatus(ctx context.Context, db *gorm
 	}
 
 	begin := settlement.StartAtBlock + 1
-	end := min(latestBlockHeader.Height, begin+MAX_EVENTS_PER_CHECK)
+	end := min(latestBlockHeader.Height, begin+svc.cfg.MaxBlocksPerCheck)
 
 	logger = logger.WithFields(log.Fields{
 		"blockBegin": begin,
@@ -566,15 +562,15 @@ func (svc *ContractService) UpdateSettlementStatus(ctx context.Context, db *gorm
 		return nil // commit
 	}
 
-	err = NotSettledCollectiblesInBatches(db, settlement.ID, svc.cfg.BatchProcessSize, func(tx *gorm.DB, batchNumber int, missing SettlementCollectibles) error {
-		for contract, collectibles := range missing.GroupByContract() {
+	err = NotSettledCollectiblesInBatches(db, settlement.ID, svc.cfg.BatchProcessSize, func(tx *gorm.DB, batchNumber int, batch SettlementCollectibles) error {
+		for contract, collectibles := range batch.GroupByContract() {
 			arr, err := svc.flowClient.GetEventsForHeightRange(ctx, client.EventRangeQuery{
 				Type:        fmt.Sprintf("%s.Deposit", contract.String()),
 				StartHeight: begin,
 				EndHeight:   end,
 			})
 			if err != nil {
-				return err // rollback
+				return err
 			}
 
 			for _, be := range arr {
@@ -588,24 +584,24 @@ func (svc *ContractService) UpdateSettlementStatus(ctx context.Context, db *gorm
 					collectibleFlowIDCadence, ok := evtValueMap["id"]
 					if !ok {
 						err := fmt.Errorf("could not read 'id' from event %s", e)
-						return err // rollback
+						return err
 					}
 
 					collectibleFlowID, err := common.FlowIDFromCadence(collectibleFlowIDCadence)
 
 					if err != nil {
-						return err // rollback
+						return err
 					}
 
 					addressCadence, ok := evtValueMap["to"]
 					if !ok {
 						err := fmt.Errorf("could not read 'to' from event %s", e)
-						return err // rollback
+						return err
 					}
 
 					address, err := common.FlowAddressFromCadence(addressCadence)
 					if err != nil {
-						return err // rollback
+						return err
 					}
 
 					if address == settlement.EscrowAddress {
@@ -614,12 +610,12 @@ func (svc *ContractService) UpdateSettlementStatus(ctx context.Context, db *gorm
 
 							// Make sure the collectible is in correct state
 							if err := collectibles[i].SetSettled(); err != nil {
-								return err // rollback
+								return err
 							}
 
 							// Update the collectible in database
 							if err := UpdateSettlementCollectible(db, &collectibles[i]); err != nil {
-								return err // rollback
+								return err
 							}
 
 							settlement.IncrementCount()
@@ -689,7 +685,7 @@ func (svc *ContractService) UpdateMintingStatus(ctx context.Context, db *gorm.DB
 	}
 
 	begin := minting.StartAtBlock + 1
-	end := min(latestBlockHeader.Height, begin+MAX_EVENTS_PER_CHECK)
+	end := min(latestBlockHeader.Height, begin+svc.cfg.MaxBlocksPerCheck)
 
 	logger = logger.WithFields(log.Fields{
 		"blockBegin": begin,
@@ -852,7 +848,7 @@ func (svc *ContractService) UpdateCirculatingPackContract(ctx context.Context, d
 	}
 
 	begin := cpc.StartAtBlock + 1
-	end := min(latestBlockHeader.Height, begin+MAX_EVENTS_PER_CHECK)
+	end := min(latestBlockHeader.Height, begin+svc.cfg.MaxBlocksPerCheck)
 
 	logger = logger.WithFields(log.Fields{
 		"blockBegin": begin,
