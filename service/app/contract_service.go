@@ -3,7 +3,6 @@ package app
 import (
 	"context"
 	"fmt"
-	"sort"
 	"time"
 
 	"github.com/flow-hydraulics/flow-pds/service/common"
@@ -45,13 +44,6 @@ type ContractService struct {
 	cfg        *config.Config
 	flowClient *client.Client
 	account    *flow_helpers.Account
-}
-
-func minInt(a int, b int) int {
-	if a > b {
-		return b
-	}
-	return a
 }
 
 func NewContractService(cfg *config.Config, flowClient *client.Client) (*ContractService, error) {
@@ -242,73 +234,75 @@ func (svc *ContractService) StartSettlement(ctx context.Context, db *gorm.DB, di
 		return err // rollback
 	}
 
-	packs, err := GetDistributionPacks(db, dist.ID)
-	if err != nil {
-		return err // rollback
-	}
-
-	collectibles := make(Collectibles, 0)
-	for _, pack := range packs {
-		collectibles = append(collectibles, pack.Collectibles...)
-	}
-	sort.Sort(collectibles)
-
-	settlementCollectibles := make([]SettlementCollectible, len(collectibles))
-	for i, c := range collectibles {
-		settlementCollectibles[i] = SettlementCollectible{
-			FlowID:            c.FlowID,
-			ContractReference: c.ContractReference,
-			IsSettled:         false,
-		}
-	}
-
 	settlement := Settlement{
 		DistributionID: dist.ID,
 		CurrentCount:   0,
-		TotalCount:     uint(len(collectibles)),
+		TotalCount:     0, // Update later
 		StartAtBlock:   latestBlockHeader.Height - 1,
 		EscrowAddress:  common.FlowAddressFromString(svc.cfg.AdminAddress),
-		Collectibles:   settlementCollectibles,
 	}
 
 	if err := InsertSettlement(db, &settlement); err != nil {
 		return err // rollback
 	}
 
-	for contract, collectibles := range SettlementCollectibles(settlementCollectibles).GroupByContract() {
-		txScript, err := flow_helpers.ParseCadenceTemplate(
-			SETTLE_SCRIPT,
-			&flow_helpers.CadenceTemplateVars{
-				CollectibleNFTName:    contract.Name,
-				CollectibleNFTAddress: contract.Address.String(),
-			},
-		)
-		if err != nil {
-			return err // rollback
+	totalCollectibleCount := 0
+
+	err = DistributionPacksInBatches(db, dist.ID, 1000, func(tx *gorm.DB, batchNumber int, batch []Pack) error {
+		collectibles := make(Collectibles, 0)
+		for _, pack := range batch {
+			collectibles = append(collectibles, pack.Collectibles...)
 		}
 
-		batchSize := svc.cfg.SettlementBatchSize
-		batchIndex := 0
+		totalCollectibleCount += len(collectibles)
 
-		for {
-			begin := batchIndex * batchSize
-			end := minInt((batchIndex+1)*batchSize, len(collectibles))
+		settlementCollectibles := make([]SettlementCollectible, len(collectibles))
+		for i, c := range collectibles {
+			settlementCollectibles[i] = SettlementCollectible{
+				SettlementID:      settlement.ID,
+				FlowID:            c.FlowID,
+				ContractReference: c.ContractReference,
+				IsSettled:         false,
+			}
+		}
 
-			if begin >= end {
-				break
+		if err := InsertSettlementCollectibles(db, settlementCollectibles); err != nil {
+			return err
+		}
+
+		return nil
+	})
+
+	if err != nil {
+		return err // rollback
+	}
+
+	settlement.TotalCount = uint(totalCollectibleCount)
+
+	if err := UpdateSettlement(db, &settlement); err != nil {
+		return err // rollback
+	}
+
+	err = MissingCollectiblesInBatches(db, settlement.ID, svc.cfg.SettlementBatchSize, func(tx *gorm.DB, batchNumber int, batch SettlementCollectibles) error {
+		for contract, collectibles := range batch.GroupByContract() {
+			txScript, err := flow_helpers.ParseCadenceTemplate(
+				SETTLE_SCRIPT,
+				&flow_helpers.CadenceTemplateVars{
+					CollectibleNFTName:    contract.Name,
+					CollectibleNFTAddress: contract.Address.String(),
+				},
+			)
+			if err != nil {
+				return err // rollback
 			}
 
 			batchLogger := logger.WithFields(log.Fields{
-				"batchNumber": batchIndex + 1,
-				"batchBegin":  begin,
-				"batchEnd":    end,
+				"batchNumber": batchNumber,
 			})
 
 			batchLogger.Debug("Initiating settle transaction")
 
-			batch := collectibles[begin:end]
-
-			flowIDs := make([]cadence.Value, len(batch))
+			flowIDs := make([]cadence.Value, len(collectibles))
 			for i, c := range batch {
 				flowIDs[i] = cadence.UInt64(c.FlowID.Int64)
 			}
@@ -328,9 +322,13 @@ func (svc *ContractService) StartSettlement(ctx context.Context, db *gorm.DB, di
 			}
 
 			batchLogger.Trace("Settle transaction saved")
-
-			batchIndex++
 		}
+
+		return nil
+	})
+
+	if err != nil {
+		return err // rollback
 	}
 
 	logger.Trace("Start settlement complete")
@@ -410,15 +408,10 @@ func (svc *ContractService) StartMinting(ctx context.Context, db *gorm.DB, dist 
 		}
 	}
 
-	packs, err := GetDistributionPacks(db, dist.ID)
-	if err != nil {
-		return err // rollback
-	}
-
 	minting := Minting{
 		DistributionID: dist.ID,
 		CurrentCount:   0,
-		TotalCount:     uint(len(packs)),
+		TotalCount:     0, // Update later
 		StartAtBlock:   latestBlockHeader.Height - 1,
 	}
 
@@ -426,37 +419,27 @@ func (svc *ContractService) StartMinting(ctx context.Context, db *gorm.DB, dist 
 		return err // rollback
 	}
 
-	txScript, err := flow_helpers.ParseCadenceTemplate(
-		MINT_SCRIPT,
-		&flow_helpers.CadenceTemplateVars{
-			PackNFTName:    dist.PackTemplate.PackReference.Name,
-			PackNFTAddress: dist.PackTemplate.PackReference.Address.String(),
-		},
-	)
-	if err != nil {
-		return err // rollback
-	}
+	totalPackCount := 0
 
-	batchSize := svc.cfg.MintingBatchSize
-	batchIndex := 0
+	err = DistributionPacksInBatches(db, dist.ID, svc.cfg.MintingBatchSize, func(tx *gorm.DB, batchNumber int, batch []Pack) error {
+		totalPackCount += len(batch)
 
-	for {
-		begin := batchIndex * batchSize
-		end := minInt((batchIndex+1)*batchSize, len(packs))
-
-		if begin >= end {
-			break
+		txScript, err := flow_helpers.ParseCadenceTemplate(
+			MINT_SCRIPT,
+			&flow_helpers.CadenceTemplateVars{
+				PackNFTName:    dist.PackTemplate.PackReference.Name,
+				PackNFTAddress: dist.PackTemplate.PackReference.Address.String(),
+			},
+		)
+		if err != nil {
+			return err
 		}
 
 		batchLogger := logger.WithFields(log.Fields{
-			"batchNumber": batchIndex + 1,
-			"batchBegin":  begin,
-			"batchEnd":    end,
+			"batchNumber": batchNumber,
 		})
 
 		batchLogger.Debug("Initiating mint transaction")
-
-		batch := packs[begin:end]
 
 		commitmentHashes := make([]cadence.Value, len(batch))
 		for i, p := range batch {
@@ -480,7 +463,17 @@ func (svc *ContractService) StartMinting(ctx context.Context, db *gorm.DB, dist 
 
 		batchLogger.Trace("Mint transaction saved")
 
-		batchIndex++
+		return nil
+	})
+
+	if err != nil {
+		return err // rollback
+	}
+
+	minting.TotalCount = uint(totalPackCount)
+
+	if err := UpdateMinting(db, &minting); err != nil {
+		return err // rollback
 	}
 
 	logger.Trace("Start minting complete")
@@ -573,74 +566,76 @@ func (svc *ContractService) UpdateSettlementStatus(ctx context.Context, db *gorm
 		return nil // commit
 	}
 
-	// Group missing collectibles by their contract reference
-	missing, err := MissingCollectibles(db, settlement.ID)
-	if err != nil {
-		return err // rollback
-	}
+	err = MissingCollectiblesInBatches(db, settlement.ID, 1000, func(tx *gorm.DB, batchNumber int, missing SettlementCollectibles) error {
+		for contract, collectibles := range missing.GroupByContract() {
+			arr, err := svc.flowClient.GetEventsForHeightRange(ctx, client.EventRangeQuery{
+				Type:        fmt.Sprintf("%s.Deposit", contract.String()),
+				StartHeight: begin,
+				EndHeight:   end,
+			})
+			if err != nil {
+				return err // rollback
+			}
 
-	for contract, collectibles := range missing.GroupByContract() {
-		arr, err := svc.flowClient.GetEventsForHeightRange(ctx, client.EventRangeQuery{
-			Type:        fmt.Sprintf("%s.Deposit", contract.String()),
-			StartHeight: begin,
-			EndHeight:   end,
-		})
-		if err != nil {
-			return err // rollback
-		}
+			for _, be := range arr {
+				for _, e := range be.Events {
+					eventLogger := logger.WithFields(log.Fields{"eventType": e.Type, "eventID": e.ID()})
 
-		for _, be := range arr {
-			for _, e := range be.Events {
-				eventLogger := logger.WithFields(log.Fields{"eventType": e.Type, "eventID": e.ID()})
+					eventLogger.Trace("Handling event")
 
-				eventLogger.Trace("Handling event")
+					evtValueMap := flow_helpers.EventValuesToMap(e)
 
-				evtValueMap := flow_helpers.EventValuesToMap(e)
-
-				collectibleFlowIDCadence, ok := evtValueMap["id"]
-				if !ok {
-					err := fmt.Errorf("could not read 'id' from event %s", e)
-					return err // rollback
-				}
-
-				collectibleFlowID, err := common.FlowIDFromCadence(collectibleFlowIDCadence)
-
-				if err != nil {
-					return err // rollback
-				}
-
-				addressCadence, ok := evtValueMap["to"]
-				if !ok {
-					err := fmt.Errorf("could not read 'to' from event %s", e)
-					return err // rollback
-				}
-
-				address, err := common.FlowAddressFromCadence(addressCadence)
-				if err != nil {
-					return err // rollback
-				}
-
-				if address == settlement.EscrowAddress {
-					if i, ok := collectibles.ContainsID(collectibleFlowID); ok {
-						// Collectible in "collectibles" at index "i"
-
-						// Make sure the collectible is in correct state
-						if err := collectibles[i].SetSettled(); err != nil {
-							return err // rollback
-						}
-
-						// Update the collectible in database
-						if err := UpdateSettlementCollectible(db, &collectibles[i]); err != nil {
-							return err // rollback
-						}
-
-						settlement.IncrementCount()
+					collectibleFlowIDCadence, ok := evtValueMap["id"]
+					if !ok {
+						err := fmt.Errorf("could not read 'id' from event %s", e)
+						return err // rollback
 					}
-				}
 
-				eventLogger.Trace("Handling event complete")
+					collectibleFlowID, err := common.FlowIDFromCadence(collectibleFlowIDCadence)
+
+					if err != nil {
+						return err // rollback
+					}
+
+					addressCadence, ok := evtValueMap["to"]
+					if !ok {
+						err := fmt.Errorf("could not read 'to' from event %s", e)
+						return err // rollback
+					}
+
+					address, err := common.FlowAddressFromCadence(addressCadence)
+					if err != nil {
+						return err // rollback
+					}
+
+					if address == settlement.EscrowAddress {
+						if i, ok := collectibles.ContainsID(collectibleFlowID); ok {
+							// Collectible in "collectibles" at index "i"
+
+							// Make sure the collectible is in correct state
+							if err := collectibles[i].SetSettled(); err != nil {
+								return err // rollback
+							}
+
+							// Update the collectible in database
+							if err := UpdateSettlementCollectible(db, &collectibles[i]); err != nil {
+								return err // rollback
+							}
+
+							settlement.IncrementCount()
+						}
+					}
+
+					eventLogger.Trace("Handling event complete")
+				}
 			}
 		}
+
+		return nil
+	})
+
+	if err != nil {
+		return err // rollback
 	}
 
 	if settlement.IsComplete() {
