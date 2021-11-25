@@ -16,6 +16,7 @@ require (
 	github.com/onflow/flow-go-sdk v0.20.1-0.20210623043139-533a95abf071
 	github.com/sirupsen/logrus v1.8.1
 	github.com/stretchr/testify v1.7.0
+	github.com/trailofbits/go-mutexasserts v0.0.0-20200708152505-19999e7d3cef
 	go.uber.org/ratelimit v0.2.0
 	google.golang.org/grpc v1.38.0
 	gorm.io/datatypes v1.0.2

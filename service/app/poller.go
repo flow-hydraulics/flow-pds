@@ -6,6 +6,7 @@ import (
 	"time"
 
 	"github.com/flow-hydraulics/flow-pds/service/common"
+	"github.com/flow-hydraulics/flow-pds/service/flow_helpers"
 	"github.com/flow-hydraulics/flow-pds/service/transactions"
 	log "github.com/sirupsen/logrus"
 	"go.uber.org/ratelimit"
@@ -232,7 +233,7 @@ func handleSendableTransactions(ctx context.Context, app *App, rateLimiter ratel
 		rateLimiter.Take()
 
 		// Ignoring error for now, as they are already logged with context
-		app.db.Transaction(func(dbtx *gorm.DB) error {
+		app.db.Transaction(func(dbtx *gorm.DB) (err error) {
 			t, err := transactions.GetNextSendable(dbtx)
 			if err != nil {
 				if errors.Is(err, gorm.ErrRecordNotFound) {
@@ -240,7 +241,7 @@ func handleSendableTransactions(ctx context.Context, app *App, rateLimiter ratel
 				} else {
 					logger.WithFields(log.Fields{"error": err.Error()}).Warn("Error while getting transaction from database")
 				}
-				return err
+				return
 			}
 
 			logger = logger.WithFields(log.Fields{
@@ -249,10 +250,26 @@ func handleSendableTransactions(ctx context.Context, app *App, rateLimiter ratel
 				"distributionID": t.DistributionID,
 			})
 
-			tx, err := t.Prepare(ctx, app.service.flowClient, app.service.account, app.service.cfg.TransactionGasLimit)
+			tx, unlockKey, err := t.Prepare(ctx, app.service.flowClient, app.service.account, app.service.cfg.TransactionGasLimit)
+
+			defer func() {
+				// Make sure to unlock if we had an error to prevent deadlocks
+				if err != nil && unlockKey != nil {
+					unlockKey()
+				}
+			}()
+
 			if err != nil {
-				logger.WithFields(log.Fields{"error": err.Error()}).Warn("Error while preparing transaction")
-				return err
+				logEntry := logger.WithFields(log.Fields{"error": err.Error()})
+				logMsg := "Error while preparing transaction"
+
+				if errors.Is(err, flow_helpers.ErrNoAccountKeyAvailable) {
+					logEntry.Trace(logMsg)
+				} else {
+					logEntry.Warn(logMsg)
+				}
+
+				return
 			}
 
 			// Update TransactionID
@@ -267,36 +284,42 @@ func handleSendableTransactions(ctx context.Context, app *App, rateLimiter ratel
 
 			// Save early as the database might be locked and not allow us to
 			// save after sending. This way we fail before actually sending.
-			if err := t.Save(dbtx); err != nil {
+			if err = t.Save(dbtx); err != nil {
 				logger.WithFields(log.Fields{"error": err.Error()}).Warn("Error while saving transaction")
-				return err
+				return
 			}
 
-			if err := app.service.flowClient.SendTransaction(ctx, *tx); err != nil {
+			if err = app.service.flowClient.SendTransaction(ctx, *tx); err != nil {
 				logger.WithFields(log.Fields{"error": err.Error()}).Warn("Error while sending transaction")
 
 				t.State = common.TransactionStateFailed
 				t.Error = err.Error()
 
-				if err := t.Save(dbtx); err != nil {
+				if err = t.Save(dbtx); err != nil {
 					logger.WithFields(log.Fields{"error": err.Error()}).Warn("Error while saving transaction")
-					return err
+					return
 				}
 
 				// Cant't return the error here as that would rollback this db transaction
-			} else {
-				logger.Debug("Transaction sent")
 			}
 
-			// Check if we want to wait for the transaction to finalize (be included in a block, not yet sealed)
-			if t.Wait {
+			// Double check
+			if err != nil {
+				return
+			}
+
+			logger.Debug("Transaction sent")
+
+			// Wait for the transaction to finalize (be included in a block, not yet sealed)
+			// in a goroutine to unlock the used key
+			go func(ctx context.Context, app *App, unlockKey flow_helpers.UnlockKeyFunc, logger *log.Entry) {
 				if _, err := t.WaitForFinalize(ctx, app.service.flowClient); err != nil {
 					logger.WithFields(log.Fields{"error": err.Error()}).Warn("Error while waiting for transaction to finalize")
-					return err
 				}
-			}
+				unlockKey()
+			}(context.Background(), app, unlockKey, logger)
 
-			return nil
+			return
 		})
 
 		handleCount++
@@ -338,7 +361,7 @@ func handleSentTransactions(ctx context.Context, app *App) error {
 				return err
 			}
 
-			logger.Trace("sent transaction handled")
+			logger.Trace("Sent transaction handled")
 
 			if err := t.Save(dbtx); err != nil {
 				logger.WithFields(log.Fields{"error": err.Error()}).Warn("Error while saving transaction")

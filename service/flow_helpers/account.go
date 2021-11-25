@@ -2,6 +2,7 @@ package flow_helpers
 
 import (
 	"context"
+	"errors"
 	"fmt"
 	"math/rand"
 	"sync"
@@ -11,11 +12,13 @@ import (
 	"github.com/onflow/flow-go-sdk/client"
 	"github.com/onflow/flow-go-sdk/crypto"
 	"github.com/onflow/flow-go-sdk/crypto/cloudkms"
+	"github.com/trailofbits/go-mutexasserts"
 )
+
+var ErrNoAccountKeyAvailable = errors.New("no account key available")
 
 var accounts map[flow.Address]*Account
 var accountsLock = &sync.Mutex{} // Making sure our "accounts" var is a singleton
-var keyIndexLock = &sync.Mutex{}
 
 var seqNumLock = &sync.Mutex{}
 var lastAccountKeySeqNumber map[flow.Address]map[int]uint64
@@ -26,8 +29,27 @@ type Account struct {
 	Address           flow.Address
 	PrivateKey        string
 	PrivateKeyType    string
-	KeyIndexes        []int
+	PKeyIndexes       ProposalKeyIndexes
 	nextKeyIndexIndex int
+}
+
+type ProposalKeyIndex struct {
+	mu    sync.Mutex
+	index int
+}
+
+type ProposalKeyIndexes []*ProposalKeyIndex
+
+type UnlockKeyFunc func()
+
+func (ii ProposalKeyIndexes) Next() (int, UnlockKeyFunc, error) {
+	for _, key := range ii {
+		if !mutexasserts.MutexLocked(&key.mu) {
+			key.mu.Lock()
+			return key.index, key.mu.Unlock, nil
+		}
+	}
+	return 0, nil, ErrNoAccountKeyAvailable
 }
 
 // GetAccount either returns an Account from the application wide cache or initiliazes a new Account
@@ -49,11 +71,16 @@ func GetAccount(address flow.Address, privateKey, privateKeyType string, keyInde
 
 	// TODO(nanuuki): Check KMS key exists, if using KMS key
 
+	pKeyIndexes := make(ProposalKeyIndexes, len(keyIndexes))
+	for i, idx := range keyIndexes {
+		pKeyIndexes[i] = &ProposalKeyIndex{index: idx}
+	}
+
 	new := &Account{
 		Address:           address,
 		PrivateKey:        privateKey,
 		PrivateKeyType:    privateKeyType,
-		KeyIndexes:        keyIndexes,
+		PKeyIndexes:       pKeyIndexes,
 		nextKeyIndexIndex: randomIndex,
 	}
 
@@ -62,30 +89,22 @@ func GetAccount(address flow.Address, privateKey, privateKeyType string, keyInde
 	return new
 }
 
-// KeyIndex rotates the given indexes ('KeyIndexes') and returns the next index
-// TODO (latenssi): sync over database as this currently only works in a single instance situation?
-func (a *Account) KeyIndex() int {
-	// NOTE: This won't help if having multiple instances of the PDS service running
-	keyIndexLock.Lock()
-	defer keyIndexLock.Unlock()
-
-	i := a.KeyIndexes[a.nextKeyIndexIndex]
-	a.nextKeyIndexIndex = (a.nextKeyIndexIndex + 1) % len(a.KeyIndexes)
-
-	return i
-}
-
-func (a *Account) GetProposalKey(ctx context.Context, flowClient *client.Client, referenceBlockID flow.Identifier) (*flow.AccountKey, error) {
+func (a *Account) GetProposalKey(ctx context.Context, flowClient *client.Client) (*flow.AccountKey, UnlockKeyFunc, error) {
 	account, err := flowClient.GetAccount(ctx, a.Address)
 	if err != nil {
-		return nil, fmt.Errorf("error in flow_helpers.Account.GetProposalKey: %w", err)
+		return nil, nil, fmt.Errorf("error in flow_helpers.Account.GetProposalKey: %w", err)
 	}
 
-	k := account.Keys[a.KeyIndex()]
+	idx, unlock, err := a.PKeyIndexes.Next()
+	if err != nil {
+		return nil, nil, err
+	}
 
-	k.SequenceNumber = getSequenceNumber(a.Address, k, referenceBlockID)
+	k := account.Keys[idx]
 
-	return k, nil
+	k.SequenceNumber = getSequenceNumber(a.Address, k)
+
+	return k, unlock, nil
 }
 
 func (a Account) GetSigner() (crypto.Signer, error) {
@@ -132,7 +151,7 @@ func getGoogleKMSSigner(address flow.Address, resourceId string) (crypto.Signer,
 // the latest SequenceNumber on-chain but it might be outdated as we may be
 // sending multiple transactions in the current block
 // NOTE: This breaks if running in a multi-instance setup
-func getSequenceNumber(address flow.Address, accountKey *flow.AccountKey, _ flow.Identifier) uint64 {
+func getSequenceNumber(address flow.Address, accountKey *flow.AccountKey) uint64 {
 	seqNumLock.Lock()
 	defer seqNumLock.Unlock()
 
