@@ -19,7 +19,7 @@ import (
 func TestCreate(t *testing.T) {
 	t.Skip("focusing on e2e test now")
 
-	cfg := getTestCfg()
+	cfg := getTestCfg(t, nil)
 	server, cleanup := getTestServer(cfg, false)
 	defer func() {
 		cleanup()
@@ -109,7 +109,7 @@ func TestCreate(t *testing.T) {
 }
 
 func TestSetDistCap(t *testing.T) {
-	cfg := getTestCfg()
+	cfg := getTestCfg(t, nil)
 	server, cleanup := getTestServer(cfg, false)
 	defer func() {
 		cleanup()

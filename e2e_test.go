@@ -21,7 +21,7 @@ import (
 )
 
 func TestE2E(t *testing.T) {
-	cfg := getTestCfg()
+	cfg := getTestCfg(t, nil)
 	a, cleanup := getTestApp(cfg, true)
 	defer cleanup()
 
