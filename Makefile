@@ -54,3 +54,15 @@ clean-testcache:
 .PHONY: bench
 bench:
 	@go test -bench=. -run=^a
+
+.PHONY: emulator
+emulator:
+	flow emulator -b 1s --persist
+
+.PHONY: profiles
+profiles:
+	@go test -cpuprofile cpu.prof -memprofile mem.prof
+
+.PHONY: pprof
+pprof:
+	@go tool pprof --http=":8888" flow-pds mem.prof

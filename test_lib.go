@@ -3,6 +3,7 @@ package main
 import (
 	"context"
 	"math/big"
+	"path"
 	"reflect"
 	"strings"
 	"testing"
@@ -37,16 +38,24 @@ func cleanTestDatabase(cfg *config.Config, db *gorm.DB) {
 	}
 }
 
-func getTestCfg() *config.Config {
+func getTestCfg(t *testing.T, b *testing.B) *config.Config {
+
 	cfg, err := config.ParseConfig(&config.ConfigOptions{EnvFilePath: ".env.test"})
 	if err != nil {
 		panic(err)
 	}
 
-	if !strings.Contains(strings.ToLower(cfg.DatabaseDSN), "test") {
-		cfg.DatabaseDSN = "test.db"
-		cfg.DatabaseType = "sqlite"
+	cfg.DatabaseDSN = "test.db"
+
+	if t != nil {
+		cfg.DatabaseDSN = path.Join(t.TempDir(), "test.db")
 	}
+
+	if b != nil {
+		cfg.DatabaseDSN = path.Join(b.TempDir(), "test.db")
+	}
+
+	cfg.DatabaseType = "sqlite"
 
 	return cfg
 }

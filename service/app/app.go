@@ -59,7 +59,7 @@ func (app *App) CreateDistribution(ctx context.Context, distribution *Distributi
 		return err
 	}
 
-	if err := InsertDistribution(app.db, distribution); err != nil {
+	if err := InsertDistribution(app.db, distribution, app.cfg.BatchInsertSize); err != nil {
 		return err
 	}
 
@@ -82,6 +82,15 @@ func (app *App) GetDistribution(ctx context.Context, id uuid.UUID) (*Distributio
 	}
 
 	return distribution, nil
+}
+
+func (app *App) GetDistributionState(ctx context.Context, id uuid.UUID) (common.DistributionState, error) {
+	distribution, err := GetDistributionSmall(app.db, id)
+	if err != nil {
+		return "", err
+	}
+
+	return distribution.State, nil
 }
 
 // AbortDistribution aborts a distribution.

@@ -39,6 +39,13 @@ type Config struct {
 	SettlementBatchSize int `env:"FLOW_PDS_SETTLEMENT_BATCH_SIZE" envDefault:"40"`
 	MintingBatchSize    int `env:"FLOW_PDS_MINTING_BATCH_SIZE" envDefault:"40"`
 
+	// The batch sizes for database batch handling (big inserts or batch processing)
+	BatchInsertSize  int `env:"FLOW_PDS_BATCH_INSERT_SIZE" envDefault:"1000"`
+	BatchProcessSize int `env:"FLOW_PDS_BATCH_PROCESS_SIZE" envDefault:"1000"`
+
+	// Maximum number of blocks to query for when fetching events from Flow gateway
+	MaxBlocksPerCheck uint64 `env:"FLOW_PDS_MAX_BLOCKS_PER_CHECK" envDefault:"10"`
+
 	// -- Testing --
 
 	TestPackCount int `env:"TEST_PACK_COUNT" envDefault:"4"`

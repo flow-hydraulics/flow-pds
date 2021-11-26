@@ -16,7 +16,7 @@ func Migrate(db *gorm.DB) error {
 }
 
 // Insert distribution
-func InsertDistribution(db *gorm.DB, d *Distribution) error {
+func InsertDistribution(db *gorm.DB, d *Distribution, batchSize int) error {
 	return db.Transaction(func(tx *gorm.DB) error {
 		// Store distribution
 		if err := tx.Omit(clause.Associations).Create(d).Error; err != nil {
@@ -32,13 +32,13 @@ func InsertDistribution(db *gorm.DB, d *Distribution) error {
 			d.Packs[i].DistributionID = d.ID
 		}
 
-		// Store buckets, assuming we won't have too many buckets per distribution
-		if err := tx.Omit(clause.Associations).Create(d.PackTemplate.Buckets).Error; err != nil {
+		// Store buckets in batches
+		if err := tx.Omit(clause.Associations).CreateInBatches(d.PackTemplate.Buckets, batchSize).Error; err != nil {
 			return err
 		}
 
 		// Store packs in batches
-		if err := tx.Omit(clause.Associations).CreateInBatches(d.Packs, 1000).Error; err != nil {
+		if err := tx.Omit(clause.Associations).CreateInBatches(d.Packs, batchSize).Error; err != nil {
 			return err
 		}
 
@@ -58,7 +58,7 @@ func UpdateDistribution(db *gorm.DB, d *Distribution) error {
 // List distributions
 func ListDistributions(db *gorm.DB, opt ListOptions) ([]Distribution, error) {
 	list := []Distribution{}
-	if err := db.Order("created_at desc").Limit(opt.Limit).Offset(opt.Offset).Find(&list).Error; err != nil {
+	if err := db.Omit(clause.Associations).Order("created_at desc").Limit(opt.Limit).Offset(opt.Offset).Find(&list).Error; err != nil {
 		return nil, err
 	}
 	return list, nil
@@ -88,7 +88,7 @@ type BucketSmall struct {
 
 func GetDistributionBucketsSmall(db *gorm.DB, distributionID uuid.UUID) ([]BucketSmall, error) {
 	list := []BucketSmall{}
-	if err := db.Model(&Bucket{}).Where(&Bucket{DistributionID: distributionID}).Find(&list).Error; err != nil {
+	if err := db.Omit(clause.Associations).Model(&Bucket{}).Where(&Bucket{DistributionID: distributionID}).Find(&list).Error; err != nil {
 		return nil, err
 	}
 	return list, nil
@@ -103,12 +103,15 @@ func GetPack(db *gorm.DB, id uuid.UUID) (*Pack, error) {
 	return &pack, nil
 }
 
-func GetDistributionPacks(db *gorm.DB, distributionID uuid.UUID) ([]Pack, error) {
-	list := []Pack{}
-	if err := db.Where(&Pack{DistributionID: distributionID}).Find(&list).Error; err != nil {
-		return nil, err
-	}
-	return list, nil
+// Get Packs for a Distribution and process in batches of 'batchSize'
+func DistributionPacksInBatches(db *gorm.DB, distributionID uuid.UUID, batchSize int, processBatch func(tx *gorm.DB, batchNumber int, batch []Pack) error) error {
+	batch := []Pack{}
+	return db.
+		Omit(clause.Associations).
+		Where(&Pack{DistributionID: distributionID}).
+		FindInBatches(&batch, batchSize, func(tx *gorm.DB, batchNumber int) error {
+			return processBatch(tx, batchNumber, batch)
+		}).Error
 }
 
 // GetMintingPack returns a pack which has no FlowID by its commitmentHash (therefore it should still be minting)
@@ -132,27 +135,12 @@ func UpdatePack(db *gorm.DB, d *Pack) error {
 	return db.Omit(clause.Associations).Save(d).Error
 }
 
-// Insert Settlement
 func InsertSettlement(db *gorm.DB, d *Settlement) error {
-	return db.Transaction(func(tx *gorm.DB) error {
-		// Store Settlement
-		if err := tx.Omit(clause.Associations).Create(d).Error; err != nil {
-			return err
-		}
+	return db.Omit(clause.Associations).Create(d).Error
+}
 
-		// Update IDs
-		for i := range d.Collectibles {
-			d.Collectibles[i].SettlementID = d.ID
-		}
-
-		// Store collectibles in batches
-		if err := tx.Omit(clause.Associations).CreateInBatches(d.Collectibles, 1000).Error; err != nil {
-			return err
-		}
-
-		// Commit
-		return nil
-	})
+func InsertSettlementCollectibles(db *gorm.DB, cc []SettlementCollectible, batchSize int) error {
+	return db.Omit(clause.Associations).CreateInBatches(cc, batchSize).Error
 }
 
 // Delete Settlement
@@ -183,14 +171,15 @@ func GetDistributionSettlement(db *gorm.DB, distributionID uuid.UUID) (*Settleme
 	return &settlement, nil
 }
 
-// Get missing collectibles for a Settlement, grouped by collectible contract reference
-func MissingCollectibles(db *gorm.DB, settlementId uuid.UUID) (SettlementCollectibles, error) {
-	collectibles := []SettlementCollectible{}
-	err := db.Omit(clause.Associations).Where(&SettlementCollectible{SettlementID: settlementId, IsSettled: false}).Find(&collectibles).Error
-	if err != nil {
-		return nil, err
-	}
-	return collectibles, nil
+// Get SettlementCollectibles that have not been settled for a Settlement and process in batches of 'batchSize'
+func NotSettledCollectiblesInBatches(db *gorm.DB, settlementId uuid.UUID, batchSize int, processBatch func(tx *gorm.DB, batchNumber int, batch SettlementCollectibles) error) error {
+	batch := SettlementCollectibles{}
+	return db.
+		Omit(clause.Associations).
+		Where(&SettlementCollectible{SettlementID: settlementId, IsSettled: false}).
+		FindInBatches(&batch, batchSize, func(tx *gorm.DB, batchNumber int) error {
+			return processBatch(tx, batchNumber, batch)
+		}).Error
 }
 
 // Get Settlement
