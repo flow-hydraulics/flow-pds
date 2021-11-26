@@ -86,7 +86,9 @@ func (svc *ContractService) SetDistCap(ctx context.Context, db *gorm.DB, issuer 
 		SetGasLimit(svc.cfg.TransactionGasLimit).
 		SetReferenceBlockID(latestBlockHeader.ID)
 
-	tx.AddArgument(cadence.Address(issuer))
+	if err := tx.AddArgument(cadence.Address(issuer)); err != nil {
+		return err
+	}
 
 	unlockKey, err := flow_helpers.SignProposeAndPayAs(ctx, svc.flowClient, svc.account, tx)
 	if err != nil {
@@ -167,7 +169,9 @@ func (svc *ContractService) SetupDistribution(ctx context.Context, db *gorm.DB, 
 			SetGasLimit(svc.cfg.TransactionGasLimit).
 			SetReferenceBlockID(latestBlockHeader.ID)
 
-		tx.AddArgument(cadence.Path{Domain: "private", Identifier: contract.ProviderPath()})
+		if err := tx.AddArgument(cadence.Path{Domain: "private", Identifier: contract.ProviderPath()}); err != nil {
+			return err
+		}
 
 		// Use anon function here to allow defer as soon as possible
 		err = func() error {

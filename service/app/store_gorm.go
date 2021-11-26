@@ -8,10 +8,18 @@ import (
 )
 
 func Migrate(db *gorm.DB) error {
-	db.AutoMigrate(&Distribution{}, &Bucket{}, &Pack{})
-	db.AutoMigrate(&Settlement{}, &SettlementCollectible{})
-	db.AutoMigrate(&Minting{})
-	db.AutoMigrate(&CirculatingPackContract{})
+	if err := db.AutoMigrate(&Distribution{}, &Bucket{}, &Pack{}); err != nil {
+		return err
+	}
+	if err := db.AutoMigrate(&Settlement{}, &SettlementCollectible{}); err != nil {
+		return err
+	}
+	if err := db.AutoMigrate(&Minting{}); err != nil {
+		return err
+	}
+	if err := db.AutoMigrate(&CirculatingPackContract{}); err != nil {
+		return err
+	}
 	return nil
 }
 

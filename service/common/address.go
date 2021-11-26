@@ -20,7 +20,9 @@ func (a FlowAddress) MarshalJSON() ([]byte, error) {
 
 func (a *FlowAddress) UnmarshalJSON(data []byte) error {
 	b := flow.Address(*a)
-	b.UnmarshalJSON(data)
+	if err := b.UnmarshalJSON(data); err != nil {
+		return fmt.Errorf("error while unmarshaling FlowAddress from 'data []byte': %w", err)
+	}
 	*a = FlowAddress(b)
 	return nil
 }

@@ -8,7 +8,9 @@ import (
 )
 
 func Migrate(db *gorm.DB) error {
-	db.AutoMigrate(&StorableTransaction{})
+	if err := db.AutoMigrate(&StorableTransaction{}); err != nil {
+		return err
+	}
 	return nil
 }
 
