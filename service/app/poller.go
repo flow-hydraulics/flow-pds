@@ -235,7 +235,7 @@ func handleSendableTransactions(ctx context.Context, app *App, rateLimiter ratel
 
 			defer func() {
 				// Make sure to unlock if we had an error to prevent deadlocks
-				if err != nil && unlockKey != nil {
+				if err != nil {
 					unlockKey()
 				}
 			}()
@@ -290,7 +290,12 @@ func handleSendableTransactions(ctx context.Context, app *App, rateLimiter ratel
 			// Wait for the transaction to finalize (be included in a block, not yet sealed)
 			// in a goroutine to unlock the used key
 			go func(ctx context.Context, app *App, unlockKey flow_helpers.UnlockKeyFunc, logger *log.Entry) {
-				defer unlockKey()
+				defer func() {
+					unlockKey()
+					unlockKey()
+					unlockKey()
+					unlockKey()
+				}()
 				if _, err := t.WaitForFinalize(ctx, app.service.flowClient); err != nil {
 					logger.WithFields(log.Fields{"error": err.Error()}).Warn("Error while waiting for transaction to finalize")
 				}

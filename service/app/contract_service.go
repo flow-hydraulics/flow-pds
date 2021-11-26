@@ -91,11 +91,10 @@ func (svc *ContractService) SetDistCap(ctx context.Context, db *gorm.DB, issuer 
 	}
 
 	unlockKey, err := flow_helpers.SignProposeAndPayAs(ctx, svc.flowClient, svc.account, tx)
+	defer unlockKey()
 	if err != nil {
 		return err
 	}
-
-	defer unlockKey()
 
 	if err := svc.flowClient.SendTransaction(ctx, *tx); err != nil {
 		return err
@@ -176,11 +175,10 @@ func (svc *ContractService) SetupDistribution(ctx context.Context, db *gorm.DB, 
 		// Use anon function here to allow defer as soon as possible
 		err = func() error {
 			unlockKey, err := flow_helpers.SignProposeAndPayAs(ctx, svc.flowClient, svc.account, tx)
+			defer unlockKey()
 			if err != nil {
 				return err // rollback
 			}
-
-			defer unlockKey()
 
 			if err := svc.flowClient.SendTransaction(ctx, *tx); err != nil {
 				return err // rollback
