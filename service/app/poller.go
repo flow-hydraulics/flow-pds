@@ -235,7 +235,7 @@ func handleSendableTransactions(ctx context.Context, app *App, rateLimiter ratel
 
 			defer func() {
 				// Make sure to unlock if we had an error to prevent deadlocks
-				if err != nil && unlockKey != nil {
+				if err != nil {
 					unlockKey()
 				}
 			}()

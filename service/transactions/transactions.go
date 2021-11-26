@@ -116,7 +116,7 @@ func (t *StorableTransaction) Prepare(ctx context.Context, flowClient *client.Cl
 
 	unlock, err := flow_helpers.SignProposeAndPayAs(ctx, flowClient, account, tx)
 	if err != nil {
-		return nil, nil, err
+		return nil, unlock, err
 	}
 
 	return tx, unlock, nil

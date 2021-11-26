@@ -10,21 +10,25 @@ import (
 )
 
 func SignProposeAndPayAs(ctx context.Context, flowClient *client.Client, account *Account, tx *flow.Transaction) (UnlockKeyFunc, error) {
+
 	signer, err := account.GetSigner()
 	if err != nil {
-		return nil, err
+		return EmptyUnlockKey, err
 	}
 
 	key, unlock, err := account.GetProposalKey(ctx, flowClient)
 	if err != nil {
-		return nil, err
+		return unlock, err
 	}
 
 	tx.
 		SetProposalKey(account.Address, key.Index, key.SequenceNumber).
 		SetPayer(account.Address).
-		AddAuthorizer(account.Address).
-		SignEnvelope(account.Address, key.Index, signer)
+		AddAuthorizer(account.Address)
+
+	if err := tx.SignEnvelope(account.Address, key.Index, signer); err != nil {
+		return unlock, err
+	}
 
 	return unlock, nil
 }

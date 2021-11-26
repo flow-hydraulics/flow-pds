@@ -34,22 +34,30 @@ type Account struct {
 }
 
 type ProposalKeyIndex struct {
-	mu    sync.Mutex
 	index int
+	mu    sync.Mutex
 }
 
 type ProposalKeyIndexes []*ProposalKeyIndex
 
 type UnlockKeyFunc func()
 
+var EmptyUnlockKey UnlockKeyFunc = func() {}
+
 func (ii ProposalKeyIndexes) Next() (int, UnlockKeyFunc, error) {
 	for _, key := range ii {
 		if !mutexasserts.MutexLocked(&key.mu) {
 			key.mu.Lock()
-			return key.index, key.mu.Unlock, nil
+			// Use Once here so multiple calls to unlock, won't unlock this key
+			// if it is already given to another caller
+			var once sync.Once
+			unlock := func() {
+				once.Do(key.mu.Unlock)
+			}
+			return key.index, unlock, nil
 		}
 	}
-	return 0, nil, ErrNoAccountKeyAvailable
+	return -1, EmptyUnlockKey, ErrNoAccountKeyAvailable
 }
 
 // GetAccount either returns an Account from the application wide cache or initiliazes a new Account
@@ -97,7 +105,7 @@ func (a *Account) GetProposalKey(ctx context.Context, flowClient *client.Client)
 
 	idx, unlock, err := a.PKeyIndexes.Next()
 	if err != nil {
-		return nil, nil, err
+		return nil, unlock, err
 	}
 
 	k := account.Keys[idx]

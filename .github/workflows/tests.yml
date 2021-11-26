@@ -53,3 +53,12 @@ jobs:
           TESTNET_ISSUER: ${{ secrets.TESTNET_ISSUER}}
           TESTNET_PDS: ${{ secrets.TESTNET_PDS}}
         run: ./tests-with-emulator.sh
+
+  lint:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v2
+      - uses: golangci/golangci-lint-action@v2
+        with:
+          version: v1.42
+          args: --timeout=3m --tests=true

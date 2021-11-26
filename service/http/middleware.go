@@ -48,7 +48,9 @@ func handleError(rw http.ResponseWriter, logger *log.Logger, err error) {
 func handleJsonResponse(rw http.ResponseWriter, status int, res interface{}) {
 	rw.Header().Set("Content-Type", "application/json")
 	rw.WriteHeader(status)
-	json.NewEncoder(rw).Encode(res)
+	if err := json.NewEncoder(rw).Encode(res); err != nil {
+		log.WithFields(log.Fields{"error": err}).Warn("error while encoding response to JSON")
+	}
 }
 
 func checkNonEmptyBody(r *http.Request) error {
