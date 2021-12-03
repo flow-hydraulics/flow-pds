@@ -910,6 +910,8 @@ func (svc *ContractService) UpdateCirculatingPackContract(ctx context.Context, d
 					"packFlowID": pack.FlowID,
 				})
 
+				eventLogger.Info("handling event...")
+
 				switch eventName {
 				// -- REVEAL_REQUEST, Owner has requested to reveal a pack ------------
 				case REVEAL_REQUEST:
@@ -917,6 +919,8 @@ func (svc *ContractService) UpdateCirculatingPackContract(ctx context.Context, d
 					// Make sure the pack is in correct state
 					if err := pack.RevealRequestHandled(); err != nil {
 						err := fmt.Errorf("error while handling %s: %w", eventName, err)
+						eventLogger.Warn(err.Error())
+						eventLogger.Warn(fmt.Sprintf("distID:%s distFlowID:%s packID:%s packFlowID:%s", distribution.ID, distribution.FlowID, pack.ID, packFlow.ID))
 						return err // rollback
 					}
 
