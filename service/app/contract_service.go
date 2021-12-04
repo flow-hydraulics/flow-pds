@@ -754,7 +754,7 @@ func (svc *ContractService) UpdateMintingStatus(ctx context.Context, db *gorm.DB
 			// Set the FlowID of the pack
 			// Make sure the pack is in correct state
 			if err := pack.Seal(packFlowID); err != nil {
-				logger.Warn("pack in wrong state %s packFlowId:%+v", err, packFlowID)
+				logger.Warn(fmt.Sprintf("pack in wrong state %s packFlowId:%+v", err, packFlowID))
 				return err // rollback
 			}
 
