@@ -921,7 +921,8 @@ func (svc *ContractService) UpdateCirculatingPackContract(ctx context.Context, d
 						err := fmt.Errorf("error while handling %s: %w", eventName, err)
 						eventLogger.Warn(err.Error())
 						eventLogger.Warn(fmt.Sprintf("distID:%s distFlowID:%s packID:%s packFlowID:%s", distribution.ID, distribution.FlowID, pack.ID, pack.FlowID))
-						return err // rollback
+						continue
+						//return err // rollback
 					}
 
 					// Update the pack in database
