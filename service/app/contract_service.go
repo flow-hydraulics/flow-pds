@@ -755,7 +755,6 @@ func (svc *ContractService) UpdateMintingStatus(ctx context.Context, db *gorm.DB
 			// Make sure the pack is in correct state
 			if err := pack.Seal(packFlowID); err != nil {
 				logger.Warn(fmt.Sprintf("pack in wrong state %s packFlowId:%+v", err, packFlowID))
-				continue
 			}
 
 			// Update the pack in database
@@ -921,7 +920,6 @@ func (svc *ContractService) UpdateCirculatingPackContract(ctx context.Context, d
 					if err := pack.RevealRequestHandled(); err != nil {
 						err := fmt.Errorf("error while handling %s: %w", eventName, err)
 						eventLogger.Warn(fmt.Sprintf("distID:%s distFlowID:%s packID:%s packFlowID:%s err:%s", distribution.ID, distribution.FlowID, pack.ID, pack.FlowID, err.Error()))
-						continue
 						//return err // rollback
 					}
 
