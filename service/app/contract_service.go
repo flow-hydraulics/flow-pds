@@ -1094,6 +1094,7 @@ func (svc *ContractService) UpdateCirculatingPackContract(ctx context.Context, d
 					// Make sure the pack is in correct state
 					if err := pack.Open(); err != nil {
 						err := fmt.Errorf("error while handling %s: %w", eventName, err)
+						eventLogger.Warn(fmt.Sprintf("distID:%s distFlowID:%s packID:%s packFlowID:%s err:%s", distribution.ID, distribution.FlowID, pack.ID, pack.FlowID, err.Error()))
 						return err // rollback
 					}
 
