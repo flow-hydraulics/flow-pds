@@ -3,7 +3,6 @@ package main
 import (
 	"context"
 	"math/big"
-	"path"
 	"reflect"
 	"strings"
 	"testing"
@@ -45,17 +44,8 @@ func getTestCfg(t *testing.T, b *testing.B) *config.Config {
 		panic(err)
 	}
 
-	cfg.DatabaseDSN = "test.db"
-
-	if t != nil {
-		cfg.DatabaseDSN = path.Join(t.TempDir(), "test.db")
-	}
-
-	if b != nil {
-		cfg.DatabaseDSN = path.Join(b.TempDir(), "test.db")
-	}
-
-	cfg.DatabaseType = "sqlite"
+	cfg.DatabaseDSN = "postgresql://pds:pds@localhost:5432/pds"
+	cfg.DatabaseType = "psql"
 
 	return cfg
 }
