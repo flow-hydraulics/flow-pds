@@ -21,8 +21,8 @@ type Config struct {
 
 	// -- Database --
 
-	DatabaseDSN  string `env:"FLOW_PDS_DATABASE_DSN" envDefault:"pds.db"`
-	DatabaseType string `env:"FLOW_PDS_DATABASE_TYPE" envDefault:"sqlite"`
+	DatabaseDSN  string `env:"FLOW_PDS_DATABASE_DSN" envDefault:"postgresql://pds:pds@localhost:5432/pds"`
+	DatabaseType string `env:"FLOW_PDS_DATABASE_TYPE" envDefault:"psql"`
 
 	// -- Host and chain access --
 

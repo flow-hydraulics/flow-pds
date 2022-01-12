@@ -754,7 +754,8 @@ func (svc *ContractService) UpdateMintingStatus(ctx context.Context, db *gorm.DB
 			// Set the FlowID of the pack
 			// Make sure the pack is in correct state
 			if err := pack.Seal(packFlowID); err != nil {
-				return err // rollback
+				logger.Warn(fmt.Sprintf("pack in wrong state %s packFlowId:%+v", err, packFlowID))
+				continue
 			}
 
 			// Update the pack in database
@@ -910,6 +911,8 @@ func (svc *ContractService) UpdateCirculatingPackContract(ctx context.Context, d
 					"packFlowID": pack.FlowID,
 				})
 
+				eventLogger.Info("handling event...")
+
 				switch eventName {
 				// -- REVEAL_REQUEST, Owner has requested to reveal a pack ------------
 				case REVEAL_REQUEST:
@@ -917,7 +920,8 @@ func (svc *ContractService) UpdateCirculatingPackContract(ctx context.Context, d
 					// Make sure the pack is in correct state
 					if err := pack.RevealRequestHandled(); err != nil {
 						err := fmt.Errorf("error while handling %s: %w", eventName, err)
-						return err // rollback
+						eventLogger.Warn(fmt.Sprintf("distID:%s distFlowID:%s packID:%s packFlowID:%s err:%s", distribution.ID, distribution.FlowID, pack.ID, pack.FlowID, err.Error()))
+						continue
 					}
 
 					// Update the pack in database
@@ -1006,7 +1010,8 @@ func (svc *ContractService) UpdateCirculatingPackContract(ctx context.Context, d
 					// Make sure the pack is in correct state
 					if err := pack.Reveal(); err != nil {
 						err := fmt.Errorf("error while handling %s: %w", eventName, err)
-						return err // rollback
+						eventLogger.Warn(fmt.Sprintf("distID:%s distFlowID:%s packID:%s packFlowID:%s err:%s", distribution.ID, distribution.FlowID, pack.ID, pack.FlowID, err.Error()))
+						continue
 					}
 
 					// Update the pack in database
@@ -1020,7 +1025,8 @@ func (svc *ContractService) UpdateCirculatingPackContract(ctx context.Context, d
 					// Make sure the pack is in correct state
 					if err := pack.OpenRequestHandled(); err != nil {
 						err := fmt.Errorf("error while handling %s: %w", eventName, err)
-						return err // rollback
+						eventLogger.Warn(fmt.Sprintf("distID:%s distFlowID:%s packID:%s packFlowID:%s err:%s", distribution.ID, distribution.FlowID, pack.ID, pack.FlowID, err.Error()))
+						continue
 					}
 
 					// Update the pack in database
@@ -1088,7 +1094,8 @@ func (svc *ContractService) UpdateCirculatingPackContract(ctx context.Context, d
 					// Make sure the pack is in correct state
 					if err := pack.Open(); err != nil {
 						err := fmt.Errorf("error while handling %s: %w", eventName, err)
-						return err // rollback
+						eventLogger.Warn(fmt.Sprintf("distID:%s distFlowID:%s packID:%s packFlowID:%s err:%s", distribution.ID, distribution.FlowID, pack.ID, pack.FlowID, err.Error()))
+						continue
 					}
 
 					// Update the pack in database
