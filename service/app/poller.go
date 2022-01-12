@@ -57,7 +57,7 @@ func packContractEventsPoller(app *App) {
 			logPollerRun("pollCirculatingPackContractEvents", pollCirculatingPackContractEvents(ctx, app))
 			log.WithFields(log.Fields{
 				"elapsed": time.Since(start),
-			}).Debug("PackContractEventsPoller end")
+			}).Info("PackContractEventsPoller end")
 		case <-app.quit:
 			cancel()
 			ticker.Stop()
