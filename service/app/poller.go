@@ -20,8 +20,6 @@ import (
 func poller(app *App) {
 
 	ticker := time.NewTicker(time.Second) // TODO (latenssi): configurable?
-	transactionRatelimiter := ratelimit.New(app.cfg.TransactionSendRate)
-
 	ctx := context.Background()
 	ctx, cancel := context.WithCancel(ctx)
 
@@ -37,12 +35,66 @@ func poller(app *App) {
 			logPollerRun("handleMinting", handleMinting(ctx, app))
 			logPollerRun("handleComplete", handleComplete(ctx, app))
 
-			logPollerRun("pollCirculatingPackContractEvents", pollCirculatingPackContractEvents(ctx, app))
-
-			logPollerRun("handleSentTransactions", handleSentTransactions(ctx, app))
-			logPollerRun("handleSendableTransactions", handleSendableTransactions(ctx, app, transactionRatelimiter))
-
 			log.Trace("Poll end")
+		case <-app.quit:
+			cancel()
+			ticker.Stop()
+			return
+		}
+	}
+}
+
+// packContractEventsPoller is responsible for checking pack contract events from flow blockchain blocks
+func packContractEventsPoller(app *App) {
+	ticker := time.NewTicker(time.Second) // TODO (latenssi): configurable?
+	ctx := context.Background()
+	ctx, cancel := context.WithCancel(ctx)
+	for {
+		select {
+		case <-ticker.C:
+			log.Trace("PackContractEventsPoller start")
+			logPollerRun("pollCirculatingPackContractEvents", pollCirculatingPackContractEvents(ctx, app))
+			log.Trace("PackContractEventsPoller end")
+		case <-app.quit:
+			cancel()
+			ticker.Stop()
+			return
+		}
+	}
+}
+
+// sendableTransactionPoller is responsible for checking any sendable to transactions in the transactions table.
+func sendableTransactionPoller(app *App) {
+	ticker := time.NewTicker(time.Second) // TODO (latenssi): configurable?
+	transactionRatelimiter := ratelimit.New(app.cfg.TransactionSendRate)
+
+	ctx := context.Background()
+	ctx, cancel := context.WithCancel(ctx)
+	for {
+		select {
+		case <-ticker.C:
+			log.Trace("SendableTransactionPoller poll start")
+			logPollerRun("handleSendableTransactions", handleSendableTransactions(ctx, app, transactionRatelimiter))
+			log.Trace("SendableTransactionPoller poll end")
+		case <-app.quit:
+			cancel()
+			ticker.Stop()
+			return
+		}
+	}
+}
+
+// transactionPoller is responsible for sending flow transactions and check transaction status
+func sentTransactionsPoller(app *App) {
+	ticker := time.NewTicker(time.Second) // TODO (latenssi): configurable?
+	ctx := context.Background()
+	ctx, cancel := context.WithCancel(ctx)
+	for {
+		select {
+		case <-ticker.C:
+			log.Trace("SentTransactionsPoller poll start")
+			logPollerRun("handleSentTransactions", handleSentTransactions(ctx, app))
+			log.Trace("SentTransactionsPoller poll end")
 		case <-app.quit:
 			cancel()
 			ticker.Stop()
