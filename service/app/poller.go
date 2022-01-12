@@ -76,9 +76,12 @@ func sendableTransactionPoller(app *App) {
 	for {
 		select {
 		case <-ticker.C:
+			start := time.Now()
 			log.Trace("SendableTransactionPoller poll start")
 			logPollerRun("handleSendableTransactions", handleSendableTransactions(ctx, app, transactionRatelimiter))
-			log.Trace("SendableTransactionPoller poll end")
+			log.WithFields(log.Fields{
+				"elapsed": time.Since(start),
+			}).Info("SendableTransactionPoller poll end")
 		case <-app.quit:
 			cancel()
 			ticker.Stop()
@@ -95,9 +98,12 @@ func sentTransactionsPoller(app *App) {
 	for {
 		select {
 		case <-ticker.C:
+			start := time.Now()
 			log.Trace("SentTransactionsPoller poll start")
 			logPollerRun("handleSentTransactions", handleSentTransactions(ctx, app))
-			log.Trace("SentTransactionsPoller poll end")
+			log.WithFields(log.Fields{
+				"elapsed": time.Since(start),
+			}).Info("SentTransactionsPoller poll end")
 		case <-app.quit:
 			cancel()
 			ticker.Stop()
