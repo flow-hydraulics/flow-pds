@@ -31,6 +31,9 @@ func New(cfg *config.Config, db *gorm.DB, flowClient *client.Client, poll bool) 
 
 	if poll {
 		go poller(app)
+		go packContractEventsPoller(app)
+		go sentTransactionsPoller(app)
+		go sendableTransactionPoller(app)
 	}
 
 	return app, nil
