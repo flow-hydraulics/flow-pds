@@ -53,7 +53,7 @@ func packContractEventsPoller(app *App) {
 		select {
 		case <-ticker.C:
 			start := time.Now()
-			log.Trace("PackContractEventsPoller start")
+			log.Info("PackContractEventsPoller start")
 			logPollerRun("pollCirculatingPackContractEvents", pollCirculatingPackContractEvents(ctx, app))
 			log.WithFields(log.Fields{
 				"elapsed": time.Since(start),
@@ -77,7 +77,7 @@ func sendableTransactionPoller(app *App) {
 		select {
 		case <-ticker.C:
 			start := time.Now()
-			log.Trace("SendableTransactionPoller poll start")
+			log.Info("SendableTransactionPoller poll start")
 			logPollerRun("handleSendableTransactions", handleSendableTransactions(ctx, app, transactionRatelimiter))
 			log.WithFields(log.Fields{
 				"elapsed": time.Since(start),
@@ -99,7 +99,7 @@ func sentTransactionsPoller(app *App) {
 		select {
 		case <-ticker.C:
 			start := time.Now()
-			log.Trace("SentTransactionsPoller poll start")
+			log.Info("SentTransactionsPoller poll start")
 			logPollerRun("handleSentTransactions", handleSentTransactions(ctx, app))
 			log.WithFields(log.Fields{
 				"elapsed": time.Since(start),
