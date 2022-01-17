@@ -285,82 +285,17 @@ func handleSendableTransactions(ctx context.Context, app *App, rateLimiter ratel
 		// Rate limit
 		rateLimiter.Take()
 
-		err := app.db.Transaction(func(dbtx *gorm.DB) (err error) {
+		if err := app.db.Transaction(func(dbtx *gorm.DB) error {
 			t, err := transactions.GetNextSendable(dbtx)
 			if err != nil {
-				err = fmt.Errorf("error while getting transaction from database: %w", err)
-				return
+				return fmt.Errorf("error while getting transaction from database: %w", err)
 			}
 
-			tx, unlockKey, err := t.Prepare(ctx, app.service.flowClient, app.service.account, app.service.cfg.TransactionGasLimit)
-
-			defer func() {
-				// Make sure to unlock if we had an error to prevent deadlocks
-				if err != nil {
-					unlockKey()
-				}
-			}()
-
-			if err != nil {
-				err = fmt.Errorf("error while preparing transaction: %w", err)
-				return
+			if err := processSendableTransaction(ctx, app, dbtx, t); err != nil {
+				return err
 			}
-
-			// Update TransactionID
-			t.TransactionID = tx.ID().Hex()
-
-			// Update state
-			t.State = common.TransactionStateSent
-
-			// Save early as the database might be locked and not allow us to
-			// save after sending. This way we fail before actually sending.
-			if err = t.Save(dbtx); err != nil {
-				err = fmt.Errorf("error while saving transaction: %w", err)
-				return
-			}
-
-			if err = app.service.flowClient.SendTransaction(ctx, *tx); err != nil {
-				err = fmt.Errorf("error while sending transaction: %w", err)
-
-				t.State = common.TransactionStateFailed
-				t.Error = err.Error()
-
-				if err = t.Save(dbtx); err != nil {
-					err = fmt.Errorf("error while saving transaction: %w", err)
-					return
-				}
-
-				// Cant't return the error here as that would rollback this db transaction
-			}
-
-			// Double check
-			if err != nil {
-				return
-			}
-
-			logger := log.WithFields(log.Fields{
-				"function":       "handleSendableTransactions",
-				"ID":             t.ID,
-				"name":           t.Name,
-				"distributionID": t.DistributionID,
-				"transactionID":  t.TransactionID,
-			})
-
-			logger.Debug("Transaction sent")
-
-			// Wait for the transaction to finalize (be included in a block, not yet sealed)
-			// in a goroutine to unlock the used key
-			go func(ctx context.Context, app *App, unlockKey flow_helpers.UnlockKeyFunc, logger *log.Entry) {
-				defer unlockKey()
-				if _, err := t.WaitForFinalize(ctx, app.service.flowClient); err != nil {
-					logger.WithFields(log.Fields{"error": err.Error()}).Warn("Error while waiting for transaction to finalize")
-				}
-			}(context.Background(), app, unlockKey, logger)
-
-			return
-		})
-
-		if err != nil {
+			return nil
+		}); err != nil {
 			// Ignore ErrRecordNotFound and ErrNoAccountKeyAvailable and stop iteration
 			if errors.Is(err, gorm.ErrRecordNotFound) || errors.Is(err, flow_helpers.ErrNoAccountKeyAvailable) {
 				break
@@ -370,6 +305,72 @@ func handleSendableTransactions(ctx context.Context, app *App, rateLimiter ratel
 
 		handleCount++
 	}
+
+	return nil
+}
+
+func processSendableTransaction(ctx context.Context, app *App, dbtx *gorm.DB, t *transactions.StorableTransaction) error {
+	tx, unlockKey, err := t.Prepare(ctx, app.service.flowClient, app.service.account, app.service.cfg.TransactionGasLimit)
+
+	defer func() {
+		// Make sure to unlock if we had an error to prevent deadlocks
+		if err != nil {
+			unlockKey()
+		}
+	}()
+
+	if err != nil {
+		return fmt.Errorf("error while preparing transaction: %w", err)
+	}
+
+	// Update TransactionID
+	t.TransactionID = tx.ID().Hex()
+
+	// Update state
+	t.State = common.TransactionStateSent
+
+	// Save early as the database might be locked and not allow us to
+	// save after sending. This way we fail before actually sending.
+	if err = t.Save(dbtx); err != nil {
+		return fmt.Errorf("error while saving transaction: %w", err)
+	}
+
+	if err = app.service.flowClient.SendTransaction(ctx, *tx); err != nil {
+		err = fmt.Errorf("error while sending transaction: %w", err)
+
+		t.State = common.TransactionStateFailed
+		t.Error = err.Error()
+
+		if err = t.Save(dbtx); err != nil {
+			return fmt.Errorf("error while saving transaction: %w", err)
+		}
+
+		// Cant't return the error here as that would rollback this db transaction
+	}
+
+	// Double check
+	if err != nil {
+		return err
+	}
+
+	logger := log.WithFields(log.Fields{
+		"function":       "handleSendableTransactions",
+		"ID":             t.ID,
+		"name":           t.Name,
+		"distributionID": t.DistributionID,
+		"transactionID":  t.TransactionID,
+	})
+
+	logger.Debug("Transaction sent")
+
+	// Wait for the transaction to finalize (be included in a block, not yet sealed)
+	// in a goroutine to unlock the used key
+	go func(ctx context.Context, app *App, unlockKey flow_helpers.UnlockKeyFunc, logger *log.Entry) {
+		defer unlockKey()
+		if _, err := t.WaitForFinalize(ctx, app.service.flowClient); err != nil {
+			logger.WithFields(log.Fields{"error": err.Error()}).Warn("Error while waiting for transaction to finalize")
+		}
+	}(context.Background(), app, unlockKey, logger)
 
 	return nil
 }
