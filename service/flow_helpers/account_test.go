@@ -1,6 +1,8 @@
 package flow_helpers
 
 import (
+	"fmt"
+	"sync"
 	"testing"
 
 	"github.com/onflow/flow-go-sdk"
@@ -53,5 +55,75 @@ func TestAccountCaching(t *testing.T) {
 
 	if pdsAccount1.PrivateKey == pdsAccount3.PrivateKey {
 		t.Fatal("expected accounts to not equal")
+	}
+}
+
+func TestAccountAvailableKeys(t *testing.T) {
+
+	var keyIndexes []int
+	initialNumKeys := 5
+
+	for i := 0; i < initialNumKeys; i++ {
+		keyIndexes = append(keyIndexes, i)
+	}
+
+	acct := GetAccount(
+		flow.HexToAddress("0x1ccc"),
+		"testAccountAvailableKeys",
+		"",
+		keyIndexes,
+	)
+
+	assertAvailableKeys(t, acct.AvailableKeys(), initialNumKeys)
+
+	_, unlockFunc1, _ := acct.PKeyIndexes.Next()
+	_, unlockFunc2, _ := acct.PKeyIndexes.Next()
+
+	assertAvailableKeys(t, acct.AvailableKeys(), initialNumKeys-2)
+
+	unlockFunc1()
+	unlockFunc2()
+
+	assertAvailableKeys(t, acct.AvailableKeys(), initialNumKeys)
+}
+
+func TestAccountAvailableKeysConcurrent(t *testing.T) {
+	var keyIndexes []int
+	initialNumKeys := 1000
+
+	for i := 0; i < initialNumKeys; i++ {
+		keyIndexes = append(keyIndexes, i)
+	}
+
+	acct := GetAccount(
+		flow.HexToAddress("0x1ccd"),
+		"testAccountAvailableKeysConcurrent",
+		"",
+		keyIndexes,
+	)
+
+	assertAvailableKeys(t, acct.AvailableKeys(), initialNumKeys)
+
+	wg := sync.WaitGroup{}
+
+	for i := 0; i < 1000; i++ {
+		wg.Add(1)
+		go func(wg *sync.WaitGroup, count int) {
+			defer wg.Done()
+			idx, unlockFunc, err := acct.PKeyIndexes.Next()
+			if err != nil {
+				t.Fatal(err)
+			}
+			defer unlockFunc()
+			fmt.Printf("%d key_idx[%d] - available_keys=[%d]\n", count, idx, acct.AvailableKeys())
+		}(&wg, i)
+	}
+	wg.Wait()
+	assertAvailableKeys(t, acct.AvailableKeys(), initialNumKeys)
+}
+
+func assertAvailableKeys(t *testing.T, actual int, expected int) {
+	if actual != expected {
+		t.Fatalf("unexpected available keys, actual: %d, expected:%d", actual, expected)
 	}
 }

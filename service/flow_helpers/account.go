@@ -23,6 +23,8 @@ var accountsLock = &sync.Mutex{} // Making sure our "accounts" var is a singleto
 var seqNumLock = &sync.Mutex{}
 var lastAccountKeySeqNumber map[flow.Address]map[int]uint64
 
+var availableKeysLock = &sync.Mutex{}
+
 const GOOGLE_KMS_KEY_TYPE = "google_kms"
 
 type Account struct {
@@ -58,26 +60,6 @@ func (ii ProposalKeyIndexes) Next() (int, UnlockKeyFunc, error) {
 		}
 	}
 	return -1, EmptyUnlockKey, ErrNoAccountKeyAvailable
-}
-
-func (ii ProposalKeyIndexes) NextWithRetry() (int, UnlockKeyFunc, error) {
-	var (
-		index         int
-		unlockKeyFunc UnlockKeyFunc
-		err           error
-	)
-
-	tries := 0
-	for tries < 5 {
-		index, unlockKeyFunc, err = ii.Next()
-		if err == nil {
-			break
-		}
-		tries++
-		time.Sleep(3 * time.Second)
-	}
-
-	return index, unlockKeyFunc, err
 }
 
 // GetAccount either returns an Account from the application wide cache or initiliazes a new Account
@@ -123,7 +105,7 @@ func (a *Account) GetProposalKey(ctx context.Context, flowClient *client.Client)
 		return nil, nil, fmt.Errorf("error in flow_helpers.Account.GetProposalKey: %w", err)
 	}
 
-	idx, unlock, err := a.PKeyIndexes.NextWithRetry()
+	idx, unlock, err := a.PKeyIndexes.Next()
 	if err != nil {
 		return nil, unlock, err
 	}
@@ -152,6 +134,18 @@ func (a Account) GetSigner() (crypto.Signer, error) {
 	}
 
 	return crypto.NewNaiveSigner(p, crypto.SHA3_256), nil
+}
+
+func (a *Account) AvailableKeys() int {
+	availableKeysLock.Lock()
+	defer availableKeysLock.Unlock()
+	var numAvailableKeys int
+	for _, key := range a.PKeyIndexes {
+		if !mutexasserts.MutexLocked(&key.mu) {
+			numAvailableKeys++
+		}
+	}
+	return numAvailableKeys
 }
 
 func getGoogleKMSSigner(address flow.Address, resourceId string) (crypto.Signer, error) {

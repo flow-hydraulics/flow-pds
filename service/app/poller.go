@@ -282,8 +282,15 @@ func pollCirculatingPackContractEvents(ctx context.Context, app *App) error {
 func handleSendableTransactions(ctx context.Context, app *App, rateLimiter ratelimit.Limiter) error {
 
 	return app.db.Transaction(func(dbtx *gorm.DB) error {
+
+		availableKeys := app.service.account.AvailableKeys()
+
+		if availableKeys < 1 {
+			return fmt.Errorf("not enough available keys, returning")
+		}
+
+		ts, err := transactions.GetNextSendables(dbtx, availableKeys)
 		wg := sync.WaitGroup{}
-		ts, err := transactions.GetNextSendables(dbtx, app.cfg.BatchProcessSize)
 
 		if err != nil {
 			return fmt.Errorf("error while getting transactions from database: %w", err)
