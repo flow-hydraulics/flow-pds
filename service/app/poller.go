@@ -300,6 +300,7 @@ func handleSendableTransactions(ctx context.Context, app *App, rateLimiter ratel
 			wg.Add(1)
 			go func(ctx context.Context, dbtx *gorm.DB, wg *sync.WaitGroup, tx *transactions.StorableTransaction) {
 				defer wg.Done()
+				rateLimiter.Take()
 				logger := log.WithFields(log.Fields{
 					"function":       "handleSendableTransactions",
 					"ID":             tx.ID,
