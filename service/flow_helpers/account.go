@@ -60,6 +60,26 @@ func (ii ProposalKeyIndexes) Next() (int, UnlockKeyFunc, error) {
 	return -1, EmptyUnlockKey, ErrNoAccountKeyAvailable
 }
 
+func (ii ProposalKeyIndexes) NextWithRetry() (int, UnlockKeyFunc, error) {
+	var (
+		index         int
+		unlockKeyFunc UnlockKeyFunc
+		err           error
+	)
+
+	tries := 0
+	for tries < 5 {
+		index, unlockKeyFunc, err = ii.Next()
+		if err == nil {
+			break
+		}
+		tries++
+		time.Sleep(3 * time.Second)
+	}
+
+	return index, unlockKeyFunc, err
+}
+
 // GetAccount either returns an Account from the application wide cache or initiliazes a new Account
 func GetAccount(address flow.Address, privateKey, privateKeyType string, keyIndexes []int) *Account {
 	accountsLock.Lock()
@@ -103,7 +123,7 @@ func (a *Account) GetProposalKey(ctx context.Context, flowClient *client.Client)
 		return nil, nil, fmt.Errorf("error in flow_helpers.Account.GetProposalKey: %w", err)
 	}
 
-	idx, unlock, err := a.PKeyIndexes.Next()
+	idx, unlock, err := a.PKeyIndexes.NextWithRetry()
 	if err != nil {
 		return nil, unlock, err
 	}
