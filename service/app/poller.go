@@ -4,6 +4,7 @@ import (
 	"context"
 	"errors"
 	"fmt"
+	"sync"
 	"time"
 
 	"github.com/flow-hydraulics/flow-pds/service/common"
@@ -279,37 +280,38 @@ func pollCirculatingPackContractEvents(ctx context.Context, app *App) error {
 // handleSendableTransactions sends all transactions which are sendable (state is init or retry)
 // with no regard to account proposal key sequence number
 func handleSendableTransactions(ctx context.Context, app *App, rateLimiter ratelimit.Limiter) error {
-	handleCount := 0
 
-	for handleCount < app.cfg.BatchProcessSize {
-		// Rate limit
-		rateLimiter.Take()
+	return app.db.Transaction(func(dbtx *gorm.DB) error {
+		wg := sync.WaitGroup{}
+		ts, err := transactions.GetNextSendables(dbtx, app.cfg.BatchProcessSize)
 
-		if err := app.db.Transaction(func(dbtx *gorm.DB) error {
-			t, err := transactions.GetNextSendable(dbtx)
-			if err != nil {
-				return fmt.Errorf("error while getting transaction from database: %w", err)
-			}
-
-			if err := processSendableTransaction(ctx, app, dbtx, t); err != nil {
-				return err
-			}
-			return nil
-		}); err != nil {
-			// Ignore ErrRecordNotFound and ErrNoAccountKeyAvailable and stop iteration
-			if errors.Is(err, gorm.ErrRecordNotFound) || errors.Is(err, flow_helpers.ErrNoAccountKeyAvailable) {
-				break
-			}
-			return err
+		if err != nil {
+			return fmt.Errorf("error while getting transactions from database: %w", err)
 		}
 
-		handleCount++
-	}
+		for _, t := range ts {
+			wg.Add(1)
+			go func(ctx context.Context, dbtx *gorm.DB, wg *sync.WaitGroup, tx *transactions.StorableTransaction) {
+				defer wg.Done()
+				logger := log.WithFields(log.Fields{
+					"function":       "handleSendableTransactions",
+					"ID":             tx.ID,
+					"name":           tx.Name,
+					"distributionID": tx.DistributionID,
+					"transactionID":  tx.TransactionID,
+				})
+				if err := processSendableTransaction(ctx, app, logger, dbtx, tx); err != nil {
+					logger.Warn("error processing storable transaction", err)
+				}
+			}(ctx, dbtx, &wg, &t)
+		}
 
-	return nil
+		wg.Wait()
+		return nil
+	})
 }
 
-func processSendableTransaction(ctx context.Context, app *App, dbtx *gorm.DB, t *transactions.StorableTransaction) error {
+func processSendableTransaction(ctx context.Context, app *App, logger *log.Entry, dbtx *gorm.DB, t *transactions.StorableTransaction) error {
 	tx, unlockKey, err := t.Prepare(ctx, app.service.flowClient, app.service.account, app.service.cfg.TransactionGasLimit)
 
 	defer func() {
@@ -352,14 +354,6 @@ func processSendableTransaction(ctx context.Context, app *App, dbtx *gorm.DB, t 
 	if err != nil {
 		return err
 	}
-
-	logger := log.WithFields(log.Fields{
-		"function":       "handleSendableTransactions",
-		"ID":             t.ID,
-		"name":           t.Name,
-		"distributionID": t.DistributionID,
-		"transactionID":  t.TransactionID,
-	})
 
 	logger.Debug("Transaction sent")
 

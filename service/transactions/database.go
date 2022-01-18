@@ -43,6 +43,20 @@ func GetNextSendable(db *gorm.DB) (*StorableTransaction, error) {
 	return &t, err
 }
 
+func GetNextSendables(db *gorm.DB, limit int) ([]StorableTransaction, error) {
+	var ts []StorableTransaction
+	if err := db.Order("updated_at asc").
+		Clauses(clause.Locking{Strength: "UPDATE SKIP LOCKED"}).
+		Where(map[string]interface{}{"state": common.TransactionStateInit}).
+		Or(map[string]interface{}{"state": common.TransactionStateRetry}).
+		Limit(limit).
+		Find(&ts).Error; err != nil {
+		return nil, err
+	}
+
+	return ts, nil
+}
+
 func GetNextSent(db *gorm.DB) (*StorableTransaction, error) {
 	t := StorableTransaction{}
 	err := db.Order("updated_at asc").
