@@ -27,6 +27,9 @@ set +a
 
 shopt -s expand_aliases
 
+NUM_KEYS=40
+NUM_PACKS=5000
+
 # Run the emulator with the config in ./flow.json
 if [ "${NETWORK}" == "emulator" ]; then
   # setting block-time of 1s to emulate testnet + mainnet tempo
@@ -50,10 +53,7 @@ if [ "${NETWORK}" == "emulator" ]; then
   flow accounts create --network="$NETWORK" --key="$PK" --signer="$SIGNER"
 
 
-  flow transactions send ./cadence-transactions/keys/add-key-from-existing.cdc --signer="emulator-pds" --network="$NETWORK"
-  flow transactions send ./cadence-transactions/keys/add-key-from-existing.cdc --signer="emulator-pds" --network="$NETWORK"
-  flow transactions send ./cadence-transactions/keys/add-key-from-existing.cdc --signer="emulator-pds" --network="$NETWORK"
-  flow transactions send ./cadence-transactions/keys/add-key-from-existing.cdc --signer="emulator-pds" --network="$NETWORK"
+  for i in $(seq 1 $NUM_KEYS); do flow transactions send ./cadence-transactions/keys/add-key-from-existing.cdc --signer="emulator-pds" --network="$NETWORK"; done
 
 
   # Owner
@@ -75,4 +75,7 @@ go clean -testcache
 
 #go test ./go-contracts/... -v
 #go test ./service/... -v
-FLOW_PDS_ADMIN_PRIVATE_KEY_INDEXES=0,1 TEST_PACK_COUNT=100 time go test -timeout 40s -v -run ^TestE2E$ .
+
+FLOW_PDS_ADMIN_PRIVATE_KEY_INDEXES=$(seq -s ',' 1 $NUM_KEYS | sed 's/.$//') TEST_PACK_COUNT=$NUM_PACKS time go test -timeout 24h -v -run ^TestE2E$ .
+
+echo "NUM_KEYS=$NUM_KEYS NUM_PACKS=$NUM_PACKS"

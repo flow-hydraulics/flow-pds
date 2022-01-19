@@ -30,6 +30,8 @@ Dev environment
 
 ## Run E2E tests
 
+    cp env.example .env.test
+
     cp env.example .env
 
     docker-compose down && docker-compose up -d db && ./tests-with-emulator.sh
