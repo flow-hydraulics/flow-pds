@@ -298,6 +298,7 @@ func handleSendableTransactions(ctx context.Context, app *App, rateLimiter ratel
 
 		for _, t := range ts {
 			wg.Add(1)
+			transaction := t
 			go func(ctx context.Context, dbtx *gorm.DB, wg *sync.WaitGroup, tx *transactions.StorableTransaction) {
 				defer wg.Done()
 				rateLimiter.Take()
@@ -311,7 +312,7 @@ func handleSendableTransactions(ctx context.Context, app *App, rateLimiter ratel
 				if err := processSendableTransaction(ctx, app, logger, dbtx, tx); err != nil {
 					logger.Warn("error processing storable transaction", err)
 				}
-			}(ctx, dbtx, &wg, &t)
+			}(ctx, dbtx, &wg, &transaction)
 		}
 
 		wg.Wait()
@@ -345,6 +346,7 @@ func processSendableTransaction(ctx context.Context, app *App, logger *log.Entry
 		return fmt.Errorf("error while saving transaction: %w", err)
 	}
 
+	fmt.Printf("🐣🐣🐣🐣🐣🐣🐣🐣🐣🐣🐣🐣🐣 tx sent =%+v \n", t.ID)
 	if err = app.service.flowClient.SendTransaction(ctx, *tx); err != nil {
 		err = fmt.Errorf("error while sending transaction: %w", err)
 
