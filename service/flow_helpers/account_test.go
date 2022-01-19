@@ -110,10 +110,7 @@ func TestAccountAvailableKeysConcurrent(t *testing.T) {
 		wg.Add(1)
 		go func(wg *sync.WaitGroup, count int) {
 			defer wg.Done()
-			idx, unlockFunc, err := acct.PKeyIndexes.Next()
-			if err != nil {
-				t.Fatal(err)
-			}
+			idx, unlockFunc, _ := acct.PKeyIndexes.Next()
 			defer unlockFunc()
 			fmt.Printf("%d key_idx[%d] - available_keys=[%d]\n", count, idx, acct.AvailableKeys())
 		}(&wg, i)
