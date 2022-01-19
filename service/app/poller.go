@@ -346,7 +346,6 @@ func processSendableTransaction(ctx context.Context, app *App, logger *log.Entry
 		return fmt.Errorf("error while saving transaction: %w", err)
 	}
 
-	fmt.Printf("🐣🐣🐣🐣🐣🐣🐣🐣🐣🐣🐣🐣🐣 tx sent =%+v \n", t.ID)
 	if err = app.service.flowClient.SendTransaction(ctx, *tx); err != nil {
 		err = fmt.Errorf("error while sending transaction: %w", err)
 
