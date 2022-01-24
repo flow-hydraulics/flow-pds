@@ -23,6 +23,8 @@ var accountsLock = &sync.Mutex{} // Making sure our "accounts" var is a singleto
 var seqNumLock = &sync.Mutex{}
 var lastAccountKeySeqNumber map[flow.Address]map[int]uint64
 
+var availableKeysLock = &sync.Mutex{}
+
 const GOOGLE_KMS_KEY_TYPE = "google_kms"
 
 type Account struct {
@@ -132,6 +134,18 @@ func (a Account) GetSigner() (crypto.Signer, error) {
 	}
 
 	return crypto.NewNaiveSigner(p, crypto.SHA3_256), nil
+}
+
+func (a *Account) AvailableKeys() int {
+	availableKeysLock.Lock()
+	defer availableKeysLock.Unlock()
+	var numAvailableKeys int
+	for _, key := range a.PKeyIndexes {
+		if !mutexasserts.MutexLocked(&key.mu) {
+			numAvailableKeys++
+		}
+	}
+	return numAvailableKeys
 }
 
 func getGoogleKMSSigner(address flow.Address, resourceId string) (crypto.Signer, error) {

@@ -28,6 +28,14 @@ Dev environment
     # With docker-compose environment ("make dev" above)
     go test -v
 
+## Run E2E tests
+
+    cp env.example .env.test
+
+    cp env.example .env
+
+    docker-compose down && docker-compose up -d db && ./tests-with-emulator.sh
+
 
 ## Project layout
 
