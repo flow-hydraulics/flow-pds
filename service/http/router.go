@@ -2,6 +2,7 @@ package http
 
 import (
 	"net/http"
+	"net/http/pprof"
 
 	"github.com/flow-hydraulics/flow-pds/service/app"
 	"github.com/gorilla/mux"
@@ -24,6 +25,18 @@ func NewRouter(app *app.App) http.Handler {
 	rv.HandleFunc("/distributions", HandleListDistributions(requestLogger, app)).Methods(http.MethodGet)
 	rv.HandleFunc("/distributions/{id}", HandleGetDistribution(requestLogger, app)).Methods(http.MethodGet)
 	rv.HandleFunc("/distributions/{id}/abort", HandleAbortDistribution(requestLogger, app)).Methods(http.MethodPost)
+
+	// Add the pprof routes
+	rv.HandleFunc("/debug/pprof/", pprof.Index)
+	rv.HandleFunc("/debug/pprof/cmdline", pprof.Cmdline)
+	rv.HandleFunc("/debug/pprof/profile", pprof.Profile)
+	rv.HandleFunc("/debug/pprof/symbol", pprof.Symbol)
+	rv.HandleFunc("/debug/pprof/trace", pprof.Trace)
+
+	rv.Handle("/debug/pprof/block", pprof.Handler("block"))
+	rv.Handle("/debug/pprof/goroutine", pprof.Handler("goroutine"))
+	rv.Handle("/debug/pprof/heap", pprof.Handler("heap"))
+	rv.Handle("/debug/pprof/threadcreate", pprof.Handler("threadcreate"))
 
 	// Use middleware
 	h := UseCors(r)
