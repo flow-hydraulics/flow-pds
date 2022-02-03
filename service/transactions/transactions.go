@@ -166,7 +166,7 @@ func (t *StorableTransaction) HandleResult(ctx context.Context, flowClient *clie
 	return nil
 }
 
-func (t *StorableTransaction) WaitForFinalize(ctx context.Context, flowClient *client.Client) (*flow.TransactionResult, error) {
+func (t *StorableTransaction) WaitForFinalize(ctx context.Context, flowClient *client.Client, pollInterval time.Duration) (*flow.TransactionResult, error) {
 	for ctx.Err() == nil {
 		result, err := flowClient.GetTransactionResult(ctx, flow.HexToID(t.TransactionID))
 		if err != nil {
@@ -179,7 +179,7 @@ func (t *StorableTransaction) WaitForFinalize(ctx context.Context, flowClient *c
 		if deadline, hasDeadline := ctx.Deadline(); hasDeadline && deadline.Before(time.Now()) {
 			return nil, fmt.Errorf("error getting transaction result within timeout")
 		}
-		time.Sleep(time.Duration(100) * time.Millisecond)
+		time.Sleep(pollInterval)
 	}
 	return nil, ctx.Err()
 }
