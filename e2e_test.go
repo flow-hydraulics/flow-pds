@@ -268,7 +268,7 @@ func TestE2E(t *testing.T) {
 			distribution = *d
 			break
 		}
-		time.Sleep(time.Second)
+		time.Sleep(cfg.TransactionPollInterval + time.Millisecond*100)
 	}
 
 	t.Logf("Distribution settled and minted, took %s\n", time.Since(start))
@@ -352,7 +352,7 @@ func TestE2E(t *testing.T) {
 		if p.State == common.PackStateRevealed || p.State == common.PackStateOpened {
 			break
 		}
-		time.Sleep(time.Second)
+		time.Sleep(cfg.TransactionPollInterval + time.Millisecond*100)
 	}
 
 	// Wait a bit more as the blocktime might be 1s if run from the test script
