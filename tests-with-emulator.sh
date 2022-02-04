@@ -27,6 +27,9 @@ set -ex
 
 shopt -s expand_aliases
 
+NUM_KEYS=${NUM_KEYS:=4}
+FLOW_PDS_ADMIN_PRIVATE_KEY_INDEXES=$(seq -s ',' 1 $NUM_KEYS | sed 's/.$//')
+
 # Run the emulator with the config in ./flow.json
 if [ "${NETWORK}" == "emulator" ]; then
   # setting block-time of 1s to emulate testnet + mainnet tempo
@@ -48,6 +51,8 @@ if [ "${NETWORK}" == "emulator" ]; then
   flow accounts create --network="$NETWORK" --key="$PK" --signer="$SIGNER"
   flow accounts create --network="$NETWORK" --key="$PK" --signer="$SIGNER"
   flow accounts create --network="$NETWORK" --key="$PK" --signer="$SIGNER"
+
+  for i in $(seq 1 $NUM_KEYS); do flow transactions send ./cadence-transactions/keys/add-key-from-existing.cdc --signer="emulator-pds" --network="$NETWORK"; done
 
   # Owner
   flow transactions send ./cadence-transactions/flowTokens/transfer_flow_tokens_emulator.cdc \
