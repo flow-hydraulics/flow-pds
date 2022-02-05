@@ -4,6 +4,7 @@ import (
 	"context"
 	"errors"
 	"fmt"
+	"github.com/onflow/flow-go-sdk"
 	"sync"
 	"time"
 
@@ -370,8 +371,8 @@ func processSendableTransaction(ctx context.Context, app *App, logger *log.Entry
 	// in a goroutine to unlock the used key
 	go func(ctx context.Context, app *App, unlockKey flow_helpers.UnlockKeyFunc, logger *log.Entry) {
 		defer unlockKey()
-		if _, err := t.WaitForFinalize(ctx, app.service.flowClient); err != nil {
-			logger.WithFields(log.Fields{"error": err.Error()}).Warn("Error while waiting for transaction to finalize")
+		if _, err := flow_helpers.WaitForSeal(ctx, app.service.flowClient, flow.HexToID(t.TransactionID), time.Minute*10); err != nil {
+			logger.WithFields(log.Fields{"error": err.Error()}).Warn("Error while waiting for transaction to seal")
 		}
 	}(context.Background(), app, unlockKey, logger)
 
