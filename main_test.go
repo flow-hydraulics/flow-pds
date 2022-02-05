@@ -129,9 +129,10 @@ func TestSetDistCap(t *testing.T) {
 	if err != nil {
 		t.Fatal(err)
 	}
-	time.Sleep(cfg.TransactionPollInterval)
 
 	issuer := common.FlowAddress(g.Account("issuer").Address())
+
+	time.Sleep(cfg.TransactionPollInterval * 2)
 
 	dReq := pds_http.ReqCreateDistribution{
 		Issuer: issuer,
