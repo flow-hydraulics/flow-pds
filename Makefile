@@ -5,7 +5,7 @@ ifneq (,$(wildcard ./.env.test))
 endif
 
 .PHONY: dev
-dev: up deploy
+dev: up wait deploy
 
 .PHONY: deploy
 deploy:
@@ -17,7 +17,7 @@ stop:
 
 .PHONY: up
 up:
-	docker-compose up --wait db pgadmin emulator
+	docker-compose up -d db pgadmin emulator
 
 .PHONY: down
 down:
@@ -25,6 +25,10 @@ down:
 
 .PHONY: reset
 reset: down dev
+
+wait:
+	@echo "waiting..."
+	@sleep 3
 
 .PHONY: test
 test:

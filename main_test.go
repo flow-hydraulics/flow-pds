@@ -7,6 +7,7 @@ import (
 	"net/http"
 	"net/http/httptest"
 	"testing"
+	"time"
 
 	"github.com/bjartek/go-with-the-flow/v2/gwtf"
 	"github.com/flow-hydraulics/flow-pds/go-contracts/util"
@@ -128,6 +129,7 @@ func TestSetDistCap(t *testing.T) {
 	if err != nil {
 		t.Fatal(err)
 	}
+	time.Sleep(cfg.TransactionPollInterval)
 
 	issuer := common.FlowAddress(g.Account("issuer").Address())
 
