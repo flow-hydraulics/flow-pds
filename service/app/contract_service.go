@@ -3,8 +3,6 @@ package app
 import (
 	"context"
 	"fmt"
-	"time"
-
 	"github.com/flow-hydraulics/flow-pds/service/common"
 	"github.com/flow-hydraulics/flow-pds/service/config"
 	"github.com/flow-hydraulics/flow-pds/service/flow_helpers"
@@ -100,7 +98,7 @@ func (svc *ContractService) SetDistCap(ctx context.Context, db *gorm.DB, issuer 
 		return err
 	}
 
-	if _, err := flow_helpers.WaitForSeal(ctx, svc.flowClient, tx.ID(), time.Minute*10); err != nil {
+	if _, err := flow_helpers.WaitForSeal(ctx, svc.flowClient, tx.ID(), svc.cfg.TransactionTimeout, svc.cfg.TransactionPollInterval); err != nil {
 		return err
 	}
 
@@ -184,7 +182,7 @@ func (svc *ContractService) SetupDistribution(ctx context.Context, db *gorm.DB, 
 				return err // rollback
 			}
 
-			if _, err := flow_helpers.WaitForSeal(ctx, svc.flowClient, tx.ID(), time.Minute*10); err != nil {
+			if _, err := flow_helpers.WaitForSeal(ctx, svc.flowClient, tx.ID(), svc.cfg.TransactionTimeout, svc.cfg.TransactionPollInterval); err != nil {
 				return err // rollback
 			}
 

@@ -38,7 +38,7 @@ func SignProposeAndPayAs(ctx context.Context, flowClient *client.Client, account
 // - the transaction gets an error status
 // - the transaction gets a "TransactionStatusSealed" or "TransactionStatusExpired" status
 // - timeout is reached
-func WaitForSeal(ctx context.Context, c *client.Client, id flow.Identifier, timeout time.Duration) (*flow.TransactionResult, error) {
+func WaitForSeal(ctx context.Context, c *client.Client, id flow.Identifier, timeout time.Duration, pollInterval time.Duration) (*flow.TransactionResult, error) {
 	var (
 		result *flow.TransactionResult
 		err    error
@@ -71,6 +71,6 @@ func WaitForSeal(ctx context.Context, c *client.Client, id flow.Identifier, time
 			return result, nil
 		}
 
-		time.Sleep(time.Second)
+		time.Sleep(pollInterval)
 	}
 }

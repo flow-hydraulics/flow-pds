@@ -39,8 +39,9 @@ type Config struct {
 	// Going much above 40 will cause the transactions to use more than 9999 gas
 	SettlementBatchSize int `env:"FLOW_PDS_SETTLEMENT_BATCH_SIZE" envDefault:"40"`
 	MintingBatchSize    int `env:"FLOW_PDS_MINTING_BATCH_SIZE" envDefault:"40"`
-	// Polling interval for checking transaction result
-	TransactionPollInterval time.Duration `env:"FLOW_PDS_POLL_INTERVAL" envDefault:"3s"`
+	// Transaction result poll interval and time out
+	TransactionPollInterval time.Duration `env:"FLOW_PDS_TX_POLL_INTERVAL" envDefault:"3s"`
+	TransactionTimeout      time.Duration `env:"FLOW_PDS_TX_TIMEOUT" envDefault:"10m"`
 
 	// The batch sizes for database batch handling (big inserts or batch processing)
 	BatchInsertSize  int `env:"FLOW_PDS_BATCH_INSERT_SIZE" envDefault:"1000"`
