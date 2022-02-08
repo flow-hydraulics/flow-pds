@@ -41,6 +41,8 @@ func New(cfg *config.Config, db *gorm.DB, flowClient *client.Client, poll bool) 
 				go sentTransactionsPoller(app)
 			case config.ConfigurableLoopSendableTransactions:
 				go sendableTransactionPoller(app)
+			default:
+				return nil, fmt.Errorf("unknown loop: %s", loop)
 			}
 
 		}
