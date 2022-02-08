@@ -61,7 +61,7 @@ jobs:
           TESTNET_OWNER: ${{ secrets.TESTNET_OWNER}}
           TESTNET_ISSUER: ${{ secrets.TESTNET_ISSUER}}
           TESTNET_PDS: ${{ secrets.TESTNET_PDS}}
-          NUM_KEYS: 20
+          NUM_KEYS: 10
         run: ./tests-with-emulator.sh
 
   lint:

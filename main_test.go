@@ -4,17 +4,16 @@ import (
 	"bytes"
 	"encoding/json"
 	"fmt"
-	"net/http"
-	"net/http/httptest"
-	"testing"
-	"time"
-
 	"github.com/bjartek/go-with-the-flow/v2/gwtf"
 	"github.com/flow-hydraulics/flow-pds/go-contracts/util"
 	"github.com/flow-hydraulics/flow-pds/service/common"
 	pds_http "github.com/flow-hydraulics/flow-pds/service/http"
 	"github.com/google/uuid"
 	"github.com/onflow/flow-go-sdk"
+	"net/http"
+	"net/http/httptest"
+	"testing"
+	"time"
 )
 
 func TestCreate(t *testing.T) {
@@ -130,9 +129,10 @@ func TestSetDistCap(t *testing.T) {
 		t.Fatal(err)
 	}
 
-	issuer := common.FlowAddress(g.Account("issuer").Address())
+	// Wait a bit more as the blocktime might be 1s if run from the test script
+	time.Sleep(time.Second * 2)
 
-	time.Sleep(cfg.TransactionPollInterval * 2)
+	issuer := common.FlowAddress(g.Account("issuer").Address())
 
 	dReq := pds_http.ReqCreateDistribution{
 		Issuer: issuer,
