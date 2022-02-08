@@ -53,6 +53,9 @@ type Config struct {
 	// -- Testing --
 
 	TestPackCount int `env:"TEST_PACK_COUNT" envDefault:"4"`
+
+	// -- Which loops should this PDS instance run? See `configurable_loops.go` for available options
+	LoopsToRun []ConfigurableLoop `env:"LOOPS_TO_RUN" envSeparator:"," envDefault:"minting,packContractEvents,sentTransactions,sendableTransactions"`
 }
 
 type ConfigOptions struct {
