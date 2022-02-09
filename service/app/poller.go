@@ -367,8 +367,7 @@ func processSendableTransaction(ctx context.Context, app *App, logger *log.Entry
 
 	logger.Debug("Transaction sent")
 
-	// Wait for the transaction to finalize (be included in a block, not yet sealed)
-	// in a goroutine to unlock the used key
+	// Wait for the transaction to be sealed in a goroutine to unlock the used key
 	go func(ctx context.Context, app *App, unlockKey flow_helpers.UnlockKeyFunc, logger *log.Entry) {
 		defer unlockKey()
 		if _, err := flow_helpers.WaitForSeal(ctx, app.service.flowClient, flow.HexToID(t.TransactionID), app.cfg.TransactionTimeout, app.cfg.TransactionPollInterval); err != nil {
