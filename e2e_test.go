@@ -257,6 +257,7 @@ func TestE2E(t *testing.T) {
 			}
 			t.Fatal(err)
 		}
+		t.Logf("GetDistributionState returned: %s", state)
 		if state == common.DistributionStateComplete {
 			d, err := a.GetDistribution(context.Background(), distribution.ID)
 			if err != nil {
@@ -349,6 +350,7 @@ func TestE2E(t *testing.T) {
 			}
 			t.Fatal(err)
 		}
+		t.Logf("GetPack returned state: %s", p.State)
 		if p.State == common.PackStateRevealed || p.State == common.PackStateOpened {
 			break
 		}
@@ -356,7 +358,7 @@ func TestE2E(t *testing.T) {
 	}
 
 	// Wait a bit more as the blocktime might be 1s if run from the test script
-	time.Sleep(time.Second * 2)
+	time.Sleep(cfg.TransactionPollInterval + time.Second*2)
 
 	ownerCollectibleNFTsAfter, err := g.
 		ScriptFromFile(balanceExampleNFT, balanceExampleNFTCode).

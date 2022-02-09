@@ -28,7 +28,7 @@ reset: down dev
 
 wait:
 	@echo "waiting..."
-	@sleep 2
+	@sleep 3
 
 .PHONY: test
 test:
