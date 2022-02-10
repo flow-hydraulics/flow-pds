@@ -3,11 +3,11 @@ package app
 import (
 	"context"
 	"fmt"
-
 	"github.com/flow-hydraulics/flow-pds/service/common"
 	"github.com/flow-hydraulics/flow-pds/service/config"
 	"github.com/google/uuid"
 	"github.com/onflow/flow-go-sdk/client"
+	log "github.com/sirupsen/logrus"
 	"gorm.io/gorm"
 )
 
@@ -30,10 +30,22 @@ func New(cfg *config.Config, db *gorm.DB, flowClient *client.Client, poll bool) 
 	app := &App{cfg, db, flowClient, service, quit}
 
 	if poll {
-		go poller(app)
-		go packContractEventsPoller(app)
-		go sentTransactionsPoller(app)
-		go sendableTransactionPoller(app)
+		log.Infof("Configured pollers: %+v", cfg.LoopsToRun)
+		for _, loop := range cfg.LoopsToRun {
+			switch loop {
+			case config.ConfigurableLoopMinting:
+				go poller(app)
+			case config.ConfigurableLoopPackContractEvents:
+				go packContractEventsPoller(app)
+			case config.ConfigurableLoopSentTransactions:
+				go sentTransactionsPoller(app)
+			case config.ConfigurableLoopSendableTransactions:
+				go sendableTransactionPoller(app)
+			default:
+				return nil, fmt.Errorf("unknown loop: %s", loop)
+			}
+
+		}
 	}
 
 	return app, nil
