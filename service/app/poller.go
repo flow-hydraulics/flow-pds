@@ -414,5 +414,5 @@ func handleSentTransactions(ctx context.Context, app *App) error {
 		return  err
 	}
 
-	return err
+	return nil
 }
