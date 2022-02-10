@@ -94,7 +94,7 @@ func sendableTransactionPoller(app *App) {
 
 // transactionPoller is responsible for sending flow transactions and check transaction status
 func sentTransactionsPoller(app *App) {
-	ticker := time.NewTicker(time.Second) // TODO (latenssi): configurable?
+	ticker := time.NewTicker(3*time.Second) // TODO (latenssi): configurable?
 	ctx := context.Background()
 	ctx, cancel := context.WithCancel(ctx)
 	for {
