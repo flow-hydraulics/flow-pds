@@ -381,19 +381,17 @@ func processSendableTransaction(ctx context.Context, app *App, logger *log.Entry
 // handleSentTransactions checks the results of sent transactions and updates
 // the state in database accordingly
 func handleSentTransactions(ctx context.Context, app *App) error {
-	handleCount := 0
+	err := app.db.Transaction(func(dbtx *gorm.DB) (err error) {
+		ts, err := transactions.GetNextSents(dbtx, app.cfg.BatchProcessSize)
+		if err != nil {
+			err = fmt.Errorf("error while getting transaction from database: %w", err)
+			return err
+		}
 
-	for handleCount < app.cfg.BatchProcessSize {
-		err := app.db.Transaction(func(dbtx *gorm.DB) (err error) {
-			t, err := transactions.GetNextSent(dbtx)
-			if err != nil {
-				err = fmt.Errorf("error while getting transaction from database: %w", err)
-				return
-			}
-
+		for _, t := range ts {
 			if err = t.HandleResult(ctx, app.service.flowClient); err != nil {
 				err = fmt.Errorf("error while handling transaction result: %w", err)
-				return
+				return err
 			}
 
 			log.WithFields(log.Fields{
@@ -405,22 +403,16 @@ func handleSentTransactions(ctx context.Context, app *App) error {
 
 			if err = t.Save(dbtx); err != nil {
 				err = fmt.Errorf("error while saving transaction: %w", err)
-				return
+				return err
 			}
-
-			return nil
-		})
-
-		if err != nil {
-			// Ignore ErrRecordNotFound and stop iteration
-			if errors.Is(err, gorm.ErrRecordNotFound) {
-				break
-			}
-			return err
 		}
+		return nil
+	})
 
-		handleCount++
+
+	if err != nil && !errors.Is(err, gorm.ErrRecordNotFound){
+		return  err
 	}
 
-	return nil
+	return err
 }

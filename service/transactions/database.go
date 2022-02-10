@@ -64,3 +64,16 @@ func GetNextSent(db *gorm.DB) (*StorableTransaction, error) {
 		First(&t).Error
 	return &t, err
 }
+
+func GetNextSents(db *gorm.DB, limit int) ([]StorableTransaction, error) {
+	var ts []StorableTransaction
+	if err := db.Order("updated_at asc").
+		Clauses(clause.Locking{Strength: "UPDATE SKIP LOCKED"}).
+		Where(map[string]interface{}{"state": common.TransactionStateSent}).
+		Limit(limit).
+		Find(&ts).Error; err != nil {
+		return nil, err
+	}
+
+	return ts, nil
+}
