@@ -30,7 +30,8 @@ type Account struct {
 	PrivateKeyType    string
 	PKeyIndexes       ProposalKeyIndexes
 	nextKeyIndexIndex int
-	kmsSigner         crypto.Signer
+	//kmsSigner         crypto.Signer
+	kmsClient *cloudkms.Client
 }
 
 type ProposalKeyIndex struct {
@@ -93,11 +94,11 @@ func GetAccount(address flow.Address, privateKey, privateKeyType string, keyInde
 	}
 
 	if privateKeyType == GOOGLE_KMS_KEY_TYPE {
-		s, err := getGoogleKMSSigner(address, privateKey)
+		c, err := getGoogleKMSClient(context.Background())
 		if err != nil {
 			return nil, err
 		}
-		new.kmsSigner = s
+		new.kmsClient = c
 	}
 
 	accounts[address] = new
@@ -126,7 +127,11 @@ func (a *Account) GetProposalKey(ctx context.Context, flowClient *client.Client)
 func (a Account) GetSigner() (crypto.Signer, error) {
 	// Get Google KMS Signer if using KMS key
 	if a.PrivateKeyType == GOOGLE_KMS_KEY_TYPE {
-		return a.kmsSigner, nil
+		signer, err := getGoogleKMSSignerFromClient(context.Background(), a.kmsClient, a.Address, a.PrivateKey)
+		if err != nil {
+			return nil, err
+		}
+		return signer, nil
 	}
 
 	// Default to using local key
@@ -148,6 +153,29 @@ func (a *Account) AvailableKeys() int {
 		}
 	}
 	return numAvailableKeys
+}
+
+func getGoogleKMSClient(ctx context.Context) (*cloudkms.Client, error) {
+	c, err := cloudkms.NewClient(ctx)
+	if err != nil {
+		return nil, err
+	}
+	return c, nil
+}
+
+func getGoogleKMSSignerFromClient(ctx context.Context, client *cloudkms.Client, address flow.Address, resourceId string) (crypto.Signer, error) {
+	k, err := cloudkms.KeyFromResourceID(resourceId)
+	if err != nil {
+		return nil, err
+	}
+
+	s, err := client.SignerForKey(ctx, address, k)
+
+	if err != nil {
+		return nil, err
+	}
+
+	return s, nil
 }
 
 func getGoogleKMSSigner(address flow.Address, resourceId string) (crypto.Signer, error) {
