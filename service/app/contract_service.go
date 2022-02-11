@@ -45,12 +45,17 @@ func NewContractService(cfg *config.Config, flowClient *client.Client) (*Contrac
 		return nil, fmt.Errorf("admin (FLOW_PDS_ADMIN_ADDRESS) and pds (PDS_ADDRESS) addresses should equal")
 	}
 
-	pdsAccount := flow_helpers.GetAccount(
+	pdsAccount, err := flow_helpers.GetAccount(
 		flow.HexToAddress(cfg.AdminAddress),
 		cfg.AdminPrivateKey,
 		cfg.AdminPrivateKeyType,
 		cfg.AdminPrivateKeyIndexes,
 	)
+
+	if err != nil {
+		return nil, err
+	}
+
 	flowAccount, err := flowClient.GetAccount(context.Background(), pdsAccount.Address)
 	if err != nil {
 		return nil, err

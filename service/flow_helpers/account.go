@@ -30,6 +30,7 @@ type Account struct {
 	PrivateKeyType    string
 	PKeyIndexes       ProposalKeyIndexes
 	nextKeyIndexIndex int
+	kmsSigner         crypto.Signer
 }
 
 type ProposalKeyIndex struct {
@@ -60,7 +61,7 @@ func (ii ProposalKeyIndexes) Next() (int, UnlockKeyFunc, error) {
 }
 
 // GetAccount either returns an Account from the application wide cache or initiliazes a new Account
-func GetAccount(address flow.Address, privateKey, privateKeyType string, keyIndexes []int) *Account {
+func GetAccount(address flow.Address, privateKey, privateKeyType string, keyIndexes []int) (*Account, error) {
 	accountsLock.Lock()
 	defer accountsLock.Unlock()
 
@@ -69,7 +70,7 @@ func GetAccount(address flow.Address, privateKey, privateKeyType string, keyInde
 	}
 
 	if existing, ok := accounts[address]; ok {
-		return existing
+		return existing, nil
 	}
 
 	// Pick a random index to start from
@@ -91,9 +92,17 @@ func GetAccount(address flow.Address, privateKey, privateKeyType string, keyInde
 		nextKeyIndexIndex: randomIndex,
 	}
 
+	if privateKeyType == GOOGLE_KMS_KEY_TYPE {
+		s, err := getGoogleKMSSigner(address, privateKey)
+		if err != nil {
+			return nil, err
+		}
+		new.kmsSigner = s
+	}
+
 	accounts[address] = new
 
-	return new
+	return new, nil
 }
 
 func (a *Account) GetProposalKey(ctx context.Context, flowClient *client.Client) (*flow.AccountKey, UnlockKeyFunc, error) {
@@ -117,11 +126,7 @@ func (a *Account) GetProposalKey(ctx context.Context, flowClient *client.Client)
 func (a Account) GetSigner() (crypto.Signer, error) {
 	// Get Google KMS Signer if using KMS key
 	if a.PrivateKeyType == GOOGLE_KMS_KEY_TYPE {
-		s, err := getGoogleKMSSigner(a.Address, a.PrivateKey)
-		if err != nil {
-			return nil, fmt.Errorf("error in flow_helpers.Account.GetSigner: %w", err)
-		}
-		return s, nil
+		return a.kmsSigner, nil
 	}
 
 	// Default to using local key
