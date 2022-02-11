@@ -178,26 +178,26 @@ func getGoogleKMSSignerFromClient(ctx context.Context, client *cloudkms.Client, 
 	return s, nil
 }
 
-func getGoogleKMSSigner(address flow.Address, resourceId string) (crypto.Signer, error) {
-	ctx := context.Background()
-	c, err := cloudkms.NewClient(ctx)
-	if err != nil {
-		return nil, err
-	}
-
-	k, err := cloudkms.KeyFromResourceID(resourceId)
-	if err != nil {
-		return nil, err
-	}
-
-	s, err := c.SignerForKey(ctx, address, k)
-
-	if err != nil {
-		return nil, err
-	}
-
-	return s, nil
-}
+//func getGoogleKMSSigner(address flow.Address, resourceId string) (crypto.Signer, error) {
+//	ctx := context.Background()
+//	c, err := cloudkms.NewClient(ctx)
+//	if err != nil {
+//		return nil, err
+//	}
+//
+//	k, err := cloudkms.KeyFromResourceID(resourceId)
+//	if err != nil {
+//		return nil, err
+//	}
+//
+//	s, err := c.SignerForKey(ctx, address, k)
+//
+//	if err != nil {
+//		return nil, err
+//	}
+//
+//	return s, nil
+//}
 
 // getSequenceNumber returns the sequence number to use for sending transactions.
 func getSequenceNumber(address flow.Address, accountKey *flow.AccountKey) uint64 {
