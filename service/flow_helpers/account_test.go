@@ -2,6 +2,7 @@ package flow_helpers
 
 import (
 	"fmt"
+	"github.com/stretchr/testify/assert"
 	"sync"
 	"testing"
 
@@ -9,12 +10,14 @@ import (
 )
 
 func TestAccountKeyRotation(t *testing.T) {
-	pdsAccount := GetAccount(
+	pdsAccount, err := GetAccount(
 		flow.HexToAddress("0x1"),
 		"",
 		"",
 		[]int{0, 1, 2},
 	)
+
+	assert.NoError(t, err)
 
 	for i := 0; i < 4; i++ {
 		index, _, err := pdsAccount.PKeyIndexes.Next()
@@ -28,26 +31,31 @@ func TestAccountKeyRotation(t *testing.T) {
 }
 
 func TestAccountCaching(t *testing.T) {
-	pdsAccount1 := GetAccount(
+	pdsAccount1, err := GetAccount(
 		flow.HexToAddress("0x1"),
 		"key1",
 		"",
 		[]int{0, 1, 2},
 	)
+	assert.NoError(t, err)
 
-	pdsAccount2 := GetAccount(
+	pdsAccount2, err := GetAccount(
 		flow.HexToAddress("0x1"),
 		"key2",
 		"",
 		[]int{0, 1, 2},
 	)
 
-	pdsAccount3 := GetAccount(
+	assert.NoError(t, err)
+
+	pdsAccount3, err := GetAccount(
 		flow.HexToAddress("0x2"),
 		"key3",
 		"",
 		[]int{0, 1, 2},
 	)
+
+	assert.NoError(t, err)
 
 	if pdsAccount1.PrivateKey != pdsAccount2.PrivateKey {
 		t.Fatal("expected accounts to equal")
@@ -67,12 +75,14 @@ func TestAccountAvailableKeys(t *testing.T) {
 		keyIndexes = append(keyIndexes, i)
 	}
 
-	acct := GetAccount(
+	acct, err := GetAccount(
 		flow.HexToAddress("0x1ccc"),
 		"testAccountAvailableKeys",
 		"",
 		keyIndexes,
 	)
+
+	assert.NoError(t, err)
 
 	assertAvailableKeys(t, acct.AvailableKeys(), initialNumKeys)
 
@@ -95,12 +105,14 @@ func TestAccountAvailableKeysConcurrent(t *testing.T) {
 		keyIndexes = append(keyIndexes, i)
 	}
 
-	acct := GetAccount(
+	acct, err := GetAccount(
 		flow.HexToAddress("0x1ccd"),
 		"testAccountAvailableKeysConcurrent",
 		"",
 		keyIndexes,
 	)
+
+	assert.NoError(t, err)
 
 	assertAvailableKeys(t, acct.AvailableKeys(), initialNumKeys)
 
