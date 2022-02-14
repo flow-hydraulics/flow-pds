@@ -20,9 +20,6 @@ var ErrNoAccountKeyAvailable = errors.New("no account key available")
 var accounts map[flow.Address]*Account
 var accountsLock = &sync.Mutex{} // Making sure our "accounts" var is a singleton
 
-var seqNumLock = &sync.Mutex{}
-var lastAccountKeySeqNumber map[flow.Address]map[int]uint64
-
 var availableKeysLock = &sync.Mutex{}
 
 const GOOGLE_KMS_KEY_TYPE = "google_kms"
@@ -169,29 +166,7 @@ func getGoogleKMSSigner(address flow.Address, resourceId string) (crypto.Signer,
 	return s, nil
 }
 
-// getSequenceNumber, is a hack around the fact that GetAccount on Flow Client returns
-// the latest SequenceNumber on-chain but it might be outdated as we may be
-// sending multiple transactions in the current block
-// NOTE: This breaks if running in a multi-instance setup
+// getSequenceNumber returns the sequence number to use for sending transactions.
 func getSequenceNumber(address flow.Address, accountKey *flow.AccountKey) uint64 {
-	seqNumLock.Lock()
-	defer seqNumLock.Unlock()
-
-	// Init lastAccountKeySeqNumber
-	if lastAccountKeySeqNumber == nil {
-		lastAccountKeySeqNumber = make(map[flow.Address]map[int]uint64)
-	}
-
-	if lastAccountKeySeqNumber[address] == nil {
-		lastAccountKeySeqNumber[address] = make(map[int]uint64)
-	}
-
-	// Check if we have a previous sequence number stored
-	if _, ok := lastAccountKeySeqNumber[address][accountKey.Index]; !ok {
-		lastAccountKeySeqNumber[address][accountKey.Index] = accountKey.SequenceNumber
-	} else {
-		lastAccountKeySeqNumber[address][accountKey.Index]++
-	}
-
-	return lastAccountKeySeqNumber[address][accountKey.Index]
+	return accountKey.SequenceNumber
 }
