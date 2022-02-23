@@ -32,3 +32,5 @@ const (
 	TransactionStateFailed   TransactionState = "failed"
 	TransactionStateComplete TransactionState = "complete"
 )
+
+const TransactionRPCErrorString string = "rpc error"

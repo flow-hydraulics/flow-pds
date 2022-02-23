@@ -5,6 +5,7 @@ import (
 	"errors"
 	"fmt"
 	"github.com/onflow/flow-go-sdk"
+	"strings"
 	"sync"
 	"time"
 
@@ -94,7 +95,7 @@ func sendableTransactionPoller(app *App) {
 
 // transactionPoller is responsible for sending flow transactions and check transaction status
 func sentTransactionsPoller(app *App) {
-	ticker := time.NewTicker(3*time.Second) // TODO (latenssi): configurable?
+	ticker := time.NewTicker(3 * time.Second) // TODO (latenssi): configurable?
 	ctx := context.Background()
 	ctx, cancel := context.WithCancel(ctx)
 	for {
@@ -350,8 +351,21 @@ func processSendableTransaction(ctx context.Context, app *App, logger *log.Entry
 	if err = app.service.flowClient.SendTransaction(ctx, *tx); err != nil {
 		err = fmt.Errorf("error while sending transaction: %w", err)
 
-		t.State = common.TransactionStateFailed
 		t.Error = err.Error()
+
+		if strings.Contains(t.Error, common.TransactionRPCErrorString) {
+			logger.WithFields(log.Fields{
+				"tx_hash":         t.TransactionID,
+				"id":              t.ID,
+				"name":            t.Name,
+				"distribution_id": t.DistributionID,
+				"retry_count":     t.RetryCount,
+			}).Warn("retrying transaction due to rpc error")
+			t.State = common.TransactionStateRetry
+			t.RetryCount = t.RetryCount + 1
+		} else {
+			t.State = common.TransactionStateFailed
+		}
 
 		if err = t.Save(dbtx); err != nil {
 			return fmt.Errorf("error while saving transaction: %w", err)
@@ -409,9 +423,8 @@ func handleSentTransactions(ctx context.Context, app *App) error {
 		return nil
 	})
 
-
-	if err != nil && !errors.Is(err, gorm.ErrRecordNotFound){
-		return  err
+	if err != nil && !errors.Is(err, gorm.ErrRecordNotFound) {
+		return err
 	}
 
 	return nil
