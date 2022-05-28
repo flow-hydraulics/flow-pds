@@ -1,7 +1,7 @@
 /*
  * Cadence - The resource-oriented smart contract programming language
  *
- * Copyright 2019-2021 Dapper Labs, Inc.
+ * Copyright 2019-2022 Dapper Labs, Inc.
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -34,6 +34,7 @@ var StringType = &SimpleType{
 	Name:                 "String",
 	QualifiedName:        "String",
 	TypeID:               "String",
+	tag:                  StringTypeTag,
 	IsInvalid:            false,
 	IsResource:           false,
 	Storable:             true,
@@ -55,54 +56,57 @@ func init() {
 		return map[string]MemberResolver{
 			"concat": {
 				Kind: common.DeclarationKindFunction,
-				Resolve: func(identifier string, _ ast.Range, _ func(error)) *Member {
+				Resolve: func(memoryGauge common.MemoryGauge, identifier string, _ ast.Range, _ func(error)) *Member {
 					return NewPublicFunctionMember(
+						memoryGauge,
 						t,
 						identifier,
-						stringTypeConcatFunctionType,
+						StringTypeConcatFunctionType,
 						stringTypeConcatFunctionDocString,
 					)
 				},
 			},
 			"slice": {
 				Kind: common.DeclarationKindFunction,
-				Resolve: func(identifier string, _ ast.Range, _ func(error)) *Member {
+				Resolve: func(memoryGauge common.MemoryGauge, identifier string, _ ast.Range, _ func(error)) *Member {
 					return NewPublicFunctionMember(
+						memoryGauge,
 						t,
 						identifier,
-						stringTypeSliceFunctionType,
+						StringTypeSliceFunctionType,
 						stringTypeSliceFunctionDocString,
 					)
 				},
 			},
 			"decodeHex": {
 				Kind: common.DeclarationKindFunction,
-				Resolve: func(identifier string, _ ast.Range, _ func(error)) *Member {
+				Resolve: func(memoryGauge common.MemoryGauge, identifier string, _ ast.Range, _ func(error)) *Member {
 					return NewPublicFunctionMember(
+						memoryGauge,
 						t,
 						identifier,
-						stringTypeDecodeHexFunctionType,
+						StringTypeDecodeHexFunctionType,
 						stringTypeDecodeHexFunctionDocString,
 					)
 				},
 			},
 			"utf8": {
 				Kind: common.DeclarationKindField,
-				Resolve: func(identifier string, _ ast.Range, _ func(error)) *Member {
+				Resolve: func(memoryGauge common.MemoryGauge, identifier string, _ ast.Range, _ func(error)) *Member {
 					return NewPublicConstantFieldMember(
+						memoryGauge,
 						t,
 						identifier,
-						&VariableSizedType{
-							Type: UInt8Type,
-						},
+						ByteArrayType,
 						stringTypeUtf8FieldDocString,
 					)
 				},
 			},
 			"length": {
 				Kind: common.DeclarationKindField,
-				Resolve: func(identifier string, _ ast.Range, _ func(error)) *Member {
+				Resolve: func(memoryGauge common.MemoryGauge, identifier string, _ ast.Range, _ func(error)) *Member {
 					return NewPublicConstantFieldMember(
+						memoryGauge,
 						t,
 						identifier,
 						IntType,
@@ -110,11 +114,23 @@ func init() {
 					)
 				},
 			},
+			"toLower": {
+				Kind: common.DeclarationKindField,
+				Resolve: func(memoryGauge common.MemoryGauge, identifier string, _ ast.Range, _ func(error)) *Member {
+					return NewPublicConstantFieldMember(
+						memoryGauge,
+						t,
+						identifier,
+						StringTypeToLowerFunctionType,
+						stringTypeToLowerFunctionDocString,
+					)
+				},
+			},
 		}
 	}
 }
 
-var stringTypeConcatFunctionType = &FunctionType{
+var StringTypeConcatFunctionType = &FunctionType{
 	Parameters: []*Parameter{
 		{
 			Label:          ArgumentLabelNotRequired,
@@ -131,7 +147,7 @@ const stringTypeConcatFunctionDocString = `
 Returns a new string which contains the given string concatenated to the end of the original string, but does not modify the original string
 `
 
-var stringTypeSliceFunctionType = &FunctionType{
+var StringTypeSliceFunctionType = &FunctionType{
 	Parameters: []*Parameter{
 		{
 			Identifier:     "from",
@@ -152,15 +168,21 @@ Returns a new string containing the slice of the characters in the given string 
 
 This function creates a new string whose length is ` + "`upTo - from`" + `.
 It does not modify the original string.
-If either of the parameters are out of the bounds of the string, the function will fail
+If either of the parameters are out of the bounds of the string, or the indices are invalid (` + "`from > upTo`" + `), then the function will fail
 `
 
-var stringTypeDecodeHexFunctionType = &FunctionType{
-	ReturnTypeAnnotation: NewTypeAnnotation(
-		&VariableSizedType{
-			Type: UInt8Type,
-		},
-	),
+// ByteArrayType represents the type [UInt8]
+var ByteArrayType = &VariableSizedType{
+	Type: UInt8Type,
+}
+
+// ByteArrayArrayType represents the type [[UInt8]]
+var ByteArrayArrayType = &VariableSizedType{
+	Type: ByteArrayType,
+}
+
+var StringTypeDecodeHexFunctionType = &FunctionType{
+	ReturnTypeAnnotation: NewTypeAnnotation(ByteArrayType),
 }
 
 const stringTypeDecodeHexFunctionDocString = `
@@ -176,4 +198,12 @@ The number of characters in the string
 
 const stringTypeUtf8FieldDocString = `
 The byte array of the UTF-8 encoding
+`
+
+var StringTypeToLowerFunctionType = &FunctionType{
+	ReturnTypeAnnotation: NewTypeAnnotation(StringType),
+}
+
+const stringTypeToLowerFunctionDocString = `
+Returns the string with upper case letters replaced with lowercase
 `

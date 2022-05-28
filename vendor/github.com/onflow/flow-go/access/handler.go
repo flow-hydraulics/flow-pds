@@ -100,7 +100,7 @@ func (h *Handler) GetLatestBlock(
 		return nil, err
 	}
 
-	return blockResponse(block)
+	return blockResponse(block, req.GetFullBlockResponse())
 }
 
 // GetBlockByHeight gets a block by height.
@@ -113,10 +113,10 @@ func (h *Handler) GetBlockByHeight(
 		return nil, err
 	}
 
-	return blockResponse(block)
+	return blockResponse(block, req.GetFullBlockResponse())
 }
 
-// GetBlockByHeight gets a block by ID.
+// GetBlockByID gets a block by ID.
 func (h *Handler) GetBlockByID(
 	ctx context.Context,
 	req *access.GetBlockByIDRequest,
@@ -131,7 +131,7 @@ func (h *Handler) GetBlockByID(
 		return nil, err
 	}
 
-	return blockResponse(block)
+	return blockResponse(block, req.GetFullBlockResponse())
 }
 
 // GetCollectionByID gets a collection by ID.
@@ -214,6 +214,61 @@ func (h *Handler) GetTransactionResult(
 	}
 
 	result, err := h.api.GetTransactionResult(ctx, id)
+	if err != nil {
+		return nil, err
+	}
+
+	return TransactionResultToMessage(result), nil
+}
+
+func (h *Handler) GetTransactionResultsByBlockID(
+	ctx context.Context,
+	req *access.GetTransactionsByBlockIDRequest,
+) (*access.TransactionResultsResponse, error) {
+	id, err := convert.BlockID(req.GetBlockId())
+	if err != nil {
+		return nil, err
+	}
+
+	results, err := h.api.GetTransactionResultsByBlockID(ctx, id)
+	if err != nil {
+		return nil, err
+	}
+
+	return TransactionResultsToMessage(results), nil
+}
+
+func (h *Handler) GetTransactionsByBlockID(
+	ctx context.Context,
+	req *access.GetTransactionsByBlockIDRequest,
+) (*access.TransactionsResponse, error) {
+	id, err := convert.BlockID(req.GetBlockId())
+	if err != nil {
+		return nil, err
+	}
+
+	transactions, err := h.api.GetTransactionsByBlockID(ctx, id)
+	if err != nil {
+		return nil, err
+	}
+
+	return &access.TransactionsResponse{
+		Transactions: convert.TransactionsToMessages(transactions),
+	}, nil
+}
+
+// GetTransactionResultByIndex gets a transaction at a specific index for in a block that is executed,
+// pending or finalized transactions return errors
+func (h *Handler) GetTransactionResultByIndex(
+	ctx context.Context,
+	req *access.GetTransactionByIndexRequest,
+) (*access.TransactionResultResponse, error) {
+	blockID, err := convert.BlockID(req.GetBlockId())
+	if err != nil {
+		return nil, err
+	}
+
+	result, err := h.api.GetTransactionResultByIndex(ctx, blockID, req.GetIndex())
 	if err != nil {
 		return nil, err
 	}
@@ -417,12 +472,31 @@ func (h *Handler) GetLatestProtocolStateSnapshot(ctx context.Context, req *acces
 	}, nil
 }
 
-func blockResponse(block *flow.Block) (*access.BlockResponse, error) {
-	msg, err := convert.BlockToMessage(block)
+// GetExecutionResultForBlockID returns the latest received execution result for the given block ID.
+// AN might receive multiple receipts with conflicting results for unsealed blocks.
+// If this case happens, since AN is not able to determine which result is the correct one until the block is sealed, it has to pick one result to respond to this query. For now, we return the result from the latest received receipt.
+func (h *Handler) GetExecutionResultForBlockID(ctx context.Context, req *access.GetExecutionResultForBlockIDRequest) (*access.ExecutionResultForBlockIDResponse, error) {
+	blockID := convert.MessageToIdentifier(req.GetBlockId())
+
+	result, err := h.api.GetExecutionResultForBlockID(ctx, blockID)
 	if err != nil {
 		return nil, err
 	}
 
+	return executionResultToMessages(result)
+}
+
+func blockResponse(block *flow.Block, fullResponse bool) (*access.BlockResponse, error) {
+	var msg *entities.Block
+	var err error
+	if fullResponse {
+		msg, err = convert.BlockToMessage(block)
+		if err != nil {
+			return nil, err
+		}
+	} else {
+		msg = convert.BlockToMessageLight(block)
+	}
 	return &access.BlockResponse{
 		Block: msg,
 	}, nil
@@ -437,6 +511,14 @@ func blockHeaderResponse(header *flow.Header) (*access.BlockHeaderResponse, erro
 	return &access.BlockHeaderResponse{
 		Block: msg,
 	}, nil
+}
+
+func executionResultToMessages(er *flow.ExecutionResult) (*access.ExecutionResultForBlockIDResponse, error) {
+	execResult, err := convert.ExecutionResultToMessage(er)
+	if err != nil {
+		return nil, err
+	}
+	return &access.ExecutionResultForBlockIDResponse{ExecutionResult: execResult}, nil
 }
 
 func blockEventsToMessages(blocks []flow.BlockEvents) ([]*access.EventsResponse_Result, error) {

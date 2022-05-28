@@ -5,7 +5,7 @@
 /*
  * Cadence - The resource-oriented smart contract programming language
  *
- * Copyright 2019-2021 Dapper Labs, Inc.
+ * Copyright 2019-2022 Dapper Labs, Inc.
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -125,6 +125,19 @@ func (om *InterfaceResourceInfoOrderedMap) Foreach(f func(key interface{}, value
 	for pair := om.Oldest(); pair != nil; pair = pair.Next() {
 		f(pair.Key, pair.Value)
 	}
+}
+
+// ForeachWithError iterates over the entries of the map in the insertion order,
+// and invokes the provided function for each key-value pair.
+// If the passed function returns an error, iteration breaks and the error is returned.
+func (om *InterfaceResourceInfoOrderedMap) ForeachWithError(f func(key interface{}, value ResourceInfo) error) error {
+	for pair := om.Oldest(); pair != nil; pair = pair.Next() {
+		err := f(pair.Key, pair.Value)
+		if err != nil {
+			return err
+		}
+	}
+	return nil
 }
 
 // InterfaceResourceInfoPair

@@ -1,7 +1,7 @@
 /*
  * Cadence - The resource-oriented smart contract programming language
  *
- * Copyright 2019-2020 Dapper Labs, Inc.
+ * Copyright 2019-2022 Dapper Labs, Inc.
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -131,10 +131,13 @@ func (checker *Checker) checkFunction(
 
 	// Reset the returning state and restore it when leaving
 
-	returned := checker.resources.Returns
-	checker.resources.Returns = false
+	jumpedOrReturned := checker.resources.JumpsOrReturns
+	halted := checker.resources.Halts
+	checker.resources.JumpsOrReturns = false
+	checker.resources.Halts = false
 	defer func() {
-		checker.resources.Returns = returned
+		checker.resources.JumpsOrReturns = jumpedOrReturned
+		checker.resources.Halts = halted
 	}()
 
 	// NOTE: Always declare the function parameters, even if the function body is empty.
@@ -149,7 +152,7 @@ func (checker *Checker) checkFunction(
 			//   variable declarations will have proper function activation
 			//   associated to it, and declare parameters in this new scope
 
-			var endPosGetter func() ast.Position
+			var endPosGetter EndPositionGetter
 			if functionBlock != nil {
 				endPosGetter = functionBlock.EndPosition
 			}
@@ -186,7 +189,7 @@ func (checker *Checker) checkFunction(
 
 	if checker.positionInfoEnabled && functionBlock != nil {
 		startPos := functionBlock.StartPosition()
-		endPos := functionBlock.EndPosition()
+		endPos := functionBlock.EndPosition(checker.memoryGauge)
 
 		for _, parameter := range functionType.Parameters {
 			checker.Ranges.Put(
@@ -224,7 +227,7 @@ func (checker *Checker) checkFunctionExits(functionBlock *ast.FunctionBlock, ret
 
 	checker.report(
 		&MissingReturnStatementError{
-			Range: ast.NewRangeFromPositioned(functionBlock),
+			Range: ast.NewRangeFromPositioned(checker.memoryGauge, functionBlock),
 		},
 	)
 }
@@ -435,7 +438,7 @@ func (checker *Checker) VisitFunctionExpression(expression *ast.FunctionExpressi
 	if checker.inCondition {
 		checker.report(
 			&FunctionExpressionInConditionError{
-				Range: ast.NewRangeFromPositioned(expression),
+				Range: ast.NewRangeFromPositioned(checker.memoryGauge, expression),
 			},
 		)
 	}

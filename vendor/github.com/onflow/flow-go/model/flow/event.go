@@ -6,16 +6,15 @@ import (
 	"fmt"
 	"time"
 
-	"github.com/onflow/flow-go/model/encoding"
+	"github.com/onflow/flow-go/model/encoding/json"
 	"github.com/onflow/flow-go/model/fingerprint"
+	"github.com/onflow/flow-go/storage/merkle"
 )
 
 // List of built-in event types.
 const (
 	EventAccountCreated EventType = "flow.AccountCreated"
 	EventAccountUpdated EventType = "flow.AccountUpdated"
-	EventEpochSetup     EventType = "flow.EpochSetup"
-	EventEpochCommit    EventType = "flow.EpochCommit"
 )
 
 type EventType string
@@ -42,18 +41,17 @@ func (e Event) String() string {
 
 // ID returns a canonical identifier that is guaranteed to be unique.
 func (e Event) ID() Identifier {
-	return MakeID(e.Body())
+	return MakeID(wrapEventID(e))
 }
 
-// Body returns the body of the execution receipt.
-func (e *Event) Body() interface{} {
-	return wrapEvent(*e)
+func (e Event) Checksum() Identifier {
+	return MakeID(e)
 }
 
 // Encode returns the canonical encoding of this event, containing only the fields necessary to uniquely identify it.
 func (e Event) Encode() []byte {
-	w := wrapEvent(e)
-	return encoding.DefaultEncoder.MustEncode(w)
+	w := wrapEventID(e)
+	return json.NewMarshaler().MustMarshal(w)
 }
 
 func (e Event) Fingerprint() []byte {
@@ -61,15 +59,33 @@ func (e Event) Fingerprint() []byte {
 }
 
 // Defines only the fields needed to uniquely identify an event.
-type eventWrapper struct {
+type eventIDWrapper struct {
 	TxID  []byte
 	Index uint32
 }
 
-func wrapEvent(e Event) eventWrapper {
-	return eventWrapper{
+type eventWrapper struct {
+	TxID             []byte
+	Index            uint32
+	Type             string
+	TransactionIndex uint32
+	Payload          []byte
+}
+
+func wrapEventID(e Event) eventIDWrapper {
+	return eventIDWrapper{
 		TxID:  e.TransactionID[:],
 		Index: e.EventIndex,
+	}
+}
+
+func wrapEvent(e Event) eventWrapper {
+	return eventWrapper{
+		TxID:             e.TransactionID[:],
+		Index:            e.EventIndex,
+		Type:             string(e.Type),
+		TransactionIndex: e.TransactionIndex,
+		Payload:          e.Payload[:],
 	}
 }
 
@@ -79,4 +95,30 @@ type BlockEvents struct {
 	BlockHeight    uint64
 	BlockTimestamp time.Time
 	Events         []Event
+}
+
+type EventsList []Event
+
+// EventsMerkleRootHash calculates the root hash of events inserted into a
+// merkle trie with the hash of event as the key and encoded event as value
+func EventsMerkleRootHash(el EventsList) (Identifier, error) {
+	tree, err := merkle.NewTree(IdentifierLen)
+	if err != nil {
+		return ZeroID, fmt.Errorf("instantiating payload trie for key length of %d bytes failed: %w", IdentifierLen, err)
+	}
+
+	for _, event := range el {
+		// event fingerprint is the rlp encoding of the wrapperevent
+		// eventID is the standard sha3 hash of the event fingerprint
+		fingerPrint := event.Fingerprint()
+		eventID := MakeID(fingerPrint)
+		_, err = tree.Put(eventID[:], fingerPrint)
+		if err != nil {
+			return ZeroID, err
+		}
+	}
+
+	var root Identifier
+	copy(root[:], tree.Hash())
+	return root, nil
 }

@@ -1,7 +1,7 @@
 /*
  * Cadence - The resource-oriented smart contract programming language
  *
- * Copyright 2019-2020 Dapper Labs, Inc.
+ * Copyright 2019-2022 Dapper Labs, Inc.
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -30,6 +30,11 @@ const ScriptLocationPrefix = "s"
 // ScriptLocation
 //
 type ScriptLocation []byte
+
+func NewScriptLocation(gauge MemoryGauge, script []byte) ScriptLocation {
+	UseMemory(gauge, NewBytesMemoryUsage(len(script)))
+	return ScriptLocation(script)
+}
 
 func (l ScriptLocation) ID() LocationID {
 	return NewLocationID(
@@ -73,13 +78,13 @@ func (l ScriptLocation) MarshalJSON() ([]byte, error) {
 func init() {
 	RegisterTypeIDDecoder(
 		ScriptLocationPrefix,
-		func(typeID string) (location Location, qualifiedIdentifier string, err error) {
-			return decodeScriptLocationTypeID(typeID)
+		func(gauge MemoryGauge, typeID string) (location Location, qualifiedIdentifier string, err error) {
+			return decodeScriptLocationTypeID(gauge, typeID)
 		},
 	)
 }
 
-func decodeScriptLocationTypeID(typeID string) (ScriptLocation, string, error) {
+func decodeScriptLocationTypeID(gauge MemoryGauge, typeID string) (ScriptLocation, string, error) {
 
 	const errorMessagePrefix = "invalid script location type ID"
 
@@ -113,6 +118,8 @@ func decodeScriptLocationTypeID(typeID string) (ScriptLocation, string, error) {
 	}
 
 	location, err := hex.DecodeString(parts[1])
+	UseMemory(gauge, NewBytesMemoryUsage(len(location)))
+
 	if err != nil {
 		return nil, "", fmt.Errorf(
 			"%s: invalid location: %w",

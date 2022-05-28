@@ -35,52 +35,10 @@ func (Implementation) Dnrm2(n int, x []float64, incX int) float64 {
 		}
 		panic(nLT0)
 	}
-	var (
-		scale      float64 = 0
-		sumSquares float64 = 1
-	)
 	if incX == 1 {
-		x = x[:n]
-		for _, v := range x {
-			if v == 0 {
-				continue
-			}
-			absxi := math.Abs(v)
-			if math.IsNaN(absxi) {
-				return math.NaN()
-			}
-			if scale < absxi {
-				sumSquares = 1 + sumSquares*(scale/absxi)*(scale/absxi)
-				scale = absxi
-			} else {
-				sumSquares = sumSquares + (absxi/scale)*(absxi/scale)
-			}
-		}
-		if math.IsInf(scale, 1) {
-			return math.Inf(1)
-		}
-		return scale * math.Sqrt(sumSquares)
+		return f64.L2NormUnitary(x[:n])
 	}
-	for ix := 0; ix < n*incX; ix += incX {
-		val := x[ix]
-		if val == 0 {
-			continue
-		}
-		absxi := math.Abs(val)
-		if math.IsNaN(absxi) {
-			return math.NaN()
-		}
-		if scale < absxi {
-			sumSquares = 1 + sumSquares*(scale/absxi)*(scale/absxi)
-			scale = absxi
-		} else {
-			sumSquares = sumSquares + (absxi/scale)*(absxi/scale)
-		}
-	}
-	if math.IsInf(scale, 1) {
-		return math.Inf(1)
-	}
-	return scale * math.Sqrt(sumSquares)
+	return f64.L2NormInc(x, uintptr(n), uintptr(incX))
 }
 
 // Dasum computes the sum of the absolute values of the elements of x.
@@ -279,43 +237,78 @@ func (Implementation) Daxpy(n int, alpha float64, x []float64, incX int, y []flo
 	f64.AxpyInc(alpha, x, y, uintptr(n), uintptr(incX), uintptr(incY), uintptr(ix), uintptr(iy))
 }
 
-// Drotg computes the plane rotation
-//   _    _      _ _       _ _
-//  |  c s |    | a |     | r |
-//  | -s c |  * | b |   = | 0 |
-//   ‾    ‾      ‾ ‾       ‾ ‾
-// where
-//  r = ±√(a^2 + b^2)
-//  c = a/r, the cosine of the plane rotation
-//  s = b/r, the sine of the plane rotation
+// Drotg computes a plane rotation
+//  ⎡  c s ⎤ ⎡ a ⎤ = ⎡ r ⎤
+//  ⎣ -s c ⎦ ⎣ b ⎦   ⎣ 0 ⎦
+// satisfying c^2 + s^2 = 1.
 //
-// NOTE: There is a discrepancy between the reference implementation and the BLAS
-// technical manual regarding the sign for r when a or b are zero.
-// Drotg agrees with the definition in the manual and other
-// common BLAS implementations.
+// The computation uses the formulas
+//  sigma = sgn(a)    if |a| >  |b|
+//        = sgn(b)    if |b| >= |a|
+//  r = sigma*sqrt(a^2 + b^2)
+//  c = 1; s = 0      if r = 0
+//  c = a/r; s = b/r  if r != 0
+//  c >= 0            if |a| > |b|
+//
+// The subroutine also computes
+//  z = s    if |a| > |b|,
+//    = 1/c  if |b| >= |a| and c != 0
+//    = 1    if c = 0
+// This allows c and s to be reconstructed from z as follows:
+//  If z = 1, set c = 0, s = 1.
+//  If |z| < 1, set c = sqrt(1 - z^2) and s = z.
+//  If |z| > 1, set c = 1/z and s = sqrt(1 - c^2).
+//
+// NOTE: There is a discrepancy between the reference implementation and the
+// BLAS technical manual regarding the sign for r when a or b are zero. Drotg
+// agrees with the definition in the manual and other common BLAS
+// implementations.
 func (Implementation) Drotg(a, b float64) (c, s, r, z float64) {
-	if b == 0 && a == 0 {
-		return 1, 0, a, 0
-	}
-	absA := math.Abs(a)
-	absB := math.Abs(b)
-	aGTb := absA > absB
-	r = math.Hypot(a, b)
-	if aGTb {
-		r = math.Copysign(r, a)
-	} else {
-		r = math.Copysign(r, b)
-	}
-	c = a / r
-	s = b / r
-	if aGTb {
-		z = s
-	} else if c != 0 { // r == 0 case handled above
-		z = 1 / c
-	} else {
+	// Implementation based on Supplemental Material to:
+	// Edward Anderson. 2017. Algorithm 978: Safe Scaling in the Level 1 BLAS.
+	// ACM Trans. Math. Softw. 44, 1, Article 12 (July 2017), 28 pages.
+	// DOI: https://doi.org/10.1145/3061665
+	const (
+		safmin = 0x1p-1022
+		safmax = 1 / safmin
+	)
+	anorm := math.Abs(a)
+	bnorm := math.Abs(b)
+	switch {
+	case bnorm == 0:
+		c = 1
+		s = 0
+		r = a
+		z = 0
+	case anorm == 0:
+		c = 0
+		s = 1
+		r = b
 		z = 1
+	default:
+		maxab := math.Max(anorm, bnorm)
+		scl := math.Min(math.Max(safmin, maxab), safmax)
+		var sigma float64
+		if anorm > bnorm {
+			sigma = math.Copysign(1, a)
+		} else {
+			sigma = math.Copysign(1, b)
+		}
+		ascl := a / scl
+		bscl := b / scl
+		r = sigma * (scl * math.Sqrt(ascl*ascl+bscl*bscl))
+		c = a / r
+		s = b / r
+		switch {
+		case anorm > bnorm:
+			z = s
+		case c != 0:
+			z = 1 / c
+		default:
+			z = 1
+		}
 	}
-	return
+	return c, s, r, z
 }
 
 // Drotmg computes the modified Givens rotation. See
@@ -360,7 +353,7 @@ func (Implementation) Drotmg(d1, d2, x1, y1 float64) (p blas.DrotmParams, rd1, r
 			h22 = 1
 			h21 = -y1 / x1
 			h12 = p2 / p1
-			u := 1 - h12*h21
+			u := 1 - float64(h12*h21)
 			if u <= 0 {
 				p.Flag = blas.Rescaling // Error state.
 				return p, 0, 0, 0
@@ -380,7 +373,7 @@ func (Implementation) Drotmg(d1, d2, x1, y1 float64) (p blas.DrotmParams, rd1, r
 			h12 = 1
 			h11 = p1 / p2
 			h22 = x1 / y1
-			u := 1 + h11*h22
+			u := 1 + float64(h11*h22)
 			d1, d2 = d2/u, d1/u
 			x1 = y1 * u
 		}
@@ -509,7 +502,7 @@ func (Implementation) Drotm(n int, x []float64, incX int, y []float64, incY int,
 			x = x[:n]
 			for i, vx := range x {
 				vy := y[i]
-				x[i], y[i] = vx*h11+vy*h12, vx*h21+vy*h22
+				x[i], y[i] = float64(vx*h11)+float64(vy*h12), float64(vx*h21)+float64(vy*h22)
 			}
 			return
 		}
@@ -523,7 +516,7 @@ func (Implementation) Drotm(n int, x []float64, incX int, y []float64, incY int,
 		for i := 0; i < n; i++ {
 			vx := x[ix]
 			vy := y[iy]
-			x[ix], y[iy] = vx*h11+vy*h12, vx*h21+vy*h22
+			x[ix], y[iy] = float64(vx*h11)+float64(vy*h12), float64(vx*h21)+float64(vy*h22)
 			ix += incX
 			iy += incY
 		}
@@ -534,7 +527,7 @@ func (Implementation) Drotm(n int, x []float64, incX int, y []float64, incY int,
 			x = x[:n]
 			for i, vx := range x {
 				vy := y[i]
-				x[i], y[i] = vx+vy*h12, vx*h21+vy
+				x[i], y[i] = vx+float64(vy*h12), float64(vx*h21)+vy
 			}
 			return
 		}
@@ -548,7 +541,7 @@ func (Implementation) Drotm(n int, x []float64, incX int, y []float64, incY int,
 		for i := 0; i < n; i++ {
 			vx := x[ix]
 			vy := y[iy]
-			x[ix], y[iy] = vx+vy*h12, vx*h21+vy
+			x[ix], y[iy] = vx+float64(vy*h12), float64(vx*h21)+vy
 			ix += incX
 			iy += incY
 		}
@@ -559,7 +552,7 @@ func (Implementation) Drotm(n int, x []float64, incX int, y []float64, incY int,
 			x = x[:n]
 			for i, vx := range x {
 				vy := y[i]
-				x[i], y[i] = vx*h11+vy, -vx+vy*h22
+				x[i], y[i] = float64(vx*h11)+vy, -vx+float64(vy*h22)
 			}
 			return
 		}
@@ -573,7 +566,7 @@ func (Implementation) Drotm(n int, x []float64, incX int, y []float64, incY int,
 		for i := 0; i < n; i++ {
 			vx := x[ix]
 			vy := y[iy]
-			x[ix], y[iy] = vx*h11+vy, -vx+vy*h22
+			x[ix], y[iy] = float64(vx*h11)+vy, -vx+float64(vy*h22)
 			ix += incX
 			iy += incY
 		}

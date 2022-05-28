@@ -18,6 +18,7 @@ import (
 
 	"github.com/onflow/cadence"
 	"github.com/onflow/cadence/runtime"
+	"github.com/onflow/cadence/runtime/common"
 	sdk "github.com/onflow/flow-go-sdk"
 	sdkcrypto "github.com/onflow/flow-go-sdk/crypto"
 	"github.com/onflow/flow-go-sdk/templates"
@@ -26,7 +27,9 @@ import (
 	"github.com/onflow/flow-go/crypto/hash"
 	"github.com/onflow/flow-go/engine/execution/state/delta"
 	"github.com/onflow/flow-go/fvm"
+	fvmcrypto "github.com/onflow/flow-go/fvm/crypto"
 	fvmerrors "github.com/onflow/flow-go/fvm/errors"
+	"github.com/onflow/flow-go/fvm/meter"
 	"github.com/onflow/flow-go/fvm/programs"
 	"github.com/onflow/flow-go/fvm/state"
 	flowgo "github.com/onflow/flow-go/model/flow"
@@ -124,15 +127,17 @@ func GenerateDefaultServiceKey(
 
 // config is a set of configuration options for an emulated blockchain.
 type config struct {
-	ServiceKey             ServiceKey
-	Store                  storage.Store
-	SimpleAddresses        bool
-	GenesisTokenSupply     cadence.UFix64
-	TransactionMaxGasLimit uint64
-	ScriptGasLimit         uint64
-	TransactionExpiry      uint
-	StorageLimitEnabled    bool
-	TransactionFeesEnabled bool
+	ServiceKey                ServiceKey
+	Store                     storage.Store
+	SimpleAddresses           bool
+	GenesisTokenSupply        cadence.UFix64
+	TransactionMaxGasLimit    uint64
+	ScriptGasLimit            uint64
+	TransactionExpiry         uint
+	StorageLimitEnabled       bool
+	TransactionFeesEnabled    bool
+	MinimumStorageReservation cadence.UFix64
+	StorageMBPerFLOW          cadence.UFix64
 }
 
 func (conf config) GetStore() storage.Store {
@@ -163,7 +168,7 @@ func (conf config) GetServiceKey() ServiceKey {
 	return serviceKey
 }
 
-const defaultGenesisTokenSupply = "10000000000.0"
+const defaultGenesisTokenSupply = "1000000000.0"
 const defaultScriptGasLimit = 100000
 const defaultTransactionMaxGasLimit = flowgo.DefaultMaxTransactionGasLimit
 
@@ -175,14 +180,16 @@ var defaultConfig = func() config {
 	}
 
 	return config{
-		ServiceKey:             DefaultServiceKey(),
-		Store:                  nil,
-		SimpleAddresses:        false,
-		GenesisTokenSupply:     genesisTokenSupply,
-		ScriptGasLimit:         defaultScriptGasLimit,
-		TransactionMaxGasLimit: defaultTransactionMaxGasLimit,
-		TransactionExpiry:      0, // TODO: replace with sensible default
-		StorageLimitEnabled:    true,
+		ServiceKey:                DefaultServiceKey(),
+		Store:                     nil,
+		SimpleAddresses:           false,
+		GenesisTokenSupply:        genesisTokenSupply,
+		ScriptGasLimit:            defaultScriptGasLimit,
+		TransactionMaxGasLimit:    defaultTransactionMaxGasLimit,
+		MinimumStorageReservation: fvm.DefaultMinimumStorageReservation,
+		StorageMBPerFLOW:          fvm.DefaultStorageMBPerFLOW,
+		TransactionExpiry:         0, // TODO: replace with sensible default
+		StorageLimitEnabled:       true,
 	}
 }()
 
@@ -200,6 +207,22 @@ func WithServicePublicKey(
 			PublicKey: servicePublicKey,
 			SigAlgo:   sigAlgo,
 			HashAlgo:  hashAlgo,
+		}
+	}
+}
+
+// WithServicePrivateKey sets the service key from private key.
+func WithServicePrivateKey(
+	privateKey sdkcrypto.PrivateKey,
+	sigAlgo sdkcrypto.SignatureAlgorithm,
+	hashAlgo sdkcrypto.HashAlgorithm,
+) Option {
+	return func(c *config) {
+		c.ServiceKey = ServiceKey{
+			PrivateKey: privateKey,
+			PublicKey:  privateKey.PublicKey(),
+			HashAlgo:   hashAlgo,
+			SigAlgo:    sigAlgo,
 		}
 	}
 }
@@ -266,6 +289,25 @@ func WithTransactionExpiry(expiry uint) Option {
 func WithStorageLimitEnabled(enabled bool) Option {
 	return func(c *config) {
 		c.StorageLimitEnabled = enabled
+	}
+}
+
+// WithMinimumStorageReservation sets the minimum account balance.
+//
+// The cost of creating new accounts is also set to this value.
+// The default is taken from fvm.DefaultMinimumStorageReservation
+func WithMinimumStorageReservation(minimumStorageReservation cadence.UFix64) Option {
+	return func(c *config) {
+		c.MinimumStorageReservation = minimumStorageReservation
+	}
+}
+
+// WithStorageMBPerFLOW sets the cost of a megabyte of storage in FLOW
+//
+// the default is taken from fvm.DefaultStorageMBPerFLOW
+func WithStorageMBPerFLOW(storageMBPerFLOW cadence.UFix64) Option {
+	return func(c *config) {
+		c.StorageMBPerFLOW = storageMBPerFLOW
 	}
 }
 
@@ -427,8 +469,7 @@ func bootstrapLedger(
 
 	bootstrap := configureBootstrapProcedure(conf, flowAccountKey, conf.GenesisTokenSupply)
 
-	programs := programs.NewEmptyPrograms()
-	err := vm.Run(ctx, bootstrap, ledger, programs)
+	err := vm.Run(ctx, bootstrap, ledger, programs.NewEmptyPrograms())
 	if err != nil {
 		return err
 	}
@@ -444,14 +485,30 @@ func configureBootstrapProcedure(conf config, flowAccountKey flowgo.AccountPubli
 	)
 	if conf.StorageLimitEnabled {
 		options = append(options,
-			fvm.WithAccountCreationFee(fvm.DefaultAccountCreationFee),
-			fvm.WithMinimumStorageReservation(fvm.DefaultMinimumStorageReservation),
-			fvm.WithStorageMBPerFLOW(fvm.DefaultStorageMBPerFLOW),
+			fvm.WithAccountCreationFee(conf.MinimumStorageReservation),
+			fvm.WithMinimumStorageReservation(conf.MinimumStorageReservation),
+			fvm.WithStorageMBPerFLOW(conf.StorageMBPerFLOW),
 		)
 	}
 	if conf.TransactionFeesEnabled {
+		// This enables variable transaction fees AND execution effort metering
+		// as described in Variable Transaction Fees: Execution Effort FLIP: https://github.com/onflow/flow/pull/753)
+		// TODO: In the future this should be an injectable parameter. For now this is hard coded
+		// as this is the first iteration of variable execution fees.
 		options = append(options,
-			fvm.WithTransactionFee(fvm.DefaultTransactionFees),
+			fvm.WithTransactionFee(fvm.BootstrapProcedureFeeParameters{
+				SurgeFactor:         cadence.UFix64(100_000_000), // 1.0
+				InclusionEffortCost: cadence.UFix64(100),         // 1E-6
+				ExecutionEffortCost: cadence.UFix64(499_000_000), // 4.99
+			}),
+			fvm.WithExecutionEffortWeights(map[common.ComputationKind]uint64{
+				common.ComputationKindStatement:          1569,
+				common.ComputationKindLoop:               1569,
+				common.ComputationKindFunctionInvocation: 1569,
+				meter.ComputationKindGetValue:            808,
+				meter.ComputationKindCreateAccount:       2837670,
+				meter.ComputationKindSetValue:            765,
+			}),
 		)
 	}
 	return fvm.Bootstrap(
@@ -664,7 +721,7 @@ func (b *Blockchain) GetAccount(address sdk.Address) (*sdk.Account, error) {
 		return nil, err
 	}
 
-	return &sdkAccount, err
+	return &sdkAccount, nil
 }
 
 // getAccount returns the account for the given address.
@@ -674,20 +731,44 @@ func (b *Blockchain) getAccount(address flowgo.Address) (*flowgo.Account, error)
 		return nil, err
 	}
 
-	view := b.storage.LedgerViewByHeight(latestBlock.Header.Height)
+	return b.getAccountAtBlock(address, latestBlock.Header.Height)
+}
 
-	programs := programs.NewEmptyPrograms()
-	account, err := b.vm.GetAccount(b.vmCtx, address, view, programs)
+// GetAccountAtBlock returns the account for the given address at specified block height.
+func (b *Blockchain) GetAccountAtBlock(address sdk.Address, blockHeight uint64) (*sdk.Account, error) {
+	b.mu.RLock()
+	defer b.mu.RUnlock()
+
+	flowAddress := sdkconvert.SDKAddressToFlow(address)
+
+	account, err := b.getAccountAtBlock(flowAddress, blockHeight)
+	if err != nil {
+		return nil, err
+	}
+
+	sdkAccount, err := sdkconvert.FlowAccountToSDK(*account)
+	if err != nil {
+		return nil, err
+	}
+
+	return &sdkAccount, nil
+}
+
+// GetAccountAtBlock returns the account for the given address at specified block height.
+func (b *Blockchain) getAccountAtBlock(address flowgo.Address, blockHeight uint64) (*flowgo.Account, error) {
+
+	account, err := b.vm.GetAccount(
+		b.vmCtx,
+		address,
+		b.storage.LedgerViewByHeight(blockHeight),
+		programs.NewEmptyPrograms(),
+	)
+
 	if fvmerrors.IsAccountNotFoundError(err) {
 		return nil, &AccountNotFoundError{Address: address}
 	}
 
 	return account, nil
-}
-
-// TODO: Implement
-func (b *Blockchain) GetAccountAtBlock(address sdk.Address, blockHeight uint64) (*sdk.Account, error) {
-	panic("not implemented")
 }
 
 // GetEventsByHeight returns the events in the block at the given height, optionally filtered by type.
@@ -822,13 +903,10 @@ func (b *Blockchain) executeNextTransaction(ctx fvm.Context) (*types.Transaction
 		) (*fvm.TransactionProcedure, error) {
 			tx := fvm.Transaction(txBody, txIndex)
 
-			programs := programs.NewEmptyPrograms()
-
-			err := b.vm.Run(ctx, tx, ledgerView, programs)
+			err := b.vm.Run(ctx, tx, ledgerView, programs.NewEmptyPrograms())
 			if err != nil {
 				return nil, err
 			}
-
 			return tx, nil
 		},
 	)
@@ -841,6 +919,11 @@ func (b *Blockchain) executeNextTransaction(ctx fvm.Context) (*types.Transaction
 	if err != nil {
 		// fail fast if fatal error occurs
 		return nil, err
+	}
+
+	// if transaction error exist try to further debug what was the problem
+	if tr.Error != nil {
+		tr.Debug = b.debugSignatureError(tr.Error, tp.Transaction)
 	}
 
 	return tr, nil
@@ -879,11 +962,11 @@ func (b *Blockchain) commitBlock() (*flowgo.Block, error) {
 	if err != nil {
 		return nil, err
 	}
-	delta := b.pendingBlock.LedgerDelta()
+	ledgerDelta := b.pendingBlock.LedgerDelta()
 	events := b.pendingBlock.Events()
 
 	// commit the pending block to storage
-	err = b.storage.CommitBlock(*block, collections, transactions, transactionResults, delta, events)
+	err = b.storage.CommitBlock(*block, collections, transactions, transactionResults, ledgerDelta, events)
 	if err != nil {
 		return nil, err
 	}
@@ -971,8 +1054,7 @@ func (b *Blockchain) ExecuteScriptAtBlock(script []byte, arguments [][]byte, blo
 
 	scriptProc := fvm.Script(script).WithArguments(arguments...)
 
-	programs := programs.NewEmptyPrograms()
-	err = b.vm.Run(blockContext, scriptProc, requestedLedgerView, programs)
+	err = b.vm.Run(blockContext, scriptProc, requestedLedgerView, programs.NewEmptyPrograms())
 	if err != nil {
 		return nil, err
 	}
@@ -1081,4 +1163,56 @@ func convertToSealedResults(
 	}
 
 	return output, nil
+}
+
+// debugSignatureError tries to unwrap error to the root and test for invalid hashing algorithms
+func (b *Blockchain) debugSignatureError(err error, tx *flowgo.TransactionBody) *types.TransactionResultDebug {
+	var sigErr *fvmerrors.InvalidProposalSignatureError
+	if !errors.As(err, &sigErr) {
+		return nil
+	}
+
+	switch errors.Unwrap(sigErr).(type) {
+	case *fvmerrors.InvalidEnvelopeSignatureError:
+		for _, sig := range tx.EnvelopeSignatures {
+			debug := b.testAlternativeHashAlgo(sig, tx.EnvelopeMessage())
+			if debug != nil {
+				return debug
+			}
+		}
+	case *fvmerrors.InvalidPayloadSignatureError:
+		for _, sig := range tx.PayloadSignatures {
+			debug := b.testAlternativeHashAlgo(sig, tx.PayloadMessage())
+			if debug != nil {
+				return debug
+			}
+		}
+	}
+
+	return types.NewTransactionInvalidSignature(tx)
+}
+
+// testAlternativeHashAlgo tries to verify the signature with alternative hashing algorithm and if
+// the signature is verified returns more verbose error
+func (b *Blockchain) testAlternativeHashAlgo(sig flowgo.TransactionSignature, msg []byte) *types.TransactionResultDebug {
+	acc, err := b.getAccount(sig.Address)
+	if err != nil {
+		return nil
+	}
+
+	key := acc.Keys[sig.KeyIndex]
+
+	for _, algo := range []hash.HashingAlgorithm{sdkcrypto.SHA2_256, sdkcrypto.SHA3_256} {
+		if key.HashAlgo == algo {
+			continue // skip valid hash algo
+		}
+
+		h, _ := fvmcrypto.NewPrefixedHashing(algo, flowgo.TransactionTagString)
+		valid, _ := key.PublicKey.Verify(sig.Signature, msg, h)
+		if valid {
+			return types.NewTransactionInvalidHashAlgo(key, acc.Address, algo)
+		}
+	}
+
+	return nil
 }

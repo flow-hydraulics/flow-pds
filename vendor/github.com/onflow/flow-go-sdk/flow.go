@@ -1,7 +1,7 @@
 /*
  * Flow Go SDK
  *
- * Copyright 2019-2020 Dapper Labs, Inc.
+ * Copyright 2019 Dapper Labs, Inc.
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -64,6 +64,30 @@ func HexToID(h string) Identifier {
 // HashToID constructs an identifier from a 32-byte hash.
 func HashToID(hash []byte) Identifier {
 	return BytesToID(hash)
+}
+
+// BytesToHash constructs a crypto hash from byte slice.
+func BytesToHash(hash []byte) crypto.Hash {
+	h := make(crypto.Hash, len(hash))
+	copy(h, hash)
+	return h
+}
+
+type StateCommitment Identifier
+
+// BytesToStateCommitment constructs a state commitment from a byte slice.
+func BytesToStateCommitment(b []byte) StateCommitment {
+	return StateCommitment(BytesToID(b))
+}
+
+// HexToStateCommitment constructs a state commitment from a hexadecimal string.
+func HexToStateCommitment(h string) StateCommitment {
+	return StateCommitment(HexToID(h))
+}
+
+// HashToStateCommitment constructs a state commitment from a 32-byte hash.
+func HashToStateCommitment(hash []byte) StateCommitment {
+	return StateCommitment(HashToID(hash))
 }
 
 // A ChainID is a unique identifier for a specific Flow network instance.

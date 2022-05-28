@@ -1,7 +1,7 @@
 /*
  * Cadence - The resource-oriented smart contract programming language
  *
- * Copyright 2019-2020 Dapper Labs, Inc.
+ * Copyright 2019-2022 Dapper Labs, Inc.
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -33,7 +33,7 @@ func (checker *Checker) VisitInvocationExpression(invocationExpression *ast.Invo
 
 		checker.report(
 			&InvalidEventUsageError{
-				Range: ast.NewRangeFromPositioned(invocationExpression),
+				Range: ast.NewRangeFromPositioned(checker.memoryGauge, invocationExpression),
 			},
 		)
 		return InvalidType
@@ -60,12 +60,22 @@ func (checker *Checker) checkInvocationExpression(invocationExpression *ast.Invo
 	invokedExpression := invocationExpression.InvokedExpression
 	expressionType := checker.VisitExpression(invokedExpression, nil)
 
+	// Get the member from the invoked value
+	// based on the use of optional chaining syntax
+
 	isOptionalChainingResult := false
 	if memberExpression, ok := invokedExpression.(*ast.MemberExpression); ok {
-		var member *Member
-		_, member, isOptionalChainingResult = checker.visitMember(memberExpression)
-		if member != nil {
-			expressionType = member.TypeAnnotation.Type
+
+		// If the member expression is using optional chaining,
+		// check if the invoked type is optional
+
+		isOptionalChainingResult = memberExpression.Optional
+		if isOptionalChainingResult {
+			if optionalExpressionType, ok := expressionType.(*OptionalType); ok {
+
+				// The invoked type is optional, get the type from the wrapped type
+				expressionType = optionalExpressionType.Type
+			}
 		}
 	}
 
@@ -74,13 +84,13 @@ func (checker *Checker) checkInvocationExpression(invocationExpression *ast.Invo
 		checker.Elaboration.InvocationExpressionArgumentTypes[invocationExpression] = argumentTypes
 	}()
 
-	invokableType, ok := expressionType.(InvokableType)
+	functionType, ok := expressionType.(*FunctionType)
 	if !ok {
 		if !expressionType.IsInvalidType() {
 			checker.report(
 				&NotCallableError{
 					Type:  expressionType,
-					Range: ast.NewRangeFromPositioned(invokedExpression),
+					Range: ast.NewRangeFromPositioned(checker.memoryGauge, invokedExpression),
 				},
 			)
 		}
@@ -105,8 +115,6 @@ func (checker *Checker) checkInvocationExpression(invocationExpression *ast.Invo
 	// is only potential, i.e. the invocation will not always
 
 	var returnType Type
-
-	functionType := invokableType.InvocationFunctionType()
 
 	checkInvocation := func() {
 		argumentTypes, returnType =
@@ -164,7 +172,7 @@ func (checker *Checker) checkInvocationExpression(invocationExpression *ast.Invo
 
 	checker.checkConstructorInvocationWithResourceResult(
 		invocationExpression,
-		invokableType,
+		functionType,
 		returnType,
 		inCreate,
 	)
@@ -174,6 +182,7 @@ func (checker *Checker) checkInvocationExpression(invocationExpression *ast.Invo
 	// Update the return info for invocations that do not return (i.e. have a `Never` return type)
 
 	if returnType == NeverType {
+		checker.resources.Halts = true
 		functionActivation := checker.functionActivations.Current()
 		functionActivation.ReturnInfo.DefinitelyHalted = true
 	}
@@ -238,11 +247,11 @@ func (checker *Checker) checkMemberInvocationResourceInvalidation(invokedExpress
 
 func (checker *Checker) checkConstructorInvocationWithResourceResult(
 	invocationExpression *ast.InvocationExpression,
-	invokableType InvokableType,
+	functionType *FunctionType,
 	returnType Type,
 	inCreate bool,
 ) {
-	if _, ok := invokableType.(*ConstructorFunctionType); !ok {
+	if !functionType.IsConstructor {
 		return
 	}
 
@@ -261,7 +270,7 @@ func (checker *Checker) checkConstructorInvocationWithResourceResult(
 
 	checker.report(
 		&MissingCreateError{
-			Range: ast.NewRangeFromPositioned(invocationExpression),
+			Range: ast.NewRangeFromPositioned(checker.memoryGauge, invocationExpression),
 		},
 	)
 }
@@ -320,10 +329,11 @@ func (checker *Checker) checkInvocationArgumentLabels(
 					&IncorrectArgumentLabelError{
 						ActualArgumentLabel:   providedLabel,
 						ExpectedArgumentLabel: "",
-						Range: ast.Range{
-							StartPos: *argument.LabelStartPos,
-							EndPos:   *argument.LabelEndPos,
-						},
+						Range: ast.NewRange(
+							checker.memoryGauge,
+							*argument.LabelStartPos,
+							*argument.LabelEndPos,
+						),
 					},
 				)
 			}
@@ -334,7 +344,7 @@ func (checker *Checker) checkInvocationArgumentLabels(
 				checker.report(
 					&MissingArgumentLabelError{
 						ExpectedArgumentLabel: argumentLabel,
-						Range:                 ast.NewRangeFromPositioned(argument.Expression),
+						Range:                 ast.NewRangeFromPositioned(checker.memoryGauge, argument.Expression),
 					},
 				)
 			} else if providedLabel != argumentLabel {
@@ -342,10 +352,11 @@ func (checker *Checker) checkInvocationArgumentLabels(
 					&IncorrectArgumentLabelError{
 						ActualArgumentLabel:   providedLabel,
 						ExpectedArgumentLabel: argumentLabel,
-						Range: ast.Range{
-							StartPos: *argument.LabelStartPos,
-							EndPos:   *argument.LabelEndPos,
-						},
+						Range: ast.NewRange(
+							checker.memoryGauge,
+							*argument.LabelStartPos,
+							*argument.LabelEndPos,
+						),
 					},
 				)
 			}
@@ -452,7 +463,7 @@ func (checker *Checker) checkInvocation(
 	functionType.CheckArgumentExpressions(
 		checker,
 		argumentExpressions,
-		ast.NewRangeFromPositioned(invocationExpression),
+		ast.NewRangeFromPositioned(checker.memoryGauge, invocationExpression),
 	)
 
 	returnType = functionType.ReturnTypeAnnotation.Type.Resolve(typeArguments)
@@ -501,7 +512,7 @@ func (checker *Checker) checkTypeParameterInference(
 		checker.report(
 			&TypeParameterTypeInferenceError{
 				Name:  typeParameter.Name,
-				Range: ast.NewRangeFromPositioned(invocationExpression),
+				Range: ast.NewRangeFromPositioned(checker.memoryGauge, invocationExpression),
 			},
 		)
 	}
@@ -518,35 +529,44 @@ func (checker *Checker) checkInvocationRequiredArgument(
 ) {
 	argument := arguments[argumentIndex]
 
-	// TODO: pass the expected type to support type inferring for parameters
-	argumentType := checker.VisitExpression(argument.Expression, nil)
+	parameter := functionType.Parameters[argumentIndex]
+	parameterType = parameter.TypeAnnotation.Type
+
+	var argumentType Type
+
+	if len(functionType.TypeParameters) == 0 {
+		// If the function doesn't use generic types, then the
+		// param types can be used to infer the types for arguments.
+		argumentType = checker.VisitExpression(argument.Expression, parameterType)
+	} else {
+		// TODO: pass the expected type to support for parameters
+		argumentType = checker.VisitExpression(argument.Expression, nil)
+
+		// Try to unify the parameter type with the argument type.
+		// If unification fails, fall back to the parameter type for now.
+
+		argumentRange := ast.NewRangeFromPositioned(checker.memoryGauge, argument.Expression)
+
+		if parameterType.Unify(argumentType, typeParameters, checker.report, argumentRange) {
+			parameterType = parameterType.Resolve(typeParameters)
+			if parameterType == nil {
+				parameterType = InvalidType
+			}
+		}
+
+		// Check that the type of the argument matches the type of the parameter.
+
+		// TODO: remove this once type inferring support for parameters is added
+		checker.checkInvocationArgumentParameterTypeCompatibility(
+			argument.Expression,
+			argumentType,
+			parameterType,
+		)
+	}
+
 	argumentTypes[argumentIndex] = argumentType
 
 	checker.checkInvocationArgumentMove(argument.Expression, argumentType)
-
-	parameter := functionType.Parameters[argumentIndex]
-
-	// Try to unify the parameter type with the argument type.
-	// If unification fails, fall back to the parameter type for now.
-
-	argumentRange := ast.NewRangeFromPositioned(argument.Expression)
-
-	parameterType = parameter.TypeAnnotation.Type
-	if parameterType.Unify(argumentType, typeParameters, checker.report, argumentRange) {
-		parameterType = parameterType.Resolve(typeParameters)
-		if parameterType == nil {
-			parameterType = InvalidType
-		}
-	}
-
-	// Check that the type of the argument matches the type of the parameter.
-
-	// TODO: remove this once type inferring support for parameters is added
-	checker.checkInvocationArgumentParameterTypeCompatibility(
-		argument.Expression,
-		argumentType,
-		parameterType,
-	)
 
 	return parameterType
 }
@@ -570,7 +590,7 @@ func (checker *Checker) checkInvocationArgumentCount(
 			&ArgumentCountError{
 				ParameterCount: parameterCount,
 				ArgumentCount:  argumentCount,
-				Range:          ast.NewRangeFromPositioned(pos),
+				Range:          ast.NewRangeFromPositioned(checker.memoryGauge, pos),
 			},
 		)
 	}
@@ -593,10 +613,11 @@ func (checker *Checker) reportInvalidTypeArgumentCount(
 		&InvalidTypeArgumentCountError{
 			TypeParameterCount: typeParameterCount,
 			TypeArgumentCount:  typeArgumentCount,
-			Range: ast.Range{
-				StartPos: firstSuperfluousTypeArgument.StartPosition(),
-				EndPos:   lastSuperfluousTypeArgument.EndPosition(),
-			},
+			Range: ast.NewRange(
+				checker.memoryGauge,
+				firstSuperfluousTypeArgument.StartPosition(),
+				lastSuperfluousTypeArgument.EndPosition(checker.memoryGauge),
+			),
 		},
 	)
 }
@@ -625,7 +646,7 @@ func (checker *Checker) checkAndBindGenericTypeParameterTypeArguments(
 		// If the type parameter corresponding to the type argument has a type bound,
 		// then check that the argument is a subtype of the type bound.
 
-		err := typeParameter.checkTypeBound(ty, ast.NewRangeFromPositioned(rawTypeArgument))
+		err := typeParameter.checkTypeBound(ty, ast.NewRangeFromPositioned(checker.memoryGauge, rawTypeArgument))
 		checker.report(err)
 
 		// Bind the type argument to the type parameter
@@ -651,7 +672,7 @@ func (checker *Checker) checkInvocationArgumentParameterTypeCompatibility(
 			&TypeMismatchError{
 				ExpectedType: parameterType,
 				ActualType:   argumentType,
-				Range:        ast.NewRangeFromPositioned(argument),
+				Range:        ast.NewRangeFromPositioned(checker.memoryGauge, argument),
 			},
 		)
 	}

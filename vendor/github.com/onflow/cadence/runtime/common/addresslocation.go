@@ -1,7 +1,7 @@
 /*
  * Cadence - The resource-oriented smart contract programming language
  *
- * Copyright 2019-2020 Dapper Labs, Inc.
+ * Copyright 2019-2022 Dapper Labs, Inc.
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -34,6 +34,14 @@ const AddressLocationPrefix = "A"
 type AddressLocation struct {
 	Address Address
 	Name    string
+}
+
+func NewAddressLocation(gauge MemoryGauge, addr Address, name string) AddressLocation {
+	UseMemory(gauge, NewConstantMemoryUsage(MemoryKindAddressLocation))
+	return AddressLocation{
+		Address: addr,
+		Name:    name,
+	}
 }
 
 func (l AddressLocation) String() string {
@@ -88,7 +96,7 @@ func (l AddressLocation) MarshalJSON() ([]byte, error) {
 		Name    string
 	}{
 		Type:    "AddressLocation",
-		Address: l.Address.ShortHexWithPrefix(),
+		Address: l.Address.HexWithPrefix(),
 		Name:    l.Name,
 	})
 }
@@ -96,13 +104,13 @@ func (l AddressLocation) MarshalJSON() ([]byte, error) {
 func init() {
 	RegisterTypeIDDecoder(
 		AddressLocationPrefix,
-		func(typeID string) (location Location, qualifiedIdentifier string, err error) {
-			return decodeAddressLocationTypeID(typeID)
+		func(gauge MemoryGauge, typeID string) (location Location, qualifiedIdentifier string, err error) {
+			return decodeAddressLocationTypeID(gauge, typeID)
 		},
 	)
 }
 
-func decodeAddressLocationTypeID(typeID string) (AddressLocation, string, error) {
+func decodeAddressLocationTypeID(gauge MemoryGauge, typeID string) (AddressLocation, string, error) {
 
 	const errorMessagePrefix = "invalid address location type ID"
 
@@ -160,7 +168,7 @@ func decodeAddressLocationTypeID(typeID string) (AddressLocation, string, error)
 
 	// `<location>`, the second part, must be a hex string.
 
-	address, err := hex.DecodeString(parts[1])
+	rawAddress, err := hex.DecodeString(parts[1])
 	if err != nil {
 		return AddressLocation{}, "", fmt.Errorf(
 			"%s: invalid address: %w",
@@ -193,10 +201,12 @@ func decodeAddressLocationTypeID(typeID string) (AddressLocation, string, error)
 		panic(errors.NewUnreachableError())
 	}
 
-	location := AddressLocation{
-		Address: BytesToAddress(address),
-		Name:    name,
+	address, err := BytesToAddress(rawAddress)
+	if err != nil {
+		return AddressLocation{}, "", err
 	}
+
+	location := NewAddressLocation(gauge, address, name)
 
 	return location, qualifiedIdentifier, nil
 }

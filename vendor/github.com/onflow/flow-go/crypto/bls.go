@@ -27,8 +27,8 @@ package crypto
 //  - membership checks G2 using Bowe's method (https://eprint.iacr.org/2019/814.pdf)
 //  - implement a G1/G2 swap (signatures on G2 and public keys on G1)
 
-// #cgo CFLAGS: -g -Wall -std=c99 -I./ -I./relic/build/include
-// #cgo LDFLAGS: -Lrelic/build/lib -l relic_s
+// #cgo CFLAGS: -g -Wall -std=c99 -I${SRCDIR}/ -I${SRCDIR}/relic/build/include
+// #cgo LDFLAGS: -L${SRCDIR}/relic/build/lib -l relic_s
 // #include "bls_include.h"
 import "C"
 
@@ -87,12 +87,12 @@ func internalBLSKMAC(tag string) hash.Hasher {
 // with a domain separation tag.
 func (sk *PrKeyBLSBLS12381) Sign(data []byte, kmac hash.Hasher) (Signature, error) {
 	if kmac == nil {
-		return nil, newInvalidInputsError("Sign requires a Hasher")
+		return nil, invalidInputsErrorf("hasher is empty")
 	}
 	// check hasher output size
 	if kmac.Size() < minHashSizeBLSBLS12381 {
-		return nil, newInvalidInputsError(
-			"Hasher with at least %d output byte size is required, current size is %d",
+		return nil, invalidInputsErrorf(
+			"hasher with at least %d output byte size is required, got hasher with size %d",
 			minHashSizeBLSBLS12381,
 			kmac.Size())
 	}
@@ -127,12 +127,12 @@ func (pk *PubKeyBLSBLS12381) Verify(s Signature, data []byte, kmac hash.Hasher) 
 	}
 
 	if kmac == nil {
-		return false, newInvalidInputsError("verification requires a Hasher")
+		return false, invalidInputsErrorf("hasher is empty")
 	}
 	// check hasher output size
 	if kmac.Size() < minHashSizeBLSBLS12381 {
-		return false, newInvalidInputsError(
-			"Hasher with at least %d output byte size is required, current size is %d",
+		return false, invalidInputsErrorf(
+			"hasher with at least %d output byte size is required, got hasher with size %d",
 			minHashSizeBLSBLS12381,
 			kmac.Size())
 	}
@@ -165,16 +165,13 @@ func (pk *PubKeyBLSBLS12381) Verify(s Signature, data []byte, kmac hash.Hasher) 
 // The seed must have enough entropy and should be sampled uniformly at random.
 func (a *blsBLS12381Algo) generatePrivateKey(seed []byte) (PrivateKey, error) {
 	if len(seed) < KeyGenSeedMinLenBLSBLS12381 || len(seed) > KeyGenSeedMaxLenBLSBLS12381 {
-		return nil, newInvalidInputsError(
+		return nil, invalidInputsErrorf(
 			"seed length should be between %d and %d bytes",
 			KeyGenSeedMinLenBLSBLS12381,
 			KeyGenSeedMaxLenBLSBLS12381)
 	}
 
-	sk := &PrKeyBLSBLS12381{
-		// public key is only computed when needed
-		pk: nil,
-	}
+	sk := newPrKeyBLSBLS12381(nil)
 
 	// maps the seed to a private key
 	// error is not checked as it is guaranteed to be nil
@@ -182,45 +179,61 @@ func (a *blsBLS12381Algo) generatePrivateKey(seed []byte) (PrivateKey, error) {
 	return sk, nil
 }
 
+const invalidBLSSignatureHeader = byte(0xE0)
+
+// BLSInvalidSignature returns an invalid signature that fails when verified
+// with any message and public key.
+//
+// The signature bytes represent an invalid serialization of a point which
+// makes the verification fail early. The verification would return (false, nil).
+func BLSInvalidSignature() Signature {
+	signature := make([]byte, SignatureLenBLSBLS12381)
+	signature[0] = invalidBLSSignatureHeader // invalid header as per C.ep_read_bin_compact
+	return signature
+}
+
 // decodePrivateKey decodes a slice of bytes into a private key.
 // This function checks the scalar is less than the group order
 func (a *blsBLS12381Algo) decodePrivateKey(privateKeyBytes []byte) (PrivateKey, error) {
 	if len(privateKeyBytes) != prKeyLengthBLSBLS12381 {
-		return nil, newInvalidInputsError(
-			"the input length has to be equal to %d",
-			prKeyLengthBLSBLS12381)
+		return nil, invalidInputsErrorf("input length must be %d, got %d",
+			prKeyLengthBLSBLS12381, len(privateKeyBytes))
 	}
-	sk := &PrKeyBLSBLS12381{
-		pk: nil,
-	}
+	sk := newPrKeyBLSBLS12381(nil)
+
 	readScalar(&sk.scalar, privateKeyBytes)
 	if C.check_membership_Zr((*C.bn_st)(&sk.scalar)) == valid {
 		return sk, nil
 	}
 
-	return nil, newInvalidInputsError("the private key is not a valid BLS12-381 curve key")
+	return nil, invalidInputsErrorf("the private key is not a valid BLS12-381 curve key")
 }
 
 // decodePublicKey decodes a slice of bytes into a public key.
 // This function includes a membership check in G2 and rejects the infinity point.
 func (a *blsBLS12381Algo) decodePublicKey(publicKeyBytes []byte) (PublicKey, error) {
 	if len(publicKeyBytes) != pubKeyLengthBLSBLS12381 {
-		return nil, newInvalidInputsError(
-			"the input length has to be %d",
-			pubKeyLengthBLSBLS12381)
+		return nil, invalidInputsErrorf("input length must be %d, got %d",
+			pubKeyLengthBLSBLS12381, len(publicKeyBytes))
 	}
 	var pk PubKeyBLSBLS12381
 	err := readPointG2(&pk.point, publicKeyBytes)
 	if err != nil {
-		if IsInvalidInputsError(err) {
-			return nil, newInvalidInputsError("the input does not encode a BLS12-381 point")
-		}
-		return nil, errors.New("decode public key failed")
+		return nil, fmt.Errorf("decode public key failed %w", err)
 	}
 	if !pk.point.checkValidPublicKeyPoint() {
-		return nil, newInvalidInputsError("the input is infinity or does not encode a BLS12-381 point in the valid group")
+		return nil, invalidInputsErrorf("input key is infinity or does not encode a BLS12-381 point in the valid group")
 	}
 	return &pk, nil
+}
+
+// decodePublicKeyCompressed decodes a slice of bytes into a public key.
+// since we use the compressed representation by default, this checks the default and delegates to decodePublicKeyCompressed
+func (a *blsBLS12381Algo) decodePublicKeyCompressed(publicKeyBytes []byte) (PublicKey, error) {
+	if serializationG2 != compressed {
+		panic("library is not configured to use compressed public key serialization")
+	}
+	return a.decodePublicKey(publicKeyBytes)
 }
 
 // PrKeyBLSBLS12381 is the private key of BLS using BLS12_381, it implements PrivateKey
@@ -229,6 +242,22 @@ type PrKeyBLSBLS12381 struct {
 	pk *PubKeyBLSBLS12381
 	// private key data
 	scalar scalar
+}
+
+// newPrKeyBLSBLS12381 creates a new BLS private key with the given scalar.
+// If no scalar is provided, the function allocates an
+// empty scalar.
+func newPrKeyBLSBLS12381(x *scalar) *PrKeyBLSBLS12381 {
+	var sk PrKeyBLSBLS12381
+	if x == nil {
+		// initialize the scalar
+		C.bn_new_wrapper((*C.bn_st)(&sk.scalar))
+	} else {
+		// set the scalar
+		sk.scalar = *x
+	}
+	// the embedded public key is only computed when needed
+	return &sk
 }
 
 // Algorithm returns the Signing Algorithm
@@ -289,6 +318,18 @@ type PubKeyBLSBLS12381 struct {
 	point pointG2
 }
 
+// newPubKeyBLSBLS12381 creates a new BLS public key with the given point.
+// If no scalar is provided, the function allocates an
+// empty scalar.
+func newPubKeyBLSBLS12381(p *pointG2) *PubKeyBLSBLS12381 {
+	if p != nil {
+		return &PubKeyBLSBLS12381{
+			point: *p,
+		}
+	}
+	return &PubKeyBLSBLS12381{}
+}
+
 // Algorithm returns the Signing Algorithm
 func (pk *PubKeyBLSBLS12381) Algorithm() SigningAlgorithm {
 	return BLSBLS12381
@@ -302,6 +343,15 @@ func (pk *PubKeyBLSBLS12381) Size() int {
 // Encode returns a byte encoding of the public key.
 // The encoding is a compressed encoding of the point
 // [zcash] https://github.com/zkcrypto/pairing/blob/master/src/bls12_381/README.md#serialization
+func (a *PubKeyBLSBLS12381) EncodeCompressed() []byte {
+	if serializationG2 != compressed {
+		panic("library is not configured to use compressed public key serialization")
+	}
+	return a.Encode()
+}
+
+// Encode returns a byte encoding of the public key.
+// Since we use a compressed encoding by default, this delegates to EncodeCompressed
 func (a *PubKeyBLSBLS12381) Encode() []byte {
 	dest := make([]byte, pubKeyLengthBLSBLS12381)
 	writePointG2(dest, &a.point)
@@ -384,10 +434,25 @@ func hashToG1(data []byte) *pointG1 {
 }
 
 // This is only a TEST function.
-// It wraps a call to optimized SwU algorithm since cgo can't be used
-// in go test files
-func OpSwUUnitTest(output []byte, input []byte) {
-	C.opswu_test((*C.uchar)(&output[0]),
-		(*C.uchar)(&input[0]),
-		(C.int)(len(input)))
+// signWithXMDSHA256 signs a message using XMD_SHA256 as a hash to field.
+//
+// The function is in this file because cgo can't be used in go test files.
+// TODO: implement a hasher for XMD SHA256 and use the `Sign` function.
+func (sk *PrKeyBLSBLS12381) signWithXMDSHA256(data []byte) Signature {
+
+	dst := []byte("BLS_SIG_BLS12381G1_XMD:SHA-256_SSWU_RO_NUL_")
+	hash := make([]byte, opSwUInputLenBLSBLS12381)
+	// XMD using SHA256
+	C.xmd_sha256((*C.uchar)(&hash[0]),
+		(C.int)(opSwUInputLenBLSBLS12381),
+		(*C.uchar)(&data[0]), (C.int)(len(data)),
+		(*C.uchar)(&dst[0]), (C.int)(len(dst)))
+
+	// sign the hash
+	s := make([]byte, SignatureLenBLSBLS12381)
+	C.bls_sign((*C.uchar)(&s[0]),
+		(*C.bn_st)(&sk.scalar),
+		(*C.uchar)(&hash[0]),
+		(C.int)(len(hash)))
+	return s
 }

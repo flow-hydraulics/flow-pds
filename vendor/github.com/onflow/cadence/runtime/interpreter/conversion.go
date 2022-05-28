@@ -1,7 +1,7 @@
 /*
  * Cadence - The resource-oriented smart contract programming language
  *
- * Copyright 2019-2020 Dapper Labs, Inc.
+ * Copyright 2019-2022 Dapper Labs, Inc.
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -21,36 +21,42 @@ package interpreter
 import (
 	"errors"
 	"math"
+
+	"github.com/onflow/cadence/runtime/common"
 )
 
-func ByteArrayValueToByteSlice(value Value) ([]byte, error) {
+func ByteArrayValueToByteSlice(interpreter *Interpreter, value Value) ([]byte, error) {
 	array, ok := value.(*ArrayValue)
 	if !ok {
 		return nil, errors.New("value is not an array")
 	}
 
-	elements := array.Elements()
-	result := make([]byte, len(elements))
+	result := make([]byte, 0, array.Count())
 
-	for i, element := range elements {
-
-		b, err := ByteValueToByte(element)
+	var err error
+	array.Iterate(interpreter, func(element Value) (resume bool) {
+		var b byte
+		b, err = ByteValueToByte(interpreter, element)
 		if err != nil {
-			return nil, err
+			return false
 		}
 
-		result[i] = b
-	}
+		result = append(result, b)
 
+		return true
+	})
+	if err != nil {
+		return nil, err
+	}
 	return result, nil
 }
 
-func ByteValueToByte(element Value) (byte, error) {
+func ByteValueToByte(memoryGauge common.MemoryGauge, element Value) (byte, error) {
 	var b byte
 
 	switch element := element.(type) {
 	case BigNumberValue:
-		bigInt := element.ToBigInt()
+		bigInt := element.ToBigInt(memoryGauge)
 		if !bigInt.IsUint64() {
 			return 0, errors.New("value is not in byte range (0-255)")
 		}
@@ -79,11 +85,17 @@ func ByteValueToByte(element Value) (byte, error) {
 	return b, nil
 }
 
-func ByteSliceToByteArrayValue(buf []byte) *ArrayValue {
+// TODO: meter
+func ByteSliceToByteArrayValue(interpreter *Interpreter, buf []byte) *ArrayValue {
 	values := make([]Value, len(buf))
 	for i, b := range buf {
 		values[i] = UInt8Value(b)
 	}
 
-	return NewArrayValueUnownedNonCopying(values...)
+	return NewArrayValue(
+		interpreter,
+		ByteArrayStaticType,
+		common.Address{},
+		values...,
+	)
 }

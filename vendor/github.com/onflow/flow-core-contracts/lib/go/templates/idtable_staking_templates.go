@@ -7,15 +7,29 @@ import (
 const (
 	transferDeployFilename = "idTableStaking/admin/transfer_minter_deploy.cdc"
 
-	removeNodeFilename           = "idTableStaking/admin/remove_node.cdc"
-	endStakingFilename           = "idTableStaking/admin/end_staking.cdc"
-	payRewardsFilename           = "idTableStaking/admin/pay_rewards.cdc"
-	moveTokensFilename           = "idTableStaking/admin/move_tokens.cdc"
-	endEpochFilename             = "idTableStaking/admin/end_epoch.cdc"
-	changeMinimumsFilename       = "idTableStaking/admin/change_minimums.cdc"
-	changeCutFilename            = "idTableStaking/admin/change_cut.cdc"
-	changePayoutFilename         = "idTableStaking/admin/change_payout.cdc"
-	endEpochChangePayoutFilename = "idTableStaking/admin/end_epoch_change_payout.cdc"
+	removeNodeFilename              = "idTableStaking/admin/remove_node.cdc"
+	endStakingFilename              = "idTableStaking/admin/end_staking.cdc"
+	removeUnapprovedNodesFilename   = "idTableStaking/admin/remove_unapproved_nodes.cdc"
+	setApprovedNodesFilename        = "idTableStaking/admin/set_approved_nodes.cdc"
+	addApprovedNodesFilename        = "idTableStaking/admin/add_approved_nodes.cdc"
+	removeApprovedNodesFilename        = "idTableStaking/admin/remove_approved_nodes.cdc"
+	payRewardsFilename              = "idTableStaking/admin/pay_rewards.cdc"
+	moveTokensFilename              = "idTableStaking/admin/move_tokens.cdc"
+	endEpochFilename                = "idTableStaking/admin/end_epoch.cdc"
+	changeMinimumsFilename          = "idTableStaking/admin/change_minimums.cdc"
+	changeCutFilename               = "idTableStaking/admin/change_cut.cdc"
+	changePayoutFilename            = "idTableStaking/admin/change_payout.cdc"
+	endEpochChangePayoutFilename    = "idTableStaking/admin/end_epoch_change_payout.cdc"
+	startStakingFilename            = "idTableStaking/admin/start_staking.cdc"
+	upgradeStakingFilename          = "idTableStaking/admin/upgrade_staking.cdc"
+	setClaimedFilename              = "idTableStaking/admin/set_claimed.cdc"
+	transferAdminCapabilityFilename = "idTableStaking/admin/transfer_admin.cdc"
+	capabilityEndEpochFilename      = "idTableStaking/admin/capability_end_epoch.cdc"
+	transferFeesAdminFilename       = "idTableStaking/admin/transfer_fees_admin.cdc"
+	setNonOperationalFilename       = "idTableStaking/admin/set_non_operational.cdc"
+
+	// for testing only
+	scaleRewardsTestFilename = "idTableStaking/admin/scale_rewards_test.cdc"
 
 	registerNodeFilename            = "idTableStaking/node/register_node.cdc"
 	stakeNewTokensFilename          = "idTableStaking/node/stake_new_tokens.cdc"
@@ -25,6 +39,7 @@ const (
 	unstakeAllFilename              = "idTableStaking/node/unstake_all.cdc"
 	withdrawUnstakedTokensFilename  = "idTableStaking/node/withdraw_unstaked_tokens.cdc"
 	withdrawRewardedTokensFilename  = "idTableStaking/node/withdraw_rewarded_tokens.cdc"
+	updateNetworkingAddressFilename = "idTableStaking/node/update_networking_address.cdc"
 	addPublicNodeCapabilityFilename = "idTableStaking/node/node_add_capability.cdc"
 
 	registerManyNodesFilename = "idTableStaking/node/register_many_nodes.cdc"
@@ -48,12 +63,13 @@ const (
 	getTotalCommitmentWithoutDelegatorsFilename = "idTableStaking/scripts/get_node_total_commitment_without_delegators.cdc"
 	getUnstakingRequestFilename                 = "idTableStaking/scripts/get_node_unstaking_request.cdc"
 	getCutPercentageFilename                    = "idTableStaking/scripts/get_cut_percentage.cdc"
-
-	stakeRequirementsFilename = "idTableStaking/scripts/get_stake_requirements.cdc"
-	totalStakedByTypeFilename = "idTableStaking/scripts/get_total_staked_by_type.cdc"
-	totalStakedFilename       = "idTableStaking/scripts/get_total_staked.cdc"
-	rewardRatioFilename       = "idTableStaking/scripts/get_node_type_ratio.cdc"
-	weeklyPayoutFilename      = "idTableStaking/scripts/get_weekly_payout.cdc"
+	getNonOperationalListFilename               = "idTableStaking/scripts/get_non_operational.cdc"
+	getApprovedNodesFileName                    = "idTableStaking/scripts/get_approved_nodes.cdc"
+	stakeRequirementsFilename                   = "idTableStaking/scripts/get_stake_requirements.cdc"
+	totalStakedByTypeFilename                   = "idTableStaking/scripts/get_total_staked_by_type.cdc"
+	totalStakedFilename                         = "idTableStaking/scripts/get_total_staked.cdc"
+	rewardRatioFilename                         = "idTableStaking/scripts/get_node_type_ratio.cdc"
+	weeklyPayoutFilename                        = "idTableStaking/scripts/get_weekly_payout.cdc"
 )
 
 // Admin Templates -----------------------------------------------------------
@@ -74,9 +90,40 @@ func GenerateRemoveNodeScript(env Environment) []byte {
 	return []byte(replaceAddresses(code, env))
 }
 
+// GenerateStartStakingScript creates a script that starts the staking auction
+func GenerateStartStakingScript(env Environment) []byte {
+	code := assets.MustAssetString(startStakingFilename)
+
+	return []byte(replaceAddresses(code, env))
+}
+
 // GenerateEndStakingScript creates a script that ends the staking auction
 func GenerateEndStakingScript(env Environment) []byte {
 	code := assets.MustAssetString(endStakingFilename)
+
+	return []byte(replaceAddresses(code, env))
+}
+
+func GenerateRemoveUnapprovedNodesScript(env Environment) []byte {
+	code := assets.MustAssetString(removeUnapprovedNodesFilename)
+
+	return []byte(replaceAddresses(code, env))
+}
+
+func GenerateSetApprovedNodesScript(env Environment) []byte {
+	code := assets.MustAssetString(setApprovedNodesFilename)
+
+	return []byte(replaceAddresses(code, env))
+}
+
+func GenerateAddApprovedNodesScript(env Environment) []byte {
+	code := assets.MustAssetString(addApprovedNodesFilename)
+
+	return []byte(replaceAddresses(code, env))
+}
+
+func GenerateRemoveApprovedNodesScript(env Environment) []byte {
+	code := assets.MustAssetString(removeApprovedNodesFilename)
 
 	return []byte(replaceAddresses(code, env))
 }
@@ -130,7 +177,51 @@ func GenerateEndEpochChangePayoutScript(env Environment) []byte {
 	return []byte(replaceAddresses(code, env))
 }
 
-// Staker Templates -------------------------------------------------------------
+// GenerateUpgradeStakingScript creates a script that upgrades the staking contract
+func GenerateUpgradeStakingScript(env Environment) []byte {
+	code := assets.MustAssetString(upgradeStakingFilename)
+
+	return []byte(replaceAddresses(code, env))
+}
+
+// GenerateSetClaimedScript creates a script that sets the new metadata claimed fields
+func GenerateSetClaimedScript(env Environment) []byte {
+	code := assets.MustAssetString(setClaimedFilename)
+
+	return []byte(replaceAddresses(code, env))
+}
+
+func GenerateTransferAdminCapabilityScript(env Environment) []byte {
+	code := assets.MustAssetString(transferAdminCapabilityFilename)
+
+	return []byte(replaceAddresses(code, env))
+}
+
+func GenerateCapabilityEndEpochScript(env Environment) []byte {
+	code := assets.MustAssetString(capabilityEndEpochFilename)
+
+	return []byte(replaceAddresses(code, env))
+}
+
+func GenerateTransferFeesAdminScript(env Environment) []byte {
+	code := assets.MustAssetString(transferFeesAdminFilename)
+
+	return []byte(replaceAddresses(code, env))
+}
+
+func GenerateSetNonOperationalScript(env Environment) []byte {
+	code := assets.MustAssetString(setNonOperationalFilename)
+
+	return []byte(replaceAddresses(code, env))
+}
+
+// For testing only
+func GenerateScaleRewardsTestScript(env Environment) []byte {
+	code := assets.MustAssetString(scaleRewardsTestFilename)
+	return []byte(replaceAddresses(code, env))
+}
+
+// Node Templates -------------------------------------------------------------
 
 // GenerateRegisterNodeScript creates a script that creates a new
 // node struct and stores it in the Node records
@@ -192,6 +283,14 @@ func GenerateWithdrawUnstakedTokensScript(env Environment) []byte {
 // for an existing node operator
 func GenerateWithdrawRewardedTokensScript(env Environment) []byte {
 	code := assets.MustAssetString(withdrawRewardedTokensFilename)
+
+	return []byte(replaceAddresses(code, env))
+}
+
+// GenerateUpdateNetworkingAddressScript creates a script changes the networking address
+// for an existing node operator
+func GenerateUpdateNetworkingAddressScript(env Environment) []byte {
+	code := assets.MustAssetString(updateNetworkingAddressFilename)
 
 	return []byte(replaceAddresses(code, env))
 }
@@ -271,7 +370,7 @@ func GenerateReturnProposedTableScript(env Environment) []byte {
 }
 
 func GenerateGetNodeInfoScript(env Environment) []byte {
-	code := assets.MustAssetString(getNodeInfoFilename)
+	code := assets.MustAssetString(getNodeInfoScript)
 
 	return []byte(replaceAddresses(code, env))
 }
@@ -386,10 +485,22 @@ func GenerateGetTotalCommitmentBalanceWithoutDelegatorsScript(env Environment) [
 	return []byte(replaceAddresses(code, env))
 }
 
+func GenerateGetNonOperationalListScript(env Environment) []byte {
+	code := assets.MustAssetString(getNonOperationalListFilename)
+
+	return []byte(replaceAddresses(code, env))
+}
+
 // For testing
 
 func GenerateRegisterManyNodesScript(env Environment) []byte {
 	code := assets.MustAssetString(registerManyNodesFilename)
+
+	return []byte(replaceAddresses(code, env))
+}
+
+func GenerateGetApprovedNodesScript(env Environment) []byte {
+	code := assets.MustAssetString(getApprovedNodesFileName)
 
 	return []byte(replaceAddresses(code, env))
 }

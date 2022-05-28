@@ -4,17 +4,24 @@ package state
 // and facilitates common state management operations
 // in order to make services such as accounts not worry about
 // the state it is recommended that such services wraps
-// an state manager instead of an state itself.
+// a state manager instead of a state itself.
 type StateHolder struct {
-	startState  *State
-	activeState *State
+	EnforceMemoryLimits      bool
+	EnforceComputationLimits bool
+	enforceInteractionLimits bool
+	payerIsServiceAccount    bool
+	startState               *State
+	activeState              *State
 }
 
 // NewStateHolder constructs a new state manager
 func NewStateHolder(startState *State) *StateHolder {
 	return &StateHolder{
-		startState:  startState,
-		activeState: startState,
+		EnforceMemoryLimits:      true,
+		EnforceComputationLimits: true,
+		enforceInteractionLimits: true,
+		startState:               startState,
+		activeState:              startState,
 	}
 }
 
@@ -28,6 +35,11 @@ func (s *StateHolder) SetActiveState(st *State) {
 	s.activeState = st
 }
 
+// SetActiveState sets active state
+func (s *StateHolder) SetPayerIsServiceAccount() {
+	s.payerIsServiceAccount = true
+}
+
 // NewChild constructs a new child of active state
 // and set it as active state and return it
 // this is basically a utility function for common
@@ -36,4 +48,26 @@ func (s *StateHolder) NewChild() *State {
 	new := s.activeState.NewChild()
 	s.activeState = new
 	return s.activeState
+}
+
+// EnableLimitEnforcement enables all the limits
+func (s *StateHolder) EnableAllLimitEnforcements() {
+	s.enforceInteractionLimits = true
+	s.EnforceComputationLimits = true
+	s.EnforceMemoryLimits = true
+}
+
+// DisableAllLimitEnforcements disables all the limits
+func (s *StateHolder) DisableAllLimitEnforcements() {
+	s.enforceInteractionLimits = false
+	s.EnforceComputationLimits = false
+	s.EnforceMemoryLimits = false
+}
+
+// EnforceInteractionLimits returns if the interaction limits should be enforced or not
+func (s *StateHolder) EnforceInteractionLimits() bool {
+	if s.payerIsServiceAccount {
+		return false
+	}
+	return s.enforceInteractionLimits
 }

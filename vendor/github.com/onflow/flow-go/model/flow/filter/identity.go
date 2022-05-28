@@ -3,6 +3,7 @@
 package filter
 
 import (
+	"github.com/onflow/flow-go/crypto"
 	"github.com/onflow/flow-go/model/flow"
 )
 
@@ -61,10 +62,23 @@ func HasNodeID(nodeIDs ...flow.Identifier) flow.IdentityFilter {
 	}
 }
 
-// HasStake returns a filter for nodes with non-zero stake.
-func HasStake(hasStake bool) flow.IdentityFilter {
+// HasNetworkingKey returns a filter that returns true for any identity with a
+// networking public key matching any of the inputs.
+func HasNetworkingKey(keys ...crypto.PublicKey) flow.IdentityFilter {
 	return func(identity *flow.Identity) bool {
-		return (identity.Stake > 0) == hasStake
+		for _, key := range keys {
+			if key.Equals(identity.NetworkPubKey) {
+				return true
+			}
+		}
+		return false
+	}
+}
+
+// HasWeight returns a filter for nodes with non-zero weight.
+func HasWeight(hasWeight bool) flow.IdentityFilter {
+	return func(identity *flow.Identity) bool {
+		return (identity.Weight > 0) == hasWeight
 	}
 }
 
@@ -88,7 +102,7 @@ func HasRole(roles ...flow.Role) flow.IdentityFilter {
 // IsValidCurrentEpochParticipant is an identity filter for members of the
 // current epoch in good standing.
 var IsValidCurrentEpochParticipant = And(
-	HasStake(true),
+	HasWeight(true),
 	Not(Ejected),
 )
 

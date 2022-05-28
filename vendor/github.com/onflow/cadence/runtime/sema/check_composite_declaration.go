@@ -1,7 +1,7 @@
 /*
  * Cadence - The resource-oriented smart contract programming language
  *
- * Copyright 2019-2020 Dapper Labs, Inc.
+ * Copyright 2019-2022 Dapper Labs, Inc.
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -131,7 +131,7 @@ func (checker *Checker) visitCompositeDeclaration(declaration *ast.CompositeDecl
 	}
 
 	fieldPositionGetter := func(name string) ast.Position {
-		return declaration.Members.FieldPosition(name, declaration.CompositeKind)
+		return compositeType.FieldPosition(name, declaration)
 	}
 
 	checker.checkResourceFieldNesting(
@@ -252,7 +252,11 @@ func (checker *Checker) declareCompositeNestedTypes(
 			if nestedCompositeDeclaration, isCompositeDeclaration :=
 				nestedDeclaration.(*ast.CompositeDeclaration); isCompositeDeclaration {
 
-				nestedCompositeType := nestedType.(*CompositeType)
+				nestedCompositeType, ok := nestedType.(*CompositeType)
+				if !ok {
+					// we just checked that this was a composite declaration
+					panic(errors.NewUnreachableError())
+				}
 
 				// Always determine composite constructor type
 
@@ -301,7 +305,7 @@ func (checker *Checker) declareNestedDeclarations(
 				&InvalidNestedDeclarationError{
 					NestedDeclarationKind:    nestedDeclarationKind,
 					ContainerDeclarationKind: containerDeclarationKind,
-					Range:                    ast.NewRangeFromPositioned(identifier),
+					Range:                    ast.NewRangeFromPositioned(checker.memoryGauge, identifier),
 				},
 			)
 		}
@@ -349,7 +353,7 @@ func (checker *Checker) declareNestedDeclarations(
 					&InvalidNestedDeclarationError{
 						NestedDeclarationKind:    nestedDeclarationKind,
 						ContainerDeclarationKind: containerDeclarationKind,
-						Range:                    ast.NewRangeFromPositioned(identifier),
+						Range:                    ast.NewRangeFromPositioned(checker.memoryGauge, identifier),
 					},
 				)
 			}
@@ -679,7 +683,7 @@ func (checker *Checker) declareCompositeMembersAndValue(
 
 func (checker *Checker) declareCompositeConstructor(
 	declaration *ast.CompositeDeclaration,
-	constructorType *ConstructorFunctionType,
+	constructorType *FunctionType,
 	constructorArgumentLabels []string,
 ) {
 	// Resource and event constructors are effectively always private,
@@ -740,39 +744,23 @@ func (checker *Checker) declareEnumConstructor(
 
 	enumCases := declaration.Members.EnumCases()
 
-	constructorMembers := NewStringMemberOrderedMap()
-
 	var constructorOrigins map[string]*Origin
 	if checker.positionInfoEnabled {
 		constructorOrigins = make(map[string]*Origin, len(enumCases))
 	}
 
-	constructorType := &ConstructorFunctionType{
-		FunctionType: &FunctionType{
-			Parameters: []*Parameter{
-				{
-					Identifier:     EnumRawValueFieldName,
-					TypeAnnotation: NewTypeAnnotation(compositeType.EnumRawType),
-				},
-			},
-			ReturnTypeAnnotation: NewTypeAnnotation(
-				&OptionalType{
-					Type: compositeType,
-				},
-			),
-			Members: constructorMembers,
-		},
-	}
+	constructorType := EnumConstructorType(compositeType)
 
 	memberCaseTypeAnnotation := NewTypeAnnotation(compositeType)
 
 	for _, enumCase := range enumCases {
 		caseName := enumCase.Identifier.Identifier
 
-		if _, ok := constructorMembers.Get(caseName); ok {
+		if _, ok := constructorType.Members.Get(caseName); ok {
 			continue
 		}
-		constructorMembers.Set(
+
+		constructorType.Members.Set(
 			caseName,
 			&Member{
 				ContainerType: constructorType,
@@ -813,6 +801,24 @@ func (checker *Checker) declareEnumConstructor(
 	checker.report(err)
 }
 
+func EnumConstructorType(compositeType *CompositeType) *FunctionType {
+	return &FunctionType{
+		IsConstructor: true,
+		Parameters: []*Parameter{
+			{
+				Identifier:     EnumRawValueFieldName,
+				TypeAnnotation: NewTypeAnnotation(compositeType.EnumRawType),
+			},
+		},
+		ReturnTypeAnnotation: NewTypeAnnotation(
+			&OptionalType{
+				Type: compositeType,
+			},
+		),
+		Members: NewStringMemberOrderedMap(),
+	}
+}
+
 // checkMemberStorability check that all fields have a type that is storable.
 //
 func (checker *Checker) checkMemberStorability(members *StringMemberOrderedMap) {
@@ -850,7 +856,7 @@ func (checker *Checker) initializerParameters(initializers []*ast.SpecialFunctio
 			checker.report(
 				&UnsupportedOverloadingError{
 					DeclarationKind: common.DeclarationKindInitializer,
-					Range:           ast.NewRangeFromPositioned(secondInitializer),
+					Range:           ast.NewRangeFromPositioned(checker.memoryGauge, secondInitializer),
 				},
 			)
 		}
@@ -877,7 +883,7 @@ func (checker *Checker) explicitInterfaceConformances(
 					&DuplicateConformanceError{
 						CompositeType: compositeType,
 						InterfaceType: interfaceType,
-						Range:         ast.NewRangeFromPositioned(conformance.Identifier),
+						Range:         ast.NewRangeFromPositioned(checker.memoryGauge, conformance.Identifier),
 					},
 				)
 			}
@@ -888,7 +894,7 @@ func (checker *Checker) explicitInterfaceConformances(
 			checker.report(
 				&InvalidConformanceError{
 					Type:  convertedType,
-					Range: ast.NewRangeFromPositioned(conformance),
+					Range: ast.NewRangeFromPositioned(checker.memoryGauge, conformance),
 				},
 			)
 		}
@@ -906,7 +912,7 @@ func (checker *Checker) enumRawType(declaration *ast.CompositeDeclaration) Type 
 	if conformanceCount == 0 {
 		checker.report(
 			&MissingEnumRawTypeError{
-				Pos: declaration.Identifier.EndPosition().Shifted(1),
+				Pos: declaration.Identifier.EndPosition(checker.memoryGauge).Shifted(checker.memoryGauge, 1),
 			},
 		)
 
@@ -922,10 +928,11 @@ func (checker *Checker) enumRawType(declaration *ast.CompositeDeclaration) Type 
 
 		checker.report(
 			&InvalidEnumConformancesError{
-				Range: ast.Range{
-					StartPos: secondConformance.StartPosition(),
-					EndPos:   lastConformance.EndPosition(),
-				},
+				Range: ast.NewRange(
+					checker.memoryGauge,
+					secondConformance.StartPosition(),
+					lastConformance.EndPosition(checker.memoryGauge),
+				),
 			},
 		)
 
@@ -940,12 +947,12 @@ func (checker *Checker) enumRawType(declaration *ast.CompositeDeclaration) Type 
 	rawType := checker.ConvertType(conformance)
 
 	if !rawType.IsInvalidType() &&
-		!IsSubType(rawType, IntegerType) {
+		!IsSameTypeKind(rawType, IntegerType) {
 
 		checker.report(
 			&InvalidEnumRawTypeError{
 				Type:  rawType,
-				Range: ast.NewRangeFromPositioned(conformance),
+				Range: ast.NewRangeFromPositioned(checker.memoryGauge, conformance),
 			},
 		)
 	}
@@ -978,7 +985,7 @@ func (checker *Checker) checkCompositeConformance(
 			&CompositeKindMismatchError{
 				ExpectedKind: compositeType.Kind,
 				ActualKind:   interfaceType.CompositeKind,
-				Range:        ast.NewRangeFromPositioned(compositeKindMismatchIdentifier),
+				Range:        ast.NewRangeFromPositioned(checker.memoryGauge, compositeKindMismatchIdentifier),
 			},
 		)
 	}
@@ -1112,8 +1119,12 @@ func (checker *Checker) memberSatisfied(compositeMember, interfaceMember *Member
 			// where argument labels are not considered,
 			// and parameters are contravariant.
 
-			interfaceMemberFunctionType := interfaceMemberType.(*FunctionType)
-			compositeMemberFunctionType := compositeMemberType.(*FunctionType)
+			interfaceMemberFunctionType, isInterfaceMemberFunctionType := interfaceMemberType.(*FunctionType)
+			compositeMemberFunctionType, isCompositeMemberFunctionType := compositeMemberType.(*FunctionType)
+
+			if !isInterfaceMemberFunctionType || !isCompositeMemberFunctionType {
+				return false
+			}
 
 			if !interfaceMemberFunctionType.HasSameArgumentLabels(compositeMemberFunctionType) {
 				return false
@@ -1192,7 +1203,7 @@ func (checker *Checker) checkTypeRequirement(
 			nestedInterfaceIdentifier := nestedInterfaceDeclaration.Identifier.Identifier
 			if nestedInterfaceIdentifier == declaredInterfaceType.Identifier {
 				foundInterfaceDeclaration = true
-				errorRange = ast.NewRangeFromPositioned(nestedInterfaceDeclaration.Identifier)
+				errorRange = ast.NewRangeFromPositioned(checker.memoryGauge, nestedInterfaceDeclaration.Identifier)
 				break
 			}
 		}
@@ -1223,13 +1234,31 @@ func (checker *Checker) checkTypeRequirement(
 	// Find the composite declaration of the composite type
 
 	var compositeDeclaration *ast.CompositeDeclaration
+	var foundRedeclaration bool
 
 	for _, nestedCompositeDeclaration := range containerDeclaration.Members.Composites() {
 		nestedCompositeIdentifier := nestedCompositeDeclaration.Identifier.Identifier
 		if nestedCompositeIdentifier == declaredCompositeType.Identifier {
+			// If we detected a second nested composite declaration with the same identifier,
+			// report an error and stop further type requirement checking
+			if compositeDeclaration != nil {
+				foundRedeclaration = true
+				checker.report(&RedeclarationError{
+					Kind:        nestedCompositeDeclaration.DeclarationKind(),
+					Name:        nestedCompositeDeclaration.Identifier.Identifier,
+					Pos:         nestedCompositeDeclaration.Identifier.Pos,
+					PreviousPos: &compositeDeclaration.Identifier.Pos,
+				})
+			}
 			compositeDeclaration = nestedCompositeDeclaration
-			break
+			// NOTE: Do not break / stop iteration, but keep looking for
+			// another (invalid) nested composite declaration with the same identifier,
+			// as the first found declaration is not necessarily the correct one
 		}
+	}
+
+	if foundRedeclaration {
+		return
 	}
 
 	if compositeDeclaration == nil {
@@ -1252,7 +1281,7 @@ func (checker *Checker) checkTypeRequirement(
 				&MissingConformanceError{
 					CompositeType: declaredCompositeType,
 					InterfaceType: requiredConformance,
-					Range:         ast.NewRangeFromPositioned(compositeDeclaration.Identifier),
+					Range:         ast.NewRangeFromPositioned(checker.memoryGauge, compositeDeclaration.Identifier),
 				},
 			)
 		}
@@ -1279,14 +1308,13 @@ func (checker *Checker) compositeConstructorType(
 	compositeDeclaration *ast.CompositeDeclaration,
 	compositeType *CompositeType,
 ) (
-	constructorFunctionType *ConstructorFunctionType,
+	constructorFunctionType *FunctionType,
 	argumentLabels []string,
 ) {
 
-	constructorFunctionType = &ConstructorFunctionType{
-		FunctionType: &FunctionType{
-			ReturnTypeAnnotation: NewTypeAnnotation(compositeType),
-		},
+	constructorFunctionType = &FunctionType{
+		IsConstructor:        true,
+		ReturnTypeAnnotation: NewTypeAnnotation(compositeType),
 	}
 
 	// TODO: support multiple overloaded initializers
@@ -1306,11 +1334,10 @@ func (checker *Checker) compositeConstructorType(
 		//   The initializer itself has a `Void` return type.
 
 		checker.Elaboration.ConstructorFunctionTypes[firstInitializer] =
-			&ConstructorFunctionType{
-				FunctionType: &FunctionType{
-					Parameters:           constructorFunctionType.Parameters,
-					ReturnTypeAnnotation: NewTypeAnnotation(VoidType),
-				},
+			&FunctionType{
+				IsConstructor:        true,
+				Parameters:           constructorFunctionType.Parameters,
+				ReturnTypeAnnotation: NewTypeAnnotation(VoidType),
 			}
 	}
 
@@ -1336,7 +1363,7 @@ func (checker *Checker) defaultMembersAndOrigins(
 		checker.report(
 			&InvalidEnumCaseError{
 				ContainerDeclarationKind: containerDeclarationKind,
-				Range:                    ast.NewRangeFromPositioned(enumCases[0]),
+				Range:                    ast.NewRangeFromPositioned(checker.memoryGauge, enumCases[0]),
 			},
 		)
 	}
@@ -1373,7 +1400,7 @@ func (checker *Checker) defaultMembersAndOrigins(
 			&InvalidDeclarationError{
 				Identifier: identifier.Identifier,
 				Kind:       declaration.DeclarationKind(),
-				Range:      ast.NewRangeFromPositioned(identifier),
+				Range:      ast.NewRangeFromPositioned(checker.memoryGauge, identifier),
 			},
 		)
 
@@ -1438,7 +1465,7 @@ func (checker *Checker) defaultMembersAndOrigins(
 			checker.report(
 				&InvalidVariableKindError{
 					Kind:  field.VariableKind,
-					Range: ast.NewRangeFromPositioned(field.Identifier),
+					Range: ast.NewRangeFromPositioned(checker.memoryGauge, field.Identifier),
 				},
 			)
 		}
@@ -1566,7 +1593,7 @@ func (checker *Checker) enumMembersAndOrigins(
 			checker.report(
 				&InvalidNonEnumCaseError{
 					ContainerDeclarationKind: containerDeclarationKind,
-					Range:                    ast.NewRangeFromPositioned(declaration),
+					Range:                    ast.NewRangeFromPositioned(checker.memoryGauge, declaration),
 				},
 			)
 			continue
@@ -1596,9 +1623,11 @@ func (checker *Checker) enumMembersAndOrigins(
 		&Member{
 			ContainerType: containerType,
 			Access:        ast.AccessPublic,
-			Identifier: ast.Identifier{
-				Identifier: EnumRawValueFieldName,
-			},
+			Identifier: ast.NewIdentifier(
+				checker.memoryGauge,
+				EnumRawValueFieldName,
+				ast.EmptyPosition,
+			),
 			DeclarationKind: common.DeclarationKindField,
 			TypeAnnotation:  NewTypeAnnotation(containerType.EnumRawType),
 			VariableKind:    ast.VariableKindConstant,
@@ -1743,13 +1772,17 @@ func (checker *Checker) checkSpecialFunction(
 	case ContainerKindComposite:
 		// Event declarations have an empty initializer as it is synthesized
 
-		compositeType := containerType.(*CompositeType)
+		compositeType, ok := containerType.(*CompositeType)
+		if !ok {
+			// we just checked that the container was a composite
+			panic(errors.NewUnreachableError())
+		}
 		if compositeType.Kind != common.CompositeKindEvent &&
 			specialFunction.FunctionDeclaration.FunctionBlock == nil {
 
 			checker.report(
 				&MissingFunctionBodyError{
-					Pos: specialFunction.EndPosition(),
+					Pos: specialFunction.EndPosition(checker.memoryGauge),
 				},
 			)
 		}
@@ -1785,7 +1818,7 @@ func (checker *Checker) checkCompositeFunctions(
 		if function.FunctionBlock == nil {
 			checker.report(
 				&MissingFunctionBodyError{
-					Pos: function.EndPosition(),
+					Pos: function.EndPosition(checker.memoryGauge),
 				},
 			)
 		}
@@ -1930,7 +1963,7 @@ func (checker *Checker) checkDestructors(
 
 			checker.report(
 				&InvalidDestructorError{
-					Range: ast.NewRangeFromPositioned(firstDestructor.FunctionDeclaration.Identifier),
+					Range: ast.NewRangeFromPositioned(checker.memoryGauge, firstDestructor.FunctionDeclaration.Identifier),
 				},
 			)
 		}
@@ -1960,7 +1993,7 @@ func (checker *Checker) checkDestructors(
 		checker.report(
 			&UnsupportedOverloadingError{
 				DeclarationKind: common.DeclarationKindDestructor,
-				Range:           ast.NewRangeFromPositioned(secondDestructor),
+				Range:           ast.NewRangeFromPositioned(checker.memoryGauge, secondDestructor),
 			},
 		)
 	}
@@ -2014,7 +2047,7 @@ func (checker *Checker) checkDestructor(
 	if len(destructor.FunctionDeclaration.ParameterList.Parameters) != 0 {
 		checker.report(
 			&InvalidDestructorParametersError{
-				Range: ast.NewRangeFromPositioned(destructor.FunctionDeclaration.ParameterList),
+				Range: ast.NewRangeFromPositioned(checker.memoryGauge, destructor.FunctionDeclaration.ParameterList),
 			},
 		)
 	}
@@ -2085,7 +2118,7 @@ func (checker *Checker) checkResourceUseAfterInvalidation(resource interface{}, 
 	checker.report(
 		&ResourceUseAfterInvalidationError{
 			StartPos:      usePosition.StartPosition(),
-			EndPos:        usePosition.EndPosition(),
+			EndPos:        usePosition.EndPosition(checker.memoryGauge),
 			Invalidations: resourceInfo.Invalidations.All(),
 		},
 	)

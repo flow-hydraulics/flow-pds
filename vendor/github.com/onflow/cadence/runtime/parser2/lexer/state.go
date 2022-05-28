@@ -1,7 +1,7 @@
 /*
  * Cadence - The resource-oriented smart contract programming language
  *
- * Copyright 2019-2020 Dapper Labs, Inc.
+ * Copyright 2019-2022 Dapper Labs, Inc.
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -20,6 +20,8 @@ package lexer
 
 import (
 	"fmt"
+
+	"github.com/onflow/cadence/runtime/common"
 )
 
 const keywordAs = "as"
@@ -37,7 +39,6 @@ func rootState(l *lexer) stateFn {
 		r := l.next()
 		switch r {
 		case EOF:
-			l.emitType(TokenEOF)
 			return nil
 		case '+':
 			l.emitType(TokenPlus)
@@ -210,7 +211,7 @@ func numberState(l *lexer) stateFn {
 			}
 			l.emitValue(TokenHexadecimalIntegerLiteral)
 
-		case '0', '1', '2', '3', '4', '5', '6', '7', '8', '9':
+		case '0', '1', '2', '3', '4', '5', '6', '7', '8', '9', '_':
 			tokenType := l.scanDecimalOrFixedPointRemainder()
 			l.emitValue(tokenType)
 
@@ -257,6 +258,16 @@ func spaceState(startIsNewline bool) stateFn {
 	return func(l *lexer) stateFn {
 		containsNewline := l.scanSpace()
 		containsNewline = containsNewline || startIsNewline
+
+		if l.memoryGauge != nil {
+			// Meter token wrapper
+			common.UseMemory(l.memoryGauge, common.SpaceTokenMemoryUsage)
+
+			// Meter token content
+			tokenLength := l.wordLength()
+			common.UseMemory(l.memoryGauge, common.NewRawStringMemoryUsage(tokenLength))
+		}
+
 		l.emit(
 			TokenSpace,
 			Space{
@@ -310,7 +321,6 @@ func blockCommentState(nesting int) stateFn {
 		r := l.next()
 		switch r {
 		case EOF:
-			l.emitType(TokenEOF)
 			return nil
 		case '/':
 			beforeSlashOffset := l.prevEndOffset

@@ -11,7 +11,7 @@ import (
 
 const (
 	badFact   = "mat: use without successful factorization"
-	badNoVect = "mat: eigenvectors not computed"
+	noVectors = "mat: eigenvectors not computed"
 )
 
 // EigenSym is a type for creating and manipulating the Eigen decomposition of
@@ -38,7 +38,7 @@ func (e *EigenSym) Factorize(a Symmetric, vectors bool) (ok bool) {
 	e.vectorsComputed = false
 	e.values = e.values[:]
 
-	n := a.Symmetric()
+	n := a.SymmetricDim()
 	sd := NewSymDense(n, nil)
 	sd.CopySym(a)
 
@@ -50,9 +50,9 @@ func (e *EigenSym) Factorize(a Symmetric, vectors bool) (ok bool) {
 	work := []float64{0}
 	lapack64.Syev(jobz, sd.mat, w, work, -1)
 
-	work = getFloats(int(work[0]), false)
+	work = getFloat64s(int(work[0]), false)
 	ok = lapack64.Syev(jobz, sd.mat, w, work, len(work))
-	putFloats(work)
+	putFloat64s(work)
 	if !ok {
 		e.vectorsComputed = false
 		e.values = nil
@@ -70,11 +70,10 @@ func (e *EigenSym) succFact() bool {
 	return len(e.values) != 0
 }
 
-// Values extracts the eigenvalues of the factorized matrix. If dst is
-// non-nil, the values are stored in-place into dst. In this case
-// dst must have length n, otherwise Values will panic. If dst is
-// nil, then a new slice will be allocated of the proper length and filled
-// with the eigenvalues.
+// Values extracts the eigenvalues of the factorized matrix in ascending order.
+// If dst is non-nil, the values are stored in-place into dst. In this case dst
+// must have length n, otherwise Values will panic. If dst is nil, then a new
+// slice will be allocated of the proper length and filled with the eigenvalues.
 //
 // Values panics if the Eigen decomposition was not successful.
 func (e *EigenSym) Values(dst []float64) []float64 {
@@ -103,7 +102,7 @@ func (e *EigenSym) VectorsTo(dst *Dense) {
 		panic(badFact)
 	}
 	if !e.vectorsComputed {
-		panic(badNoVect)
+		panic(noVectors)
 	}
 	r, c := e.vectors.Dims()
 	if dst.IsEmpty() {
@@ -195,16 +194,16 @@ func (e *Eigen) Factorize(a Matrix, kind EigenKind) (ok bool) {
 		jobvr = lapack.RightEVCompute
 	}
 
-	wr := getFloats(c, false)
-	defer putFloats(wr)
-	wi := getFloats(c, false)
-	defer putFloats(wi)
+	wr := getFloat64s(c, false)
+	defer putFloat64s(wr)
+	wi := getFloat64s(c, false)
+	defer putFloat64s(wi)
 
 	work := []float64{0}
 	lapack64.Geev(jobvl, jobvr, sd.mat, wr, wi, vl.mat, vr.mat, work, -1)
-	work = getFloats(int(work[0]), false)
+	work = getFloat64s(int(work[0]), false)
 	first := lapack64.Geev(jobvl, jobvr, sd.mat, wr, wi, vl.mat, vr.mat, work, len(work))
-	putFloats(work)
+	putFloat64s(work)
 
 	if first != 0 {
 		e.values = nil
@@ -320,7 +319,7 @@ func (e *Eigen) VectorsTo(dst *CDense) {
 		panic(badFact)
 	}
 	if e.kind&EigenRight == 0 {
-		panic(badNoVect)
+		panic(noVectors)
 	}
 	if dst.IsEmpty() {
 		dst.ReuseAs(e.n, e.n)
@@ -346,7 +345,7 @@ func (e *Eigen) LeftVectorsTo(dst *CDense) {
 		panic(badFact)
 	}
 	if e.kind&EigenLeft == 0 {
-		panic(badNoVect)
+		panic(noVectors)
 	}
 	if dst.IsEmpty() {
 		dst.ReuseAs(e.n, e.n)

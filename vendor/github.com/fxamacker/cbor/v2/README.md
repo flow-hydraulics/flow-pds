@@ -1,26 +1,137 @@
-[![CBOR Library - Slideshow and Latest Docs.](https://github.com/fxamacker/images/raw/master/cbor/v2.2.0/cbor_slides.gif)](https://github.com/fxamacker/cbor/blob/master/README.md)
+# CBOR Codec in Go
 
-# CBOR library in Go
-[__fxamacker/cbor__](https://github.com/fxamacker/cbor) is a CBOR encoder & decoder in [Go](https://golang.org).  It has a standard API, CBOR tags, options for duplicate map keys, float64→32→16, `toarray`, `keyasint`, etc.  Each release passes 375+ tests and 250+ million execs fuzzing.
-
-[CBOR](CBOR_GOLANG.md) ([RFC 7049](https://tools.ietf.org/html/rfc7049) & [RFC 8949](https://tools.ietf.org/html/rfc8949)) is a binary data format inspired by JSON and MessagePack.  CBOR is an [Internet Standard](https://en.wikipedia.org/wiki/Internet_Standard) by [IETF](https://www.ietf.org) used in W3C [WebAuthn](https://en.wikipedia.org/wiki/WebAuthn), COSE ([RFC 8152](https://tools.ietf.org/html/rfc8152)), CWT ([RFC 8392 CBOR Web Token](https://tools.ietf.org/html/rfc8392)), and more.
+[![](https://github.com/fxamacker/images/raw/master/cbor/v2.4.0/fxamacker_cbor_banner.png)](#cbor-library-in-go)
 
 [![](https://github.com/fxamacker/cbor/workflows/ci/badge.svg)](https://github.com/fxamacker/cbor/actions?query=workflow%3Aci)
 [![](https://github.com/fxamacker/cbor/workflows/cover%20%E2%89%A598%25/badge.svg)](https://github.com/fxamacker/cbor/actions?query=workflow%3A%22cover+%E2%89%A598%25%22)
 [![](https://github.com/fxamacker/cbor/workflows/linters/badge.svg)](https://github.com/fxamacker/cbor/actions?query=workflow%3Alinters)
+[![CodeQL](https://github.com/fxamacker/cbor/actions/workflows/codeql-analysis.yml/badge.svg)](https://github.com/fxamacker/cbor/actions/workflows/codeql-analysis.yml)
+[![](https://img.shields.io/badge/fuzzing-3%2B%20billion%20execs-44c010)](#fuzzing-and-code-coverage)
 [![Go Report Card](https://goreportcard.com/badge/github.com/fxamacker/cbor)](https://goreportcard.com/report/github.com/fxamacker/cbor)
-[![](https://github.com/fxamacker/images/raw/master/cbor/v2.2.0/release_version_badge.svg?sanitize=1)](https://github.com/fxamacker/cbor/releases)
-[![](https://github.com/fxamacker/images/raw/master/cbor/v2.2.0/license_badge.svg?sanitize=1)](https://raw.githubusercontent.com/fxamacker/cbor/master/LICENSE)
+[![](https://img.shields.io/badge/go-%3E%3D%201.12-blue)](#cbor-library-installation)
 
-__fxamacker/cbor__ is secure.  It rejects malformed CBOR data, can detect duplicate map keys, and more.
+[__fxamacker/cbor__](https://github.com/fxamacker/cbor) is a modern [CBOR](https://tools.ietf.org/html/rfc8949) codec in [Go](https://golang.org).  It's like `encoding/json` for CBOR with time-saving features.  It balances [security](https://github.com/fxamacker/cbor/#cbor-security), usability, [speed](https://github.com/fxamacker/cbor/#cbor-performance), data size, program size, and other competing factors.
 
-![alt text](https://github.com/fxamacker/images/raw/master/cbor/v2.2.0/cbor_security_table.svg?sanitize=1 "CBOR Security Comparison")
+Features include CBOR tags, duplicate map key detection, float64→32→16, and Go struct tags (`toarray`, `keyasint`, `omitempty`).  API is close to `encoding/json` plus predefined CBOR options like Core Deterministic Encoding, Preferred Serialization, CTAP2, etc.
 
-For more info, see [RFC 8949 Section 10 (Security Considerations)](https://tools.ietf.org/html/rfc8949#section-10) or [RFC 7049 Section 8](https://tools.ietf.org/html/rfc7049#section-8).
+Using CBOR [Preferred Serialization](https://www.rfc-editor.org/rfc/rfc8949.html#name-preferred-serialization) with Go struct tags (`toarray`, `keyasint`, `omitempty`) reduces programming effort and creates smaller encoded data size.
 
-<hr>
+fxamacker/cbor has 98% coverage and is fuzz tested.  It won't exhaust RAM decoding 9 bytes of bad CBOR data.  It's used by Arm Ltd., Berlin Institute of Health at Charité, Chainlink, ConsenSys, Dapper Labs, Duo Labs (cisco), EdgeX Foundry, Mozilla, Netherlands (govt), Oasis Labs, Taurus SA, Teleport, and others.
 
-__fxamacker/cbor__ is easy.  It provides standard API and interfaces.
+Install with `go get github.com/fxamacker/cbor/v2` and `import "github.com/fxamacker/cbor/v2"`.  
+See [Quick Start](#quick-start) to save time.
+
+## What is CBOR?
+
+[CBOR](https://tools.ietf.org/html/rfc8949) is a concise binary data format inspired by [JSON](https://www.json.org) and [MessagePack](https://msgpack.org).  CBOR is defined in [RFC 8949](https://tools.ietf.org/html/rfc8949) (December 2020) which obsoletes [RFC 7049](https://tools.ietf.org/html/rfc7049) (October 2013).  
+
+CBOR is an [Internet Standard](https://en.wikipedia.org/wiki/Internet_Standard) by [IETF](https://www.ietf.org).  It's used in other standards like [WebAuthn](https://en.wikipedia.org/wiki/WebAuthn) by [W3C](https://www.w3.org), [COSE (RFC 8152)](https://tools.ietf.org/html/rfc8152), [CWT (RFC 8392)](https://tools.ietf.org/html/rfc8392), [CDDL (RFC 8610)](https://datatracker.ietf.org/doc/html/rfc8610) and [more](CBOR_GOLANG.md).
+
+[Reasons for choosing CBOR](https://github.com/fxamacker/cbor/wiki/Why-CBOR) vary by project.  Some projects replaced protobuf, encoding/json, encoding/gob, etc. with CBOR.  For example, by replacing protobuf with CBOR in gRPC.
+
+## Why fxamacker/cbor?
+
+fxamacker/cbor balances competing factors such as speed, size, safety, usability, maintainability, and etc.
+
+- Killer features include Go struct tags like `toarray`, `keyasint`, etc.  They reduce encoded data size, improve speed, and reduce programming effort. For example, `toarray` automatically translates a Go struct to/from a CBOR array.
+
+- Modern CBOR features include Core Deterministic Encoding and Preferred Encoding. Other features include CBOR tags, big.Int, float64→32→16, an API like `encoding/json`, and more.
+
+- Security features include the option to detect duplicate map keys and options to set various max limits. And it's designed to make concurrent use of CBOR options easy and free from side-effects.  
+
+- To prevent crashes, it has been fuzz-tested since before release 1.0 and code coverage is kept above 98%.
+
+- For portability and safety, it avoids using `unsafe`, which makes it portable and protected by Go1's compatibility guidelines.  
+
+- For performance, it uses safe optimizations.  When used properly, fxamacker/cbor can be faster than CBOR codecs that rely on `unsafe`.  However, speed is only one factor and should be considered together with other competing factors.
+
+## CBOR Security
+
+__fxamacker/cbor__ is secure.  It rejects malformed CBOR data and has an option to detect duplicate map keys.  It doesn't crash when decoding bad CBOR data. It has extensive tests, coverage-guided fuzzing, data validation, and avoids Go's `unsafe` package.
+
+Decoding 9 or 10 bytes of malformed CBOR data shouldn't exhaust memory. For example,  
+`[]byte{0x9B, 0x00, 0x00, 0x42, 0xFA, 0x42, 0xFA, 0x42, 0xFA, 0x42}`
+
+|     | Decode bad 10 bytes to interface{} | Decode bad 10 bytes to []byte |
+| :--- | :------------------ | :--------------- |
+| fxamacker/cbor<br/>1.0-2.3 | 49.44 ns/op, 24 B/op, 2 allocs/op* | 51.93 ns/op, 32 B/op, 2 allocs/op* |
+| ugorji/go 1.2.6 | ⚠️ 45021 ns/op, 262852 B/op, 7 allocs/op | 💥 runtime: out of memory: cannot allocate |
+| ugorji/go 1.1-1.1.7 | 💥 runtime: out of memory: cannot allocate | 💥 runtime: out of memory: cannot allocate|
+
+*Speed and memory are for latest codec version listed in the row (compiled with Go 1.17.5).
+
+fxamacker/cbor CBOR safety settings include: MaxNestedLevels, MaxArrayElements, MaxMapPairs, and IndefLength.
+
+For more info, see:
+ - [RFC 8949 Section 10 (Security Considerations)](https://tools.ietf.org/html/rfc8949#section-10) or [RFC 7049 Section 8](https://tools.ietf.org/html/rfc7049#section-8).
+ - [Go warning](https://golang.org/pkg/unsafe/), "Packages that import unsafe may be non-portable and are not protected by the Go 1 compatibility guidelines."
+
+## CBOR Performance
+
+__fxamacker/cbor__ is fast without sacrificing security. It can be faster than libraries relying on `unsafe` package.
+
+![alt text](https://github.com/fxamacker/images/raw/master/cbor/v2.3.0/cbor_speed_comparison.svg?sanitize=1 "CBOR speed comparison chart")
+
+__Click to expand:__
+
+<details>
+  <summary> 👉 CBOR Program Size Comparison </summary><p>
+
+__fxamacker/cbor__ produces smaller programs without sacrificing features.
+  
+![alt text](https://github.com/fxamacker/images/raw/master/cbor/v2.3.0/cbor_size_comparison.svg?sanitize=1 "CBOR program size comparison chart")
+
+</details>
+
+<details><summary> 👉 fxamacker/cbor 2.3.0 (safe) vs ugorji/go 1.2.6 (unsafe)</summary><p>
+
+fxamacker/cbor 2.3.0 (not using `unsafe`) is faster than ugorji/go 1.2.6 (using `unsafe`).
+
+```
+benchstat results/bench-ugorji-go-count20.txt results/bench-fxamacker-cbor-count20.txt 
+name                                 old time/op    new time/op    delta
+DecodeCWTClaims-8                      1.08µs ± 0%    0.67µs ± 0%  -38.10%  (p=0.000 n=16+20)
+DecodeCOSE/128-Bit_Symmetric_Key-8      715ns ± 0%     501ns ± 0%  -29.97%  (p=0.000 n=20+19)
+DecodeCOSE/256-Bit_Symmetric_Key-8      722ns ± 0%     507ns ± 0%  -29.72%  (p=0.000 n=19+18)
+DecodeCOSE/ECDSA_P256_256-Bit_Key-8    1.11µs ± 0%    0.83µs ± 0%  -25.27%  (p=0.000 n=19+20)
+DecodeWebAuthn-8                        880ns ± 0%     727ns ± 0%  -17.31%  (p=0.000 n=18+20)
+EncodeCWTClaims-8                       785ns ± 0%     388ns ± 0%  -50.51%  (p=0.000 n=20+20)
+EncodeCOSE/128-Bit_Symmetric_Key-8      973ns ± 0%     433ns ± 0%  -55.45%  (p=0.000 n=20+19)
+EncodeCOSE/256-Bit_Symmetric_Key-8      974ns ± 0%     435ns ± 0%  -55.37%  (p=0.000 n=20+19)
+EncodeCOSE/ECDSA_P256_256-Bit_Key-8    1.14µs ± 0%    0.55µs ± 0%  -52.10%  (p=0.000 n=19+19)
+EncodeWebAuthn-8                        564ns ± 0%     450ns ± 1%  -20.18%  (p=0.000 n=18+20)
+
+name                                 old alloc/op   new alloc/op   delta
+DecodeCWTClaims-8                        744B ± 0%      160B ± 0%  -78.49%  (p=0.000 n=20+20)
+DecodeCOSE/128-Bit_Symmetric_Key-8       792B ± 0%      232B ± 0%  -70.71%  (p=0.000 n=20+20)
+DecodeCOSE/256-Bit_Symmetric_Key-8       816B ± 0%      256B ± 0%  -68.63%  (p=0.000 n=20+20)
+DecodeCOSE/ECDSA_P256_256-Bit_Key-8      905B ± 0%      344B ± 0%  -61.99%  (p=0.000 n=20+20)
+DecodeWebAuthn-8                       1.56kB ± 0%    0.99kB ± 0%  -36.41%  (p=0.000 n=20+20)
+EncodeCWTClaims-8                      1.35kB ± 0%    0.18kB ± 0%  -86.98%  (p=0.000 n=20+20)
+EncodeCOSE/128-Bit_Symmetric_Key-8     1.95kB ± 0%    0.22kB ± 0%  -88.52%  (p=0.000 n=20+20)
+EncodeCOSE/256-Bit_Symmetric_Key-8     1.95kB ± 0%    0.24kB ± 0%  -87.70%  (p=0.000 n=20+20)
+EncodeCOSE/ECDSA_P256_256-Bit_Key-8    1.95kB ± 0%    0.32kB ± 0%  -83.61%  (p=0.000 n=20+20)
+EncodeWebAuthn-8                       1.30kB ± 0%    1.09kB ± 0%  -16.56%  (p=0.000 n=20+20)
+
+name                                 old allocs/op  new allocs/op  delta
+DecodeCWTClaims-8                        6.00 ± 0%      6.00 ± 0%     ~     (all equal)
+DecodeCOSE/128-Bit_Symmetric_Key-8       4.00 ± 0%      4.00 ± 0%     ~     (all equal)
+DecodeCOSE/256-Bit_Symmetric_Key-8       4.00 ± 0%      4.00 ± 0%     ~     (all equal)
+DecodeCOSE/ECDSA_P256_256-Bit_Key-8      7.00 ± 0%      7.00 ± 0%     ~     (all equal)
+DecodeWebAuthn-8                         5.00 ± 0%      5.00 ± 0%     ~     (all equal)
+EncodeCWTClaims-8                        4.00 ± 0%      2.00 ± 0%  -50.00%  (p=0.000 n=20+20)
+EncodeCOSE/128-Bit_Symmetric_Key-8       6.00 ± 0%      2.00 ± 0%  -66.67%  (p=0.000 n=20+20)
+EncodeCOSE/256-Bit_Symmetric_Key-8       6.00 ± 0%      2.00 ± 0%  -66.67%  (p=0.000 n=20+20)
+EncodeCOSE/ECDSA_P256_256-Bit_Key-8      6.00 ± 0%      2.00 ± 0%  -66.67%  (p=0.000 n=20+20)
+EncodeWebAuthn-8                         4.00 ± 0%      2.00 ± 0%  -50.00%  (p=0.000 n=20+20)
+```
+ </details>
+
+Benchmarks used Go 1.17.5, linux_amd64, and data from [RFC 8392 Appendix A.1](https://tools.ietf.org/html/rfc8392#appendix-A.1).  Default build options were used for all CBOR libraries.  Library init code was put outside the benchmark loop for all libraries compared.
+
+## CBOR API
+
+__fxamacker/cbor__ is easy to use.  It provides standard API and interfaces.
 
 __Standard API__.  Function signatures identical to [`encoding/json`](https://golang.org/pkg/encoding/json/) include:  
 `Marshal`, `Unmarshal`, `NewEncoder`, `NewDecoder`, `(*Encoder).Encode`, and `(*Decoder).Decode`.
@@ -28,118 +139,52 @@ __Standard API__.  Function signatures identical to [`encoding/json`](https://go
 __Standard Interfaces__.  Custom encoding and decoding is handled by implementing:  
 `BinaryMarshaler`, `BinaryUnmarshaler`, `Marshaler`, and `Unmarshaler`.
 
-It's also designed to simplify concurrency and allow fast parallelism.  CBOR options can be used without creating unintended runtime side-effects.
+__Predefined Encoding Options__.  Encoding options are easy to use and are customizable.
 
-<hr>
+```go
+func CoreDetEncOptions() EncOptions {}              // RFC 8949 Core Deterministic Encoding
+func PreferredUnsortedEncOptions() EncOptions {}    // RFC 8949 Preferred Serialization
+func CanonicalEncOptions() EncOptions {}            // RFC 7049 Canonical CBOR
+func CTAP2EncOptions() EncOptions {}                // FIDO2 CTAP2 Canonical CBOR
+```
 
-__fxamacker/cbor__ saves time. It has killer features like __`toarray`__ and __`keyasint`__ struct tags.
+fxamacker/cbor designed to simplify concurrency.  CBOR options can be used without creating unintended runtime side-effects.
+
+## Go Struct Tags
+
+__fxamacker/cbor__ provides Go struct tags like __`toarray`__ and __`keyasint`__ to save time and reduce encoded size of data.
 
 <br>
 
-![alt text](https://github.com/fxamacker/images/raw/master/cbor/v2.2.0/cbor_struct_tags_api.svg?sanitize=1 "CBOR API and Go Struct Tags")
+![alt text](https://github.com/fxamacker/images/raw/master/cbor/v2.3.0/cbor_struct_tags_api.svg?sanitize=1 "CBOR API and Go Struct Tags")
 
-<hr>
+## CBOR Features
 
 __fxamacker/cbor__ is a full-featured CBOR encoder and decoder.
 
-![alt text](https://github.com/fxamacker/images/raw/master/cbor/v2.2.0/cbor_features.svg?sanitize=1 "CBOR Features")
+|   | CBOR Feature  | Description  |
+| :--- | :--- | :--- |
+| ☑️ | CBOR tags | API supports built-in and user-defined tags.  |
+| ☑️ | Preferred serialization | Integers encode to fewest bytes. Optional float64 → float32 → float16. |
+| ☑️ | Map key sorting | Unsorted, length-first (Canonical CBOR), and bytewise-lexicographic (CTAP2). |
+| ☑️ | Duplicate map keys | Always forbid for encoding and option to allow/forbid for decoding.   |
+| ☑️ | Indefinite length data | Option to allow/forbid for encoding and decoding. |
+| ☑️ | Well-formedness | Always checked and enforced. |
+| ☑️ | Basic validity checks | Check UTF-8 validity and optionally check duplicate map keys. |
+| ☑️ | Security considerations | Prevent integer overflow and resource exhaustion (RFC 8949 Section 10). |
 
-<hr>
+## CBOR Library Installation
 
-__fxamacker/cbor__ can produce smaller programs that are faster and use less memory.
-
-__Click to expand:__
-
-<details>
-  <summary>CBOR Program Size Comparison</summary><p>
-  
-__fxamacker/cbor__ can produce smaller programs.
-  
-![alt text](https://github.com/fxamacker/images/raw/master/cbor/v2.2.0/cbor_size_comparison.png "CBOR library and program size comparison chart")
-
-</details>
-
-<details>
-  <summary>CBOR Speed Comparison</summary><p>
-
-__fxamacker/cbor__ can be faster for CBOR data such as CBOR Web Tokens.
-
-![alt text](https://github.com/fxamacker/images/raw/master/cbor/v2.2.0/cbor_speed_comparison.png "CBOR library speed comparison chart")
-
-</details>
-
-<details>
-  <summary>CBOR Memory Comparison</summary><p>
-
-__fxamacker/cbor__ can use less memory for CBOR data such as CBOR Web Tokens.
-
-![alt text](https://github.com/fxamacker/images/raw/master/cbor/v2.2.0/cbor_memory_table.svg?sanitize=1 "CBOR Memory Comparison")
-
-</details>
-
-Benchmarks used example data from [RFC 8392 Appendix A.1](https://tools.ietf.org/html/rfc8392#appendix-A.1) and default options for CBOR libraries.
-
-<hr>
-
-⚓  [__Installation__](#installation) • [__System Requirements__](#system-requirements) • [__Quick Start Guide__](#quick-start)
-
-<hr>
-
-__Why this CBOR library?__ It doesn't crash and it has well-balanced qualities: small, fast, safe and easy. It also has a standard API, CBOR tags (built-in and user-defined), float64→32→16, and duplicate map key options.
-
-* __Standard API__. Codec functions with signatures identical to [`encoding/json`](https://golang.org/pkg/encoding/json/) include:  
-`Marshal`, `Unmarshal`, `NewEncoder`, `NewDecoder`, `(*Encoder).Encode`, and `(*Decoder).Decode`.
-
-* __Customizable__. Standard interfaces are provided to allow user-implemented encoding or decoding:  
-`BinaryMarshaler`, `BinaryUnmarshaler`, `Marshaler`, and `Unmarshaler`.
-
-* __Small apps__.  Same programs are 4-9 MB smaller by switching to this library.  No code gen and the only imported pkg is [x448/float16](https://github.com/x448/float16) which is maintained by the same team as this library.
-
-* __Small data__.  The `toarray`, `keyasint`, and `omitempty` struct tags shrink size of Go structs encoded to CBOR.  Integers encode to smallest form that fits.  Floats can shrink from float64 -> float32 -> float16 if values fit.
-
-* __Fast__. v1.3 became faster than a well-known library that uses `unsafe` optimizations and code gen.  Faster libraries will always exist, but speed is only one factor.  This library doesn't use `unsafe` optimizations or code gen.  
-
-* __Safe__ and reliable. It prevents crashes on malicious CBOR data by using extensive tests, coverage-guided fuzzing, data validation, and avoiding Go's [`unsafe`](https://golang.org/pkg/unsafe/) pkg.  Decoder settings include: `MaxNestedLevels`, `MaxArrayElements`, `MaxMapPairs`, and `IndefLength`.
-
-* __Easy__ and saves time. Simple (no param) functions return preset `EncOptions` so you don't have to know the differences between Canonical CBOR and CTAP2 Canonical CBOR to use those standards.
-
-💡 Struct tags are a Go language feature.  CBOR tags relate to a CBOR data type (major type 6).
-
-Struct tags for CBOR and JSON like `` `cbor:"name,omitempty"` `` and `` `json:"name,omitempty"` `` are supported so you can leverage your existing code.  If both `cbor:` and `json:` tags exist then it will use `cbor:`.
-
-New struct tags like __`keyasint`__ and __`toarray`__ make compact CBOR data such as COSE, CWT, and SenML easier to use. 
-
-⚓  [Quick Start](#quick-start) • [Status](#current-status) • [Design Goals](#design-goals) • [Features](#features) • [Standards](#standards) • [API](#api) • [Options](#options) • [Usage](#usage) • [Fuzzing](#fuzzing-and-code-coverage) • [License](#license)
-
-## Installation
-
-Using Go modules is recommended.
-
-Use "/v2" when using `go get`.
+fxamacker/cbor supports Go 1.12 and newer versions.  Init the Go module, go get v2, and begin coding.
 
 ```
-$ GO111MODULE=on go get github.com/fxamacker/cbor/v2
+go mod init github.com/my_name/my_repo
+go get github.com/fxamacker/cbor/v2
 ```
-
-Also use "/v2" when importing.
 
 ```go
-import (
-	"github.com/fxamacker/cbor/v2" // imports as package "cbor"
-)
+import "github.com/fxamacker/cbor/v2"  // imports as cbor
 ```
-
-If Go modules aren't used, delete or modify example_test.go to change the import  
-from `"github.com/fxamacker/cbor/v2"` to `"github.com/fxamacker/cbor"`
-
-## System Requirements
-
-Using Go modules is recommended but not required. 
-
-* Go 1.12 (or newer).
-* amd64, arm64, ppc64le and s390x. Other architectures may also work but they are not tested as frequently. 
-
-If Go modules feature isn't used, please see [Installation](#installation) about deleting or modifying example_test.go.
 
 ## Quick Start
 🛡️ Use Go's `io.LimitReader` to limit size when decoding very large or indefinite size data.
@@ -156,11 +201,8 @@ If default options are acceptable, package level functions can be used for encod
 
 ```go
 b, err := cbor.Marshal(v)        // encode v to []byte b
-
 err := cbor.Unmarshal(b, &v)     // decode []byte b to v
-
 encoder := cbor.NewEncoder(w)    // create encoder with io.Writer w
-
 decoder := cbor.NewDecoder(r)    // create decoder with io.Reader r
 ```
 
@@ -214,10 +256,10 @@ TagSet and all modes using it are safe for concurrent use.  Equivalent API is av
 __Predefined Encoding Options__
 
 ```go
-func CanonicalEncOptions() EncOptions {}            // RFC 7049 Canonical CBOR
-func CTAP2EncOptions() EncOptions {}                // FIDO2 CTAP2 Canonical CBOR
 func CoreDetEncOptions() EncOptions {}              // RFC 8949 Core Deterministic Encoding
 func PreferredUnsortedEncOptions() EncOptions {}    // RFC 8949 Preferred Serialization
+func CanonicalEncOptions() EncOptions {}            // RFC 7049 Canonical CBOR
+func CTAP2EncOptions() EncOptions {}                // FIDO2 CTAP2 Canonical CBOR
 ```
 
 The empty curly braces prevent a syntax highlighting bug on GitHub, please ignore them.
@@ -236,86 +278,7 @@ The following sections provide more info:
 
 <hr>
 
-⚓  [Quick Start](#quick-start) • [Status](#current-status) • [Design Goals](#design-goals) • [Features](#features) • [Standards](#standards) • [API](#api) • [Options](#options) • [Usage](#usage) • [Fuzzing](#fuzzing-and-code-coverage) • [License](#license)
-
-## Current Status
-Latest version is v2.x, which has:
-
-* __Stable API__ –  Six codec function signatures will never change.  No breaking API changes for other funcs in same major version.
-* __Passed all tests__ – v2.x passed all 375+ tests on amd64, arm64, ppc64le and s390x with linux.
-* __Passed fuzzing__ – v2.2 passed 459+ million execs in coverage-guided fuzzing on Feb 24 (release date)  
-and 3.2+ billion execs on March 7, 2020.
-
-__Why v2.x?__:
-
-v1 required breaking API changes to support new features like CBOR tags, detection of duplicate map keys, and having more functions with identical signatures to `encoding/json`.
-
-v2.1 is roughly 26% faster and uses 57% fewer allocs than v1.x when decoding COSE and CWT using default options.
-
-__Recent Activity__:
-
-* Release v2.1 (Feb. 17, 2020) 
-   - [x] CBOR tags (major type 6) for encoding and decoding.
-   - [x] Decoding options for duplicate map key detection: `DupMapKeyQuiet` (default) and `DupMapKeyEnforcedAPF`
-   - [x] Decoding optimizations. Structs using keyasint tag (like COSE and CWT) is  
-   24-28% faster and 53-61% fewer allocs than both v1.5 and v2.0.1.
-
-* Release v2.2 (Feb. 24, 2020)
-   - [x] CBOR BSTR <--> Go byte array (byte slices were already supported)
-   - [x] Add more encoding and decoding options (MaxNestedLevels, MaxArrayElements, MaxMapKeyPairs, TagsMd, etc.)
-   - [x] Fix potential error when decoding shorter CBOR indef length array to Go array (slice wasn't affected). This bug affects all prior versions of 1.x and 2.x. It was found by a recently updated fxamacker/cbor-fuzz.
-
-<hr>
-
-⚓  [Quick Start](#quick-start) • [Status](#current-status) • [Design Goals](#design-goals) • [Features](#features) • [Standards](#standards) • [API](#api) • [Options](#options) • [Usage](#usage) • [Fuzzing](#fuzzing-and-code-coverage) • [License](#license)
-
-## Design Goals 
-This library is designed to be a generic CBOR encoder and decoder.  It was initially created for a [WebAuthn (FIDO2) server library](https://github.com/fxamacker/webauthn), because existing CBOR libraries (in Go) didn't meet certain criteria in 2019.
-
-This library is designed to be:
-
-* __Easy__ – API is like `encoding/json` plus `keyasint` and `toarray` struct tags.
-* __Small__ – Programs in cisco/senml are 4 MB smaller by switching to this library. In extreme cases programs can be smaller by 9+ MB. No code gen and the only imported pkg is x448/float16 which is maintained by the same team.
-* __Safe and reliable__ – No `unsafe` pkg, coverage >95%, coverage-guided fuzzing, and data validation to avoid crashes on malformed or malicious data. Decoder settings include: `MaxNestedLevels`, `MaxArrayElements`, `MaxMapPairs`, and `IndefLength`.
-
-Avoiding `unsafe` package has benefits.  The `unsafe` package [warns](https://golang.org/pkg/unsafe/):
-
-> Packages that import unsafe may be non-portable and are not protected by the Go 1 compatibility guidelines.
-
-All releases prioritize reliability to avoid crashes on decoding malformed CBOR data. See [Fuzzing and Coverage](#fuzzing-and-code-coverage).
-
-Competing factors are balanced:
-
-* __Speed__ vs __safety__ vs __size__ – to keep size small, avoid code generation. For safety, validate data and avoid Go's `unsafe` pkg.  For speed, use safe optimizations such as caching struct metadata. This library is faster than a well-known library that uses `unsafe` and code gen.
-* __Standards compliance__ vs __size__ – Supports CBOR RFC 7049 with minor [limitations](#limitations). To limit bloat, CBOR tags are supported but not all tags are built-in. The API allows users to add tags that aren't built-in.  The API also allows custom encoding and decoding of user-defined Go types.
-
-__Click to expand topic:__
-
-<details>
- <summary>Supported CBOR Features (Highlights)</summary><p>
-
-![alt text](https://github.com/fxamacker/images/raw/master/cbor/v2.2.0/cbor_features.svg?sanitize=1 "CBOR Features")
-
-</details>
-
-<details>
- <summary>v2.0 API Design</summary><p>
-
-v2.0 decoupled options from CBOR encoding & decoding functions:
-
-* More encoding/decoding function signatures are identical to encoding/json.
-* More function signatures can remain stable forever.
-* More flexibility for evolving internal data types, optimizations, and concurrency.
-* Features like CBOR tags can be added without more breaking API changes.
-* Options to handle duplicate map keys can be added without more breaking API changes.
-
-</details>
-
-Features not in Go's standard library are usually not added.  However, the __`toarray`__ struct tag in __ugorji/go__ was too useful to ignore. It was added in v1.3 when a project mentioned they were using it with CBOR to save disk space.
-
-<hr>
-
-⚓  [Quick Start](#quick-start) • [Status](#current-status) • [Design Goals](#design-goals) • [Features](#features) • [Standards](#standards) • [API](#api) • [Options](#options) • [Usage](#usage) • [Fuzzing](#fuzzing-and-code-coverage) • [License](#license)
+⚓  [Quick Start](#quick-start) • [Features](#features) • [Standards](#standards) • [API](#api) • [Options](#options) • [Usage](#usage) • [Fuzzing](#fuzzing-and-code-coverage) • [License](#license)
 
 ## Features
 
@@ -345,9 +308,9 @@ See [Struct Tags](#struct-tags-1) for more info.
 
 ### CBOR Tags (New in v2.1)
 
-There are three broad categories of CBOR tags:
+There are three categories of CBOR tags:
 
-* __Default built-in CBOR tags__ currently include tag numbers 0 and 1 (Time).  Additional default built-in tags in future releases may include tag numbers 2 and 3 (Bignum).  
+* __Default built-in CBOR tags__ currently include tag numbers 0 (Standard Date/Time), 1 (Epoch Date/Time), 2 (Unsigned Bignum), 3 (Negative Bignum), 55799 (Self-Described CBOR).  
 
 * __Optional built-in CBOR tags__ may be provided in the future via build flags or optional package(s) to help reduce bloat.
 
@@ -375,13 +338,33 @@ Integers always encode to the shortest form that preserves value.  By default, t
 
 Encoding of other data types and map key sort order are determined by encoder options.
 
-![alt text](https://github.com/fxamacker/images/raw/master/cbor/v2.2.0/cbor_encoptions.svg?sanitize=1 "CBOR Encoding Options")
+| EncOptions | Available Settings (defaults listed first)
+| :--- | :--- |
+| Sort | **SortNone**, SortLengthFirst, SortBytewiseLexical <br/> Aliases: SortCanonical, SortCTAP2, SortCoreDeterministic |
+| Time | **TimeUnix**, TimeUnixMicro, TimeUnixDynamic, TimeRFC3339, TimeRFC3339Nano |
+| TimeTag | **EncTagNone**, EncTagRequired |
+| ShortestFloat | **ShortestFloatNone**, ShortestFloat16  |
+| BigIntConvert | **BigIntConvertShortest**, BigIntConvertNone |
+| InfConvert | **InfConvertFloat16**, InfConvertNone |
+| NaNConvert | **NaNConvert7e00**, NaNConvertNone, NaNConvertQuiet, NaNConvertPreserveSignal |
+| IndefLength | **IndefLengthAllowed**, IndefLengthForbidden  |
+| TagsMd | **TagsAllowed**, TagsForbidden |
 
 See [Options](#options) section for details about each setting.
 
 ### Decoding Options
 
-![alt text](https://github.com/fxamacker/images/raw/master/cbor/v2.2.0/cbor_decoptions.svg?sanitize=1 "CBOR Decoding Options")
+| DecOptions | Available Settings (defaults listed first)  |
+| :--- | :--- |
+| TimeTag | **DecTagIgnored**, DecTagOptional, DecTagRequired |
+| DupMapKey | **DupMapKeyQuiet**, DupMapKeyEnforcedAPF |
+| IntDec | **IntDecConvertNone**, IntDecConvertSigned |
+| IndefLength | **IndefLengthAllowed**, IndefLengthForbidden |
+| TagsMd | **TagsAllowed**, TagsForbidden |
+| ExtraReturnErrors | **ExtraDecErrorNone**, ExtraDecErrorUnknownField |
+| MaxNestedLevels | **32**, can be set to [4, 256] |
+| MaxArrayElements | **131072**, can be set to [16, 2147483647] |
+| MaxMapPairs | **131072**, can be set to [16, 2147483647] |
 
 See [Options](#options) section for details about each setting.
 
@@ -390,17 +373,27 @@ See [Options](#options) section for details about each setting.
 * Decoder always checks for invalid UTF-8 string errors.
 * Decoder always decodes in-place to slices, maps, and structs.
 * Decoder tries case-sensitive first and falls back to case-insensitive field name match when decoding to structs. 
+* Decoder supports decoding registered CBOR tag data to interface types. 
 * Both encoder and decoder support indefinite length CBOR data (["streaming"](https://tools.ietf.org/html/rfc7049#section-2.2)).
 * Both encoder and decoder correctly handles nil slice, map, pointer, and interface values.
 
 <hr>
 
-⚓  [Quick Start](#quick-start) • [Status](#current-status) • [Design Goals](#design-goals) • [Features](#features) • [Standards](#standards) • [API](#api) • [Options](#options) • [Usage](#usage) • [Fuzzing](#fuzzing-and-code-coverage) • [License](#license)
+⚓  [Quick Start](#quick-start) • [Features](#features) • [Standards](#standards) • [API](#api) • [Options](#options) • [Usage](#usage) • [Fuzzing](#fuzzing-and-code-coverage) • [License](#license)
 
 ## Standards
-This library is a full-featured generic CBOR [(RFC 7049)](https://tools.ietf.org/html/rfc7049) encoder and decoder.  Notable CBOR features include:
+This library is a full-featured generic CBOR [(RFC 8949)](https://tools.ietf.org/html/rfc8949) encoder and decoder.  Notable CBOR features include:
 
-![alt text](https://github.com/fxamacker/images/raw/master/cbor/v2.2.0/cbor_features.svg?sanitize=1 "CBOR Features")
+|   | CBOR Feature  | Description  |
+| :--- | :--- | :--- |
+| ☑️ | CBOR tags | API supports built-in and user-defined tags.  |
+| ☑️ | Preferred serialization | Integers encode to fewest bytes. Optional float64 → float32 → float16. |
+| ☑️ | Map key sorting | Unsorted, length-first (Canonical CBOR), and bytewise-lexicographic (CTAP2). |
+| ☑️ | Duplicate map keys | Always forbid for encoding and option to allow/forbid for decoding.   |
+| ☑️ | Indefinite length data | Option to allow/forbid for encoding and decoding. |
+| ☑️ | Well-formedness | Always checked and enforced. |
+| ☑️ | Basic validity checks | Check UTF-8 validity and optionally check duplicate map keys. |
+| ☑️ | Security considerations | Prevent integer overflow and resource exhaustion (RFC 8949 Section 10). |
 
 See the Features section for list of [Encoding Options](#encoding-options) and [Decoding Options](#decoding-options).
 
@@ -439,12 +432,12 @@ APF suffix means "Allow Partial Fill" so the destination map or struct can conta
 <details>
  <summary>Tag Validity</summary><p>
 
-This library checks tag validity for built-in tags (currently tag numbers 0 and 1):
+This library checks tag validity for built-in tags (currently tag numbers 0, 1, 2, 3, and 55799):
 
 * Inadmissible type for tag content 
 * Inadmissible value for tag content
 
-Unknown tag data items (not tag number 0 or 1) are handled in two ways:
+Unknown tag data items (not tag number 0, 1, 2, 3, or 55799) are handled in two ways:
 
 * When decoding into an empty interface, unknown tag data item will be decoded into `cbor.Tag` data type, which contains tag number and tag content.  The tag content will be decoded into the default Go data type for the CBOR data type.
 * When decoding into other Go types, unknown tag data item is decoded into the specified Go type.  If Go type is registered with a tag number, the tag number can optionally be verified.
@@ -462,10 +455,11 @@ If any of these limitations prevent you from using this library, please open an 
 * CBOR `Undefined` (0xf7) value decodes to Go's `nil` value.  CBOR `Null` (0xf6) more closely matches Go's `nil`.
 * CBOR map keys with data types not supported by Go for map keys are ignored and an error is returned after continuing to decode remaining items.  
 * When using io.Reader interface to read very large or indefinite length CBOR data, Go's `io.LimitReader` should be used to limit size.
+* When decoding registered CBOR tag data to interface type, decoder creates a pointer to registered Go type matching CBOR tag number.  Requiring a pointer for this is a Go limitation. 
 
 <hr>
 
-⚓  [Quick Start](#quick-start) • [Status](#current-status) • [Design Goals](#design-goals) • [Features](#features) • [Standards](#standards) • [API](#api) • [Options](#options) • [Usage](#usage) • [Fuzzing](#fuzzing-and-code-coverage) • [License](#license)
+⚓  [Quick Start](#quick-start) • [Features](#features) • [Standards](#standards) • [API](#api) • [Options](#options) • [Usage](#usage) • [Fuzzing](#fuzzing-and-code-coverage) • [License](#license)
 
 ## API
 Many function signatures are identical to Go's encoding/json, such as:  
@@ -525,10 +519,10 @@ The empty curly braces prevent a syntax highlighting bug, please ignore them.
 __API for Predefined Encoding Options__
 
 ```go
-func CanonicalEncOptions() EncOptions {}            // RFC 7049 Canonical CBOR
-func CTAP2EncOptions() EncOptions {}                // FIDO2 CTAP2 Canonical CBOR
 func CoreDetEncOptions() EncOptions {}              // RFC 8949 Core Deterministic Encoding
 func PreferredUnsortedEncOptions() EncOptions {}    // RFC 8949 Preferred Serialization
+func CanonicalEncOptions() EncOptions {}            // RFC 7049 Canonical CBOR
+func CTAP2EncOptions() EncOptions {}                // FIDO2 CTAP2 Canonical CBOR
 ```
 
 __API for Creating & Using Decoding Modes__
@@ -592,7 +586,7 @@ See [API docs (godoc.org)](https://godoc.org/github.com/fxamacker/cbor) for more
 
 <hr>
 
-⚓  [Quick Start](#quick-start) • [Status](#current-status) • [Design Goals](#design-goals) • [Features](#features) • [Standards](#standards) • [API](#api) • [Options](#options) • [Usage](#usage) • [Fuzzing](#fuzzing-and-code-coverage) • [License](#license)
+⚓  [Quick Start](#quick-start) • [Features](#features) • [Standards](#standards) • [API](#api) • [Options](#options) • [Usage](#usage) • [Fuzzing](#fuzzing-and-code-coverage) • [License](#license)
 
 ## Options
 
@@ -614,10 +608,10 @@ The "keyasint" struct tag requires an integer key to be specified:
 
 ```
 type myStruct struct {
-    MyField     int64    `cbor:-1,keyasint,omitempty`
-    OurField    string   `cbor:0,keyasint,omitempty`
-    FooField    Foo      `cbor:5,keyasint,omitempty`
-    BarField    Bar      `cbor:hello,omitempty`
+    MyField     int64    `cbor:"-1,keyasint,omitempty'`
+    OurField    string   `cbor:"0,keyasint,omitempty"`
+    FooField    Foo      `cbor:"5,keyasint,omitempty"`
+    BarField    Bar      `cbor:"hello,omitempty"`
     ...
 }
 ```
@@ -638,7 +632,7 @@ __Click to expand:__
 <details>
   <summary>Example Using CBOR Web Tokens</summary><p>
    
-![alt text](https://github.com/fxamacker/images/raw/master/cbor/v2.2.0/cbor_struct_tags_api.svg?sanitize=1 "CBOR API and Go Struct Tags")
+![alt text](https://github.com/fxamacker/images/raw/master/cbor/v2.3.0/cbor_struct_tags_api.svg?sanitize=1 "CBOR API and Go Struct Tags")
 
 </details>
 
@@ -671,6 +665,15 @@ Go's `time` package provides `IsZero` function, which reports whether t represen
 
 <br>
 
+| DecOptions.IntDec | Description |
+| ------------------ | ----------- |
+| IntDecConvertNone (default) | When decoding to Go interface{}, CBOR positive int (major type 0) decode to uint64 value, and CBOR negative int (major type 1) decode to int64 value. |
+| IntDecConvertSigned | When decoding to Go interface{}, CBOR positive/negative int (major type 0 and 1) decode to int64 value. |
+
+If `IntDecConvertedSigned` is used and value overflows int64, UnmarshalTypeError is returned.
+
+<br>
+
 | DecOptions.IndefLength | Description |
 | ---------------------- | ----------- |
 |IndefLengthAllowed (default) | allow indefinite length data |
@@ -682,6 +685,13 @@ Go's `time` package provides `IsZero` function, which reports whether t represen
 | ----------------- | ----------- |
 |TagsAllowed (default) | allow CBOR tags (major type 6) |
 |TagsForbidden | forbid CBOR tags (major type 6) |
+
+<br>
+
+| DecOptions.ExtraReturnErrors | Description |
+| ----------------- | ----------- |
+|ExtraDecErrorNone (default) | no extra decoding errors.  E.g. ignore unknown fields if encountered. |
+|ExtraDecErrorUnknownField | return error if unknown field is encountered |
 
 <br>
 
@@ -720,10 +730,10 @@ These functions are provided to create and return a modifiable EncOptions struct
 | --------------- | ----------- |
 | SortNone (default) |No sorting for map keys. |
 | SortLengthFirst |Length-first map key ordering. |
-| SortBytewiseLexical |Bytewise lexicographic map key ordering |
+| SortBytewiseLexical |Bytewise lexicographic map key ordering [(RFC 8949 Section 4.2.1)](https://datatracker.ietf.org/doc/html/rfc8949#section-4.2.1).|
 | SortCanonical |(alias) Same as SortLengthFirst [(RFC 7049 Section 3.9)](https://tools.ietf.org/html/rfc7049#section-3.9) |
 | SortCTAP2 |(alias) Same as SortBytewiseLexical [(CTAP2 Canonical CBOR)](https://fidoalliance.org/specs/fido-v2.0-id-20180227/fido-client-to-authenticator-protocol-v2.0-id-20180227.html#ctap2-canonical-cbor-encoding-form). |
-| SortCoreDeterministic |(alias) Same as SortBytewiseLexical. |
+| SortCoreDeterministic |(alias) Same as SortBytewiseLexical [(RFC 8949 Section 4.2.1)](https://datatracker.ietf.org/doc/html/rfc8949#section-4.2.1). |
 
 <br>
 
@@ -742,11 +752,16 @@ These functions are provided to create and return a modifiable EncOptions struct
 | EncTagNone (default) | Tag number will not be encoded for time values. |
 | EncTagRequired | Tag number (0 or 1) will be encoded unless time value is undefined/zero-instant. |
 
-__Undefined Time Values__
-
 By default, undefined (zero instant) time values will encode as CBOR Null without tag number for both EncTagNone and EncTagRequired.  Although CBOR Undefined might be technically more correct for EncTagRequired, CBOR Undefined might not be supported by other generic decoders and it isn't supported by JSON.
 
 Go's `time` package provides `IsZero` function, which reports whether t represents the zero time instant, January 1, year 1, 00:00:00 UTC. 
+
+<br>
+
+| EncOptions.BigIntConvert | Description |
+| ------------------------ | ----------- |
+| BigIntConvertShortest (default) | Encode big.Int as CBOR integer if value fits. |
+| BigIntConvertNone | Encode big.Int as CBOR bignum (tag 2 or 3). |
 
 <br>
 
@@ -770,7 +785,7 @@ Conversions for infinity and NaN use InfConvert and NaNConvert settings.
 
 | EncOptions.NaNConvert | Description |
 | --------------------- | ----------- |
-| NaNConvert7e00 (default) | Encode to 0xf97e00 (CBOR float16 = 0x7e00) -- used by RFC 7049 Canonical CBOR. |
+| NaNConvert7e00 (default) | Encode to 0xf97e00 (CBOR float16 = 0x7e00) -- used by RFC 8949 Preferred Encoding, etc. |
 | NaNConvertNone | Don't convert NaN to other representations -- used by CTAP2 Canonical CBOR. |
 | NaNConvertQuiet | Force quiet bit = 1 and use shortest form that preserves NaN payload. |
 | NaNConvertPreserveSignal | Convert to smallest form that preserves value (quit bit unmodified and NaN payload preserved). |
@@ -809,7 +824,7 @@ TagOptions specifies how encoder and decoder handle tag number registered with T
 	
 <hr>
 
-⚓  [Quick Start](#quick-start) • [Status](#current-status) • [Design Goals](#design-goals) • [Features](#features) • [Standards](#standards) • [API](#api) • [Options](#options) • [Usage](#usage) • [Fuzzing](#fuzzing-and-code-coverage) • [License](#license)
+⚓  [Quick Start](#quick-start) • [Features](#features) • [Standards](#standards) • [API](#api) • [Options](#options) • [Usage](#usage) • [Fuzzing](#fuzzing-and-code-coverage) • [License](#license)
 
 ## Usage
 🛡️ Use Go's `io.LimitReader` to limit size when decoding very large or indefinite size data.
@@ -868,7 +883,7 @@ The `keyasint`, `toarray`, and `omitempty` struct tags make it easy to use compa
 
 <hr>
 
-![alt text](https://github.com/fxamacker/images/raw/master/cbor/v2.2.0/cbor_struct_tags_api.svg?sanitize=1 "CBOR API and Struct Tags")
+![alt text](https://github.com/fxamacker/images/raw/master/cbor/v2.3.0/cbor_struct_tags_api.svg?sanitize=1 "CBOR API and Struct Tags")
 
 <hr>
 
@@ -946,7 +961,7 @@ For more examples, see [examples_test.go](example_test.go).
 
 <hr>
 
-⚓  [Quick Start](#quick-start) • [Status](#current-status) • [Design Goals](#design-goals) • [Features](#features) • [Standards](#standards) • [API](#api) • [Options](#options) • [Usage](#usage) • [Fuzzing](#fuzzing-and-code-coverage) • [License](#license)
+⚓  [Quick Start](#quick-start) • [Features](#features) • [Standards](#standards) • [API](#api) • [Options](#options) • [Usage](#usage) • [Fuzzing](#fuzzing-and-code-coverage) • [License](#license)
 
 ## Comparisons
 
@@ -954,25 +969,40 @@ Comparisons are between this newer library and a well-known library that had 1,0
 
 __This library is safer__.  Small malicious CBOR messages are rejected quickly before they exhaust system resources.
 
-![alt text](https://github.com/fxamacker/images/raw/master/cbor/v2.2.0/cbor_security_table.svg?sanitize=1 "CBOR Security Comparison")
+Decoding 9 or 10 bytes of malformed CBOR data shouldn't exhaust memory. For example,  
+`[]byte{0x9B, 0x00, 0x00, 0x42, 0xFA, 0x42, 0xFA, 0x42, 0xFA, 0x42}`
+
+|     | Decode bad 10 bytes to interface{} | Decode bad 10 bytes to []byte |
+| :--- | :------------------ | :--------------- |
+| fxamacker/cbor<br/>1.0-2.3 | 49.44 ns/op, 24 B/op, 2 allocs/op* | 51.93 ns/op, 32 B/op, 2 allocs/op* |
+| ugorji/go 1.2.6 | ⚠️ 45021 ns/op, 262852 B/op, 7 allocs/op | 💥 runtime: out of memory: cannot allocate |
+| ugorji/go 1.1.0-1.1.7 | 💥 runtime: out of memory: cannot allocate | 💥 runtime: out of memory: cannot allocate|
+
+*Speed and memory are for latest codec version listed in the row (compiled with Go 1.17.5).
+
+fxamacker/cbor CBOR safety settings include: MaxNestedLevels, MaxArrayElements, MaxMapPairs, and IndefLength.
 
 __This library is smaller__. Programs like senmlCat can be 4 MB smaller by switching to this library.  Programs using more complex CBOR data types can be 9.2 MB smaller.
 
-![alt text](https://github.com/fxamacker/images/raw/master/cbor/v2.2.0/cbor_size_comparison.png "CBOR library and program size comparison chart")
+![alt text](https://github.com/fxamacker/images/raw/master/cbor/v2.3.0/cbor_size_comparison.svg?sanitize=1 "CBOR speed comparison chart")
+
 
 __This library is faster__ for encoding and decoding CBOR Web Token (CWT).  However, speed is only one factor and it can vary depending on data types and sizes.  Unlike the other library, this one doesn't use Go's ```unsafe``` package or code gen.
 
-![alt text](https://github.com/fxamacker/images/raw/master/cbor/v2.2.0/cbor_speed_comparison.png "CBOR library speed comparison chart")
+![alt text](https://github.com/fxamacker/images/raw/master/cbor/v2.3.0/cbor_speed_comparison.svg?sanitize=1 "CBOR speed comparison chart")
 
 __This library uses less memory__ for encoding and decoding CBOR Web Token (CWT) using test data from RFC 8392 A.1.
 
-![alt text](https://github.com/fxamacker/images/raw/master/cbor/v2.2.0/cbor_memory_table.svg?sanitize=1 "CBOR Memory Comparison")
+|  | fxamacker/cbor 2.3 | ugorji/go 1.2.6 |
+| :--- | :--- | :--- | 
+| Encode CWT | 0.18 kB/op &nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp; 2 allocs/op | 1.35 kB/op &nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp; 4 allocs/op |
+| Decode CWT | 160 bytes/op &nbsp;&nbsp;&nbsp; 6 allocs/op | 744 bytes/op &nbsp;&nbsp;&nbsp; 6 allocs/op |
 
-Doing your own comparisons is highly recommended.  Use your most common message sizes and data types.
+Running your own benchmarks is highly recommended.  Use your most common data structures and data sizes.
 
 <hr>
 
-⚓  [Quick Start](#quick-start) • [Status](#current-status) • [Design Goals](#design-goals) • [Features](#features) • [Standards](#standards) • [API](#api) • [Options](#options) • [Usage](#usage) • [Fuzzing](#fuzzing-and-code-coverage) • [License](#license)
+⚓  [Quick Start](#quick-start) • [Features](#features) • [Standards](#standards) • [API](#api) • [Options](#options) • [Usage](#usage) • [Fuzzing](#fuzzing-and-code-coverage) • [License](#license)
 
 ## Benchmarks
 
@@ -997,25 +1027,17 @@ See [Benchmarks for fxamacker/cbor](CBOR_BENCHMARKS.md).
 
 ## Fuzzing and Code Coverage
 
-__Over 375 tests__ must pass on 4 architectures before tagging a release.  They include all RFC 7049 examples, bugs found by fuzzing, maliciously crafted CBOR data, and over 87 tests with malformed data.
+__Over 375 tests__ must pass on 4 architectures before tagging a release.  They include all RFC 7049 and RFC 8949 examples, bugs found by fuzzing, maliciously crafted CBOR data, and over 87 tests with malformed data.  There's some overlap in the tests but it isn't a high priority to trim tests.
 
-__Code coverage__ must not fall below 95% when tagging a release.  Code coverage is 98.6% (`go test -cover`) for cbor v2.2 which is among the highest for libraries (in Go) of this type.
+__Code coverage__ must not fall below 95% when tagging a release.  Code coverage is above 98% (`go test -cover`) for cbor v2.3 which is among the highest for libraries (in Go) of this type.
 
-__Coverage-guided fuzzing__ must pass 250+ million execs before tagging a release.  Fuzzing uses [fxamacker/cbor-fuzz](https://github.com/fxamacker/cbor-fuzz).  Default corpus has:
+__Coverage-guided fuzzing__ must pass 1+ billion execs using a large corpus before tagging a release.  Fuzzing is usually continued after the release is tagged and is manually stopped after reaching 1-3 billion execs.  Fuzzing uses a customized version of [dvyukov/go-fuzz](https://github.com/dvyukov/go-fuzz).
 
-* 2 files related to WebAuthn (FIDO U2F key).
-* 3 files with custom struct.
-* 9 files with [CWT examples (RFC 8392 Appendix A)](https://tools.ietf.org/html/rfc8392#appendix-A).
-* 17 files with [COSE examples (RFC 8152 Appendix B & C)](https://github.com/cose-wg/Examples/tree/master/RFC8152).
-* 81 files with [CBOR examples (RFC 7049 Appendix A) ](https://tools.ietf.org/html/rfc7049#appendix-A). It excludes 1 errata first reported in [issue #46](https://github.com/fxamacker/cbor/issues/46).
-
-Over 1,100 files (corpus) are used for fuzzing because it includes fuzz-generated corpus.
-
-To prevent excessive delays, fuzzing is not restarted for a release if changes are limited to docs and comments.
+To prevent delays to release schedules, fuzzing is not restarted for a release if changes are limited to ci, docs, and comments.
 
 <hr>
 
-⚓  [Quick Start](#quick-start) • [Status](#current-status) • [Design Goals](#design-goals) • [Features](#features) • [Standards](#standards) • [API](#api) • [Options](#options) • [Usage](#usage) • [Fuzzing](#fuzzing-and-code-coverage) • [License](#license)
+⚓  [Quick Start](#quick-start) • [Features](#features) • [Standards](#standards) • [API](#api) • [Options](#options) • [Usage](#usage) • [Fuzzing](#fuzzing-and-code-coverage) • [License](#license)
 
 ## Versions and API Changes
 This project uses [Semantic Versioning](https://semver.org), so the API is always backwards compatible unless the major version number changes.  
@@ -1047,7 +1069,7 @@ Please read the license for additional disclaimers and terms.
 
 __Making this library better__  
 
-* Stefan Tatschner for using this library in [sep](https://git.sr.ht/~rumpelsepp/sep), being the 1st to discover my CBOR library, requesting time.Time in issue #1, and submitting this library in a [PR to cbor.io](https://github.com/cbor/cbor.github.io/pull/56) on Aug 12, 2019.
+* Stefan Tatschner for using this library in [sep](https://rumpelsepp.org/projects/sep), being the 1st to discover my CBOR library, requesting time.Time in issue #1, and submitting this library in a [PR to cbor.io](https://github.com/cbor/cbor.github.io/pull/56) on Aug 12, 2019.
 * Yawning Angel for using this library to [oasis-core](https://github.com/oasislabs/oasis-core), and requesting BinaryMarshaler in issue #5.
 * Jernej Kos for requesting RawMessage in issue #11 and offering feedback on v2.1 API for CBOR tags.
 * ZenGround0 for using this library in [go-filecoin](https://github.com/filecoin-project/go-filecoin), filing "toarray" bug in issue #129, and requesting  
@@ -1066,10 +1088,10 @@ __Words of encouragement and support__
 
 
 ## License 
-Copyright © 2019-present [Faye Amacker](https://github.com/fxamacker).  
+Copyright © 2019-2022 [Faye Amacker](https://github.com/fxamacker).  
 
 fxamacker/cbor is licensed under the MIT License.  See [LICENSE](LICENSE) for the full license text.  
 
 <hr>
 
-⚓  [Quick Start](#quick-start) • [Status](#current-status) • [Design Goals](#design-goals) • [Features](#features) • [Standards](#standards) • [API](#api) • [Options](#options) • [Usage](#usage) • [Fuzzing](#fuzzing-and-code-coverage) • [License](#license)
+⚓  [Quick Start](#quick-start) • [Features](#features) • [Standards](#standards) • [API](#api) • [Options](#options) • [Usage](#usage) • [Fuzzing](#fuzzing-and-code-coverage) • [License](#license)

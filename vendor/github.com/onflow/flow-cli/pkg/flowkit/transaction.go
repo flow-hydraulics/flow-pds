@@ -23,13 +23,16 @@ import (
 	"encoding/hex"
 	"fmt"
 
-	jsoncdc "github.com/onflow/cadence/encoding/json"
-
-	"github.com/onflow/flow-go-sdk/templates"
-
 	"github.com/onflow/cadence"
+	jsoncdc "github.com/onflow/cadence/encoding/json"
+	"github.com/onflow/cadence/runtime/ast"
+	"github.com/onflow/cadence/runtime/cmd"
+	"github.com/onflow/cadence/runtime/common"
 	"github.com/onflow/flow-go-sdk"
+	"github.com/onflow/flow-go-sdk/templates"
 )
+
+const maxGasLimit uint64 = 9999
 
 // NewTransaction create new instance of transaction.
 func NewTransaction() *Transaction {
@@ -103,8 +106,8 @@ func addAccountContractWithArgs(
 		}
 	}`
 
-	cadenceName := cadence.NewString(contract.Name)
-	cadenceCode := cadence.NewString(contract.SourceHex())
+	cadenceName := cadence.String(contract.Name)
+	cadenceCode := cadence.String(contract.SourceHex())
 
 	tx := flow.NewTransaction().
 		AddRawArgument(jsoncdc.MustEncode(cadenceName)).
@@ -124,6 +127,7 @@ func addAccountContractWithArgs(
 
 	script := fmt.Sprintf(addAccountContractTemplate, txArgs, addArgs)
 	tx.SetScript([]byte(script))
+	tx.SetGasLimit(maxGasLimit)
 
 	t := &Transaction{tx: tx}
 	err := t.SetSigner(signer)
@@ -156,6 +160,7 @@ func newTransactionFromTemplate(templateTx *flow.Transaction, signer *Account) (
 		return nil, err
 	}
 	tx.SetPayer(signer.Address())
+	tx.SetGasLimit(maxGasLimit) // todo change this to calculated limit
 
 	return tx, nil
 }
@@ -194,12 +199,44 @@ func (t *Transaction) SetSigner(account *Account) error {
 		return err
 	}
 
+	if !t.validSigner(account.Address()) {
+		return fmt.Errorf(
+			"not a valid signer %s, proposer: %s, payer: %s, authorizers: %s",
+			account.Address(),
+			t.tx.ProposalKey.Address,
+			t.tx.Payer,
+			t.tx.Authorizers,
+		)
+	}
+
 	t.signer = account
 	return nil
 }
 
+// validSigner checks whether the signer is valid for transaction
+func (t *Transaction) validSigner(s flow.Address) bool {
+	return t.tx.ProposalKey.Address == s ||
+		t.tx.Payer == s ||
+		t.authorizersContains(s)
+}
+
+// authorizersContains checks whether address is in the authorizer list
+func (t *Transaction) authorizersContains(address flow.Address) bool {
+	for _, a := range t.tx.Authorizers {
+		if address == a {
+			return true
+		}
+	}
+
+	return false
+}
+
 // SetProposer sets the proposer for transaction.
-func (t *Transaction) SetProposer(proposer *flow.Account, keyIndex int) *Transaction {
+func (t *Transaction) SetProposer(proposer *flow.Account, keyIndex int) error {
+	if len(proposer.Keys) <= keyIndex {
+		return fmt.Errorf("failed to retrieve proposer key at index %d", keyIndex)
+	}
+
 	t.proposer = proposer
 	proposerKey := proposer.Keys[keyIndex]
 
@@ -209,7 +246,7 @@ func (t *Transaction) SetProposer(proposer *flow.Account, keyIndex int) *Transac
 		proposerKey.SequenceNumber,
 	)
 
-	return t
+	return nil
 }
 
 // SetPayer sets the payer for transaction.
@@ -248,12 +285,45 @@ func (t *Transaction) AddArgument(arg cadence.Value) error {
 }
 
 // AddAuthorizers add group of authorizers.
-func (t *Transaction) AddAuthorizers(authorizers []flow.Address) *Transaction {
+func (t *Transaction) AddAuthorizers(authorizers []flow.Address) (*Transaction, error) {
+	program, _ := cmd.PrepareProgram(
+		string(t.tx.Script),
+		common.StringLocation(""),
+		map[common.LocationID]string{},
+	)
+
+	// get authorizers param list if exists
+	if len(program.TransactionDeclarations()) == 1 {
+		declaration := program.TransactionDeclarations()[0]
+		requiredAuths := make([]*ast.Parameter, 0)
+
+		// if prepare block is missing set default authorizers to empty
+		if declaration.Prepare == nil {
+			authorizers = nil
+		} else { // if prepare block is present get authorizers
+			requiredAuths = declaration.
+				Prepare.
+				FunctionDeclaration.
+				ParameterList.
+				Parameters
+		}
+
+		if len(requiredAuths) != len(authorizers) {
+			return nil, fmt.Errorf(
+				"provided authorizers length mismatch, required authorizers %d, but provided %d",
+				len(requiredAuths),
+				len(authorizers),
+			)
+		}
+	} else {
+		return nil, fmt.Errorf("can only support one transaction declaration per file")
+	}
+
 	for _, authorizer := range authorizers {
 		t.tx.AddAuthorizer(authorizer)
 	}
 
-	return t
+	return t, nil
 }
 
 // Sign signs transaction using signer account.

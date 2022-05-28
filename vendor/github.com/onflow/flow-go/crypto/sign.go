@@ -16,12 +16,14 @@ import (
 
 // Signer interface
 type signer interface {
-	// generatePrKey generates a private key
+	// generatePrivateKey generates a private key
 	generatePrivateKey([]byte) (PrivateKey, error)
-	// decodePrKey loads a private key from a byte array
+	// decodePrivateKey loads a private key from a byte array
 	decodePrivateKey([]byte) (PrivateKey, error)
-	// decodePubKey loads a public key from a byte array
+	// decodePublicKey loads a public key from a byte array
 	decodePublicKey([]byte) (PublicKey, error)
+	// decodePublicKeyCompressed loads a public key from a byte array representing a point in compressed form
+	decodePublicKeyCompressed([]byte) (PublicKey, error)
 }
 
 // newNonRelicSigner returns a signer that does not depend on Relic library.
@@ -32,7 +34,7 @@ func newNonRelicSigner(algo SigningAlgorithm) (signer, error) {
 	case ECDSASecp256k1:
 		return secp256k1Instance, nil
 	default:
-		return nil, newInvalidInputsError("the signature scheme %s is not supported", algo)
+		return nil, invalidInputsErrorf("the signature scheme %s is not supported", algo)
 	}
 }
 
@@ -59,7 +61,7 @@ func signatureFormatCheckNonRelic(algo SigningAlgorithm, s Signature) (bool, err
 	case ECDSASecp256k1:
 		return secp256k1Instance.signatureFormatCheck(s), nil
 	default:
-		return false, newInvalidInputsError(
+		return false, invalidInputsErrorf(
 			"the signature scheme %s is not supported",
 			algo)
 	}
@@ -84,7 +86,7 @@ func SignatureFormatCheck(algo SigningAlgorithm, s Signature) (bool, error) {
 func GeneratePrivateKey(algo SigningAlgorithm, seed []byte) (PrivateKey, error) {
 	signer, err := newSigner(algo)
 	if err != nil {
-		return nil, newInvalidInputsError("key generation failed: %s", err)
+		return nil, fmt.Errorf("key generation failed: %w", err)
 	}
 	return signer.generatePrivateKey(seed)
 }
@@ -93,7 +95,7 @@ func GeneratePrivateKey(algo SigningAlgorithm, seed []byte) (PrivateKey, error) 
 func DecodePrivateKey(algo SigningAlgorithm, data []byte) (PrivateKey, error) {
 	signer, err := newSigner(algo)
 	if err != nil {
-		return nil, newInvalidInputsError("decode private key failed: %s", err)
+		return nil, fmt.Errorf("decode private key failed: %w", err)
 	}
 	return signer.decodePrivateKey(data)
 }
@@ -102,9 +104,18 @@ func DecodePrivateKey(algo SigningAlgorithm, data []byte) (PrivateKey, error) {
 func DecodePublicKey(algo SigningAlgorithm, data []byte) (PublicKey, error) {
 	signer, err := newSigner(algo)
 	if err != nil {
-		return nil, newInvalidInputsError("decode public key failed: %s", err)
+		return nil, fmt.Errorf("decode public key failed: %w", err)
 	}
 	return signer.decodePublicKey(data)
+}
+
+// DecodePublicKeyCompressed decodes an array of bytes given in a compressed representation into a public key of the given algorithm
+func DecodePublicKeyCompressed(algo SigningAlgorithm, data []byte) (PublicKey, error) {
+	signer, err := newSigner(algo)
+	if err != nil {
+		return nil, fmt.Errorf("decode public key failed: %w", err)
+	}
+	return signer.decodePublicKeyCompressed(data)
 }
 
 // Signature type tools
@@ -153,6 +164,10 @@ type PublicKey interface {
 	Verify(Signature, []byte, hash.Hasher) (bool, error)
 	// Encode returns a bytes representation of the public key.
 	Encode() []byte
+	// Encode returns a compressed byte representation of the public key.
+	// The compressed serialization concept is generic to elliptic curves,
+	// but we refer to individual curve parameters for details of the compressed format
+	EncodeCompressed() []byte
 	// Equals returns true if the given PublicKeys are equal. Keys are considered unequal if their algorithms are
 	// unequal or if their encoded representations are unequal. If the encoding of either key fails, they are considered
 	// unequal as well.

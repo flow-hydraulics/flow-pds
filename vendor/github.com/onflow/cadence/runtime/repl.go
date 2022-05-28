@@ -1,7 +1,7 @@
 /*
  * Cadence - The resource-oriented smart contract programming language
  *
- * Copyright 2019-2020 Dapper Labs, Inc.
+ * Copyright 2019-2022 Dapper Labs, Inc.
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -44,6 +44,7 @@ func NewREPL(
 	onError func(err error, location common.Location, codes map[common.LocationID]string),
 	onResult func(interpreter.Value),
 	checkerOptions []sema.Option,
+	interpreterOptions []interpreter.Option,
 ) (*REPL, error) {
 
 	valueDeclarations := append(
@@ -108,14 +109,24 @@ func NewREPL(
 
 	var uuid uint64
 
+	storage := interpreter.NewInMemoryStorage(nil)
+
+	interpreterOptions = append(
+		[]interpreter.Option{
+			interpreter.WithStorage(storage),
+			interpreter.WithPredeclaredValues(values),
+			interpreter.WithUUIDHandler(func() (uint64, error) {
+				defer func() { uuid++ }()
+				return uuid, nil
+			}),
+		},
+		interpreterOptions...,
+	)
+
 	inter, err := interpreter.NewInterpreter(
 		interpreter.ProgramFromChecker(checker),
 		checker.Location,
-		interpreter.WithPredeclaredValues(values),
-		interpreter.WithUUIDHandler(func() (uint64, error) {
-			defer func() { uuid++ }()
-			return uuid, nil
-		}),
+		interpreterOptions...,
 	)
 	if err != nil {
 		return nil, err
@@ -166,7 +177,7 @@ func (r *REPL) Accept(code string) (inputIsComplete bool) {
 	inputIsComplete = true
 
 	var err error
-	result, errs := parser2.ParseStatements(code)
+	result, errs := parser2.ParseStatements(code, nil)
 	if len(errs) > 0 {
 		err = parser2.Error{
 			Code:   code,
@@ -190,7 +201,7 @@ func (r *REPL) Accept(code string) (inputIsComplete bool) {
 
 		switch typedElement := element.(type) {
 		case ast.Declaration:
-			program := ast.NewProgram([]ast.Declaration{typedElement})
+			program := ast.NewProgram(nil, []ast.Declaration{typedElement})
 
 			if !r.check(program, code) {
 				return

@@ -48,7 +48,7 @@ type InvalidGasLimitError struct {
 }
 
 func (e InvalidGasLimitError) Error() string {
-	return fmt.Sprintf("transaction gas limit (%d) exceeds the maximum gas limit (%d)", e.Actual, e.Maximum)
+	return fmt.Sprintf("transaction gas limit (%d) is not in the acceptable range (min: 1, max: %d)", e.Actual, e.Maximum)
 }
 
 // InvalidAddressError indicates that a transaction references an invalid flow Address
@@ -61,8 +61,7 @@ func (e InvalidAddressError) Error() string {
 	return fmt.Sprintf("invalid address: %s", e.Address)
 }
 
-// DuplicatedSignatureError indicates that a key (combination of account and key index) is
-// used for two signatures
+// DuplicatedSignatureError indicates that two signatures havs been provided for a key (combination of account and key index)
 type DuplicatedSignatureError struct {
 	Address  flow.Address
 	KeyIndex uint64

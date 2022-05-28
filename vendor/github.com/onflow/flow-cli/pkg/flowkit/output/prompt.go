@@ -32,7 +32,19 @@ import (
 	"github.com/manifoldco/promptui"
 )
 
-func ApproveTransactionPrompt(transaction *flowkit.Transaction) bool {
+func ApproveTransactionForSigningPrompt(transaction *flowkit.Transaction) bool {
+	return ApproveTransactionPrompt(transaction, "⚠️  Do you want to SIGN this transaction?")
+}
+
+func ApproveTransactionForBuildingPrompt(transaction *flowkit.Transaction) bool {
+	return ApproveTransactionPrompt(transaction, "⚠️  Do you want to BUILD this transaction?")
+}
+
+func ApproveTransactionForSendingPrompt(transaction *flowkit.Transaction) bool {
+	return ApproveTransactionPrompt(transaction, "⚠️  Do you want to SEND this transaction?")
+}
+
+func ApproveTransactionPrompt(transaction *flowkit.Transaction, promptMsg string) bool {
 	writer := uilive.New()
 	tx := transaction.FlowTransaction()
 
@@ -85,7 +97,7 @@ func ApproveTransactionPrompt(transaction *flowkit.Transaction) bool {
 	_ = writer.Flush()
 
 	prompt := promptui.Select{
-		Label: "⚠️  Do you want to sign this transaction?",
+		Label: promptMsg,
 		Items: []string{"No", "Yes"},
 	}
 
@@ -143,6 +155,25 @@ func namePrompt() string {
 	}
 
 	return name
+}
+
+func secureNetworkKeyPrompt() string {
+	networkKeyPrompt := promptui.Prompt{
+		Label: "Enter a valid host network key or leave blank",
+		Validate: func(s string) error {
+			if s == "" {
+				return nil
+			}
+
+			return util.ValidateECDSAP256Pub(s)
+		},
+	}
+	networkKey, err := networkKeyPrompt.Run()
+	if err == promptui.ErrInterrupt {
+		os.Exit(-1)
+	}
+
+	return networkKey
 }
 
 func addressPrompt() string {
@@ -309,6 +340,8 @@ func NewNetworkPrompt() map[string]string {
 		os.Exit(-1)
 	}
 
+	networkData["key"] = secureNetworkKeyPrompt()
+
 	return networkData
 }
 
@@ -463,4 +496,14 @@ func RemoveNetworkPrompt(networks config.Networks) string {
 	}
 
 	return name
+}
+
+func ReportCrash() bool {
+	prompt := promptui.Select{
+		Label: "🙏 Please report the crash so we can improve the CLI. Do you want to report it?",
+		Items: []string{"Yes, report the crash", "No"},
+	}
+	chosen, _, _ := prompt.Run()
+
+	return chosen == 0
 }

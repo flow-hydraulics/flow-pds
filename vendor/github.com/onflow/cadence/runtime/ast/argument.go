@@ -1,7 +1,7 @@
 /*
  * Cadence - The resource-oriented smart contract programming language
  *
- * Copyright 2019-2020 Dapper Labs, Inc.
+ * Copyright 2019-2022 Dapper Labs, Inc.
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -21,6 +21,8 @@ package ast
 import (
 	"encoding/json"
 	"strings"
+
+	"github.com/onflow/cadence/runtime/common"
 )
 
 type Argument struct {
@@ -31,6 +33,29 @@ type Argument struct {
 	Expression           Expression
 }
 
+func NewArgument(
+	memoryGauge common.MemoryGauge,
+	label string,
+	labelStartPos,
+	labelEndPos *Position,
+	expression Expression,
+) *Argument {
+	common.UseMemory(memoryGauge, common.ArgumentMemoryUsage)
+	return &Argument{
+		Label:         label,
+		LabelStartPos: labelStartPos,
+		LabelEndPos:   labelEndPos,
+		Expression:    expression,
+	}
+}
+
+func NewUnlabeledArgument(memoryGauge common.MemoryGauge, expression Expression) *Argument {
+	common.UseMemory(memoryGauge, common.ArgumentMemoryUsage)
+	return &Argument{
+		Expression: expression,
+	}
+}
+
 func (a *Argument) StartPosition() Position {
 	if a.LabelStartPos != nil {
 		return *a.LabelStartPos
@@ -38,8 +63,8 @@ func (a *Argument) StartPosition() Position {
 	return a.Expression.StartPosition()
 }
 
-func (a *Argument) EndPosition() Position {
-	return a.Expression.EndPosition()
+func (a *Argument) EndPosition(memoryGauge common.MemoryGauge) Position {
+	return a.Expression.EndPosition(memoryGauge)
 }
 
 func (a *Argument) String() string {
@@ -58,7 +83,7 @@ func (a *Argument) MarshalJSON() ([]byte, error) {
 		Range
 		*Alias
 	}{
-		Range: NewRangeFromPositioned(a),
+		Range: NewUnmeteredRangeFromPositioned(a),
 		Alias: (*Alias)(a),
 	})
 }

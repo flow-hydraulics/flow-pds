@@ -1,7 +1,7 @@
 /*
  * Flow Go SDK
  *
- * Copyright 2019-2020 Dapper Labs, Inc.
+ * Copyright 2019 Dapper Labs, Inc.
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -110,9 +110,14 @@ type transactionCanonicalForm struct {
 	EnvelopeSignatures []transactionSignatureCanonicalForm
 }
 
+// DefaultTransactionGasLimit should be high enough for small transactions
+const DefaultTransactionGasLimit = 9999
+
 // NewTransaction initializes and returns an empty transaction.
 func NewTransaction() *Transaction {
-	return &Transaction{}
+	return &Transaction{
+		GasLimit: DefaultTransactionGasLimit,
+	}
 }
 
 // ID returns the canonical SHA3-256 hash of this transaction.
@@ -157,7 +162,7 @@ func (t *Transaction) Argument(i int) (cadence.Value, error) {
 
 	encodedArg := t.Arguments[i]
 
-	arg, err := jsoncdc.Decode(encodedArg)
+	arg, err := jsoncdc.Decode(nil, encodedArg)
 	if err != nil {
 		return nil, fmt.Errorf("failed to decode argument at index %d: %w", i, err)
 	}
@@ -597,9 +602,10 @@ func (s signaturesList) canonicalForm() []transactionSignatureCanonicalForm {
 }
 
 type TransactionResult struct {
-	Status TransactionStatus
-	Error  error
-	Events []Event
+	Status  TransactionStatus
+	Error   error
+	Events  []Event
+	BlockID Identifier
 }
 
 // TransactionStatus represents the status of a transaction.

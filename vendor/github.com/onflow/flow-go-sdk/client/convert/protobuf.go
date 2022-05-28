@@ -1,7 +1,7 @@
 /*
  * Flow Go SDK
  *
- * Copyright 2019-2020 Dapper Labs, Inc.
+ * Copyright 2019 Dapper Labs, Inc.
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -23,11 +23,11 @@ import (
 	"fmt"
 	"time"
 
-	"github.com/golang/protobuf/ptypes"
 	"github.com/onflow/cadence"
 	jsoncdc "github.com/onflow/cadence/encoding/json"
 	"github.com/onflow/flow/protobuf/go/flow/access"
 	"github.com/onflow/flow/protobuf/go/flow/entities"
+	"google.golang.org/protobuf/types/known/timestamppb"
 
 	"github.com/onflow/flow-go-sdk"
 	"github.com/onflow/flow-go-sdk/crypto"
@@ -111,10 +111,8 @@ func MessageToAccountKey(m *entities.AccountKey) (*flow.AccountKey, error) {
 }
 
 func BlockToMessage(b flow.Block) (*entities.Block, error) {
-	t, err := ptypes.TimestampProto(b.BlockHeader.Timestamp)
-	if err != nil {
-		return nil, fmt.Errorf("convert: failed to convert block timestamp to message: %w", err)
-	}
+
+	t := timestamppb.New(b.BlockHeader.Timestamp)
 
 	return &entities.Block{
 		Id:                   b.BlockHeader.ID.Bytes(),
@@ -123,6 +121,7 @@ func BlockToMessage(b flow.Block) (*entities.Block, error) {
 		Timestamp:            t,
 		CollectionGuarantees: CollectionGuaranteesToMessages(b.BlockPayload.CollectionGuarantees),
 		BlockSeals:           BlockSealsToMessages(b.BlockPayload.Seals),
+		Signatures:           b.Signatures,
 	}, nil
 }
 
@@ -131,10 +130,7 @@ func MessageToBlock(m *entities.Block) (flow.Block, error) {
 	var err error
 
 	if m.GetTimestamp() != nil {
-		timestamp, err = ptypes.Timestamp(m.GetTimestamp())
-		if err != nil {
-			return flow.Block{}, err
-		}
+		timestamp = m.GetTimestamp().AsTime()
 	}
 
 	header := &flow.BlockHeader{
@@ -162,14 +158,12 @@ func MessageToBlock(m *entities.Block) (flow.Block, error) {
 	return flow.Block{
 		BlockHeader:  *header,
 		BlockPayload: *payload,
+		Signatures:   m.Signatures,
 	}, nil
 }
 
 func BlockHeaderToMessage(b flow.BlockHeader) (*entities.BlockHeader, error) {
-	t, err := ptypes.TimestampProto(b.Timestamp)
-	if err != nil {
-		return nil, fmt.Errorf("convert: failed to convert message to block timestamp: %w", err)
-	}
+	t := timestamppb.New(b.Timestamp)
 
 	return &entities.BlockHeader{
 		Id:        b.ID.Bytes(),
@@ -185,13 +179,9 @@ func MessageToBlockHeader(m *entities.BlockHeader) (flow.BlockHeader, error) {
 	}
 
 	var timestamp time.Time
-	var err error
 
 	if m.GetTimestamp() != nil {
-		timestamp, err = ptypes.Timestamp(m.GetTimestamp())
-		if err != nil {
-			return flow.BlockHeader{}, err
-		}
+		timestamp = m.GetTimestamp().AsTime()
 	}
 
 	return flow.BlockHeader{
@@ -224,7 +214,7 @@ func CadenceValuesToMessages(values []cadence.Value) ([][]byte, error) {
 }
 
 func MessageToCadenceValue(m []byte) (cadence.Value, error) {
-	v, err := jsoncdc.Decode(m)
+	v, err := jsoncdc.Decode(nil, m)
 	if err != nil {
 		return nil, fmt.Errorf("convert: %w", err)
 	}
@@ -369,6 +359,7 @@ func MessageToEvent(m *entities.Event) (flow.Event, error) {
 		TransactionID:    flow.HashToID(m.GetTransactionId()),
 		TransactionIndex: int(m.GetTransactionIndex()),
 		EventIndex:       int(m.GetEventIndex()),
+		Payload:          m.Payload,
 		Value:            eventValue,
 	}, nil
 }
@@ -514,6 +505,7 @@ func TransactionResultToMessage(result flow.TransactionResult) (*access.Transact
 		StatusCode:   uint32(statusCode),
 		ErrorMessage: errorMsg,
 		Events:       eventMessages,
+		BlockId:      IdentifierToMessage(result.BlockID),
 	}, nil
 }
 
@@ -543,8 +535,9 @@ func MessageToTransactionResult(m *access.TransactionResultResponse) (flow.Trans
 	}
 
 	return flow.TransactionResult{
-		Status: flow.TransactionStatus(m.GetStatus()),
-		Error:  err,
-		Events: events,
+		Status:  flow.TransactionStatus(m.GetStatus()),
+		Error:   err,
+		Events:  events,
+		BlockID: flow.BytesToID(m.GetBlockId()),
 	}, nil
 }

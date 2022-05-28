@@ -3,24 +3,35 @@ package fvm
 import (
 	"fmt"
 
+	"github.com/onflow/cadence"
 	"github.com/onflow/cadence/runtime"
-	"github.com/onflow/cadence/runtime/interpreter"
+	"github.com/onflow/cadence/runtime/common"
 	"github.com/rs/zerolog"
 
+	"github.com/onflow/flow-go/fvm/blueprints"
 	errors "github.com/onflow/flow-go/fvm/errors"
+	"github.com/onflow/flow-go/fvm/meter/weighted"
 	"github.com/onflow/flow-go/fvm/programs"
 	"github.com/onflow/flow-go/fvm/state"
+	"github.com/onflow/flow-go/fvm/utils"
 	"github.com/onflow/flow-go/model/flow"
 )
 
 // An Procedure is an operation (or set of operations) that reads or writes ledger state.
 type Procedure interface {
 	Run(vm *VirtualMachine, ctx Context, sth *state.StateHolder, programs *programs.Programs) error
+	ComputationLimit(ctx Context) uint64
+	MemoryLimit(ctx Context) uint64
 }
 
-func NewInterpreterRuntime() runtime.Runtime {
-	return runtime.NewInterpreterRuntime(
+func NewInterpreterRuntime(options ...runtime.Option) runtime.Runtime {
+
+	defaultOptions := []runtime.Option{
 		runtime.WithContractUpdateValidationEnabled(true),
+	}
+
+	return runtime.NewInterpreterRuntime(
+		append(defaultOptions, options...)...,
 	)
 }
 
@@ -38,27 +49,14 @@ func NewVirtualMachine(rt runtime.Runtime) *VirtualMachine {
 
 // Run runs a procedure against a ledger in the given context.
 func (vm *VirtualMachine) Run(ctx Context, proc Procedure, v state.View, programs *programs.Programs) (err error) {
-
 	st := state.NewState(v,
+		state.WithMeter(weighted.NewMeter(
+			uint(proc.ComputationLimit(ctx)),
+			uint(proc.MemoryLimit(ctx)))),
 		state.WithMaxKeySizeAllowed(ctx.MaxStateKeySize),
 		state.WithMaxValueSizeAllowed(ctx.MaxStateValueSize),
 		state.WithMaxInteractionSizeAllowed(ctx.MaxStateInteractionSize))
 	sth := state.NewStateHolder(st)
-
-	defer func() {
-		if r := recover(); r != nil {
-
-			// Cadence may fail to encode certain values.
-			// Return an error for now, which will cause transactions to revert.
-			//
-			if encodingErr, ok := r.(interpreter.EncodingUnsupportedValueError); ok {
-				err = errors.NewEncodingUnsupportedValueError(encodingErr.Value, encodingErr.Path)
-				return
-			}
-
-			panic(r)
-		}
-	}()
 
 	err = proc.Run(vm, ctx, sth, programs)
 	if err != nil {
@@ -78,6 +76,9 @@ func (vm *VirtualMachine) GetAccount(ctx Context, address flow.Address, v state.
 	sth := state.NewStateHolder(st)
 	account, err := getAccount(vm, ctx, sth, programs, address)
 	if err != nil {
+		if errors.IsALedgerFailure(err) {
+			return nil, fmt.Errorf("cannot get account, this error usually happens if the reference block for this query is not set to a recent block: %w", err)
+		}
 		return nil, fmt.Errorf("cannot get account: %w", err)
 	}
 	return account, nil
@@ -88,7 +89,7 @@ func (vm *VirtualMachine) GetAccount(ctx Context, address flow.Address, v state.
 // Errors that occur in a meta transaction are propagated as a single error that can be
 // captured by the Cadence runtime and eventually disambiguated by the parent context.
 func (vm *VirtualMachine) invokeMetaTransaction(parentCtx Context, tx *TransactionProcedure, sth *state.StateHolder, programs *programs.Programs) (errors.Error, error) {
-	invocator := NewTransactionInvocator(zerolog.Nop())
+	invoker := NewTransactionInvoker(zerolog.Nop())
 
 	// do not deduct fees or check storage in meta transactions
 	ctx := NewContextFromParent(parentCtx,
@@ -96,7 +97,121 @@ func (vm *VirtualMachine) invokeMetaTransaction(parentCtx Context, tx *Transacti
 		WithTransactionFeesEnabled(false),
 	)
 
-	err := invocator.Process(vm, &ctx, tx, sth, programs)
+	err := invoker.Process(vm, &ctx, tx, sth, programs)
 	txErr, fatalErr := errors.SplitErrorTypes(err)
 	return txErr, fatalErr
+}
+
+// getExecutionWeights reads stored execution effort weights from the service account
+func getExecutionEffortWeights(
+	env Environment,
+	accounts state.Accounts,
+) (
+	computationWeights weighted.ExecutionEffortWeights,
+	err error,
+) {
+	// the weights are stored in the service account
+	serviceAddress := env.Context().Chain.ServiceAddress()
+
+	service := runtime.Address(serviceAddress)
+	// Check that the service account exists
+	ok, err := accounts.Exists(serviceAddress)
+
+	if err != nil {
+		// this might be fatal, return as is
+		return nil, err
+	}
+	if !ok {
+		// if the service account does not exist, return an FVM error
+		return nil, errors.NewCouldNotGetExecutionParameterFromStateError(
+			service.Hex(),
+			blueprints.TransactionFeesExecutionEffortWeightsPathDomain,
+			blueprints.TransactionFeesExecutionEffortWeightsPathIdentifier)
+	}
+
+	value, err := env.VM().Runtime.ReadStored(
+		service,
+		cadence.Path{
+			Domain:     blueprints.TransactionFeesExecutionEffortWeightsPathDomain,
+			Identifier: blueprints.TransactionFeesExecutionEffortWeightsPathIdentifier,
+		},
+		runtime.Context{Interface: env},
+	)
+	if err != nil {
+		// this might be fatal, return as is
+		return nil, err
+	}
+
+	computationWeightsRaw, ok := utils.CadenceValueToWeights(value)
+	if !ok {
+		// this is a non-fatal error. It is expected if the weights are not set up on the network yet.
+		return nil, errors.NewCouldNotGetExecutionParameterFromStateError(
+			service.Hex(),
+			blueprints.TransactionFeesExecutionEffortWeightsPathDomain,
+			blueprints.TransactionFeesExecutionEffortWeightsPathIdentifier)
+	}
+
+	computationWeights = make(weighted.ExecutionEffortWeights)
+	for k, v := range computationWeightsRaw {
+		computationWeights[common.ComputationKind(k)] = v
+	}
+
+	return computationWeights, nil
+}
+
+// getExecutionMemoryWeights reads stored execution memory weights from the service account
+func getExecutionMemoryWeights(
+	env Environment,
+	accounts state.Accounts,
+) (
+	memoryWeights weighted.ExecutionMemoryWeights,
+	err error,
+) {
+	// the weights are stored in the service account
+	serviceAddress := env.Context().Chain.ServiceAddress()
+
+	service := runtime.Address(serviceAddress)
+	// Check that the service account exists
+	ok, err := accounts.Exists(serviceAddress)
+
+	if err != nil {
+		// this might be fatal, return as is
+		return nil, err
+	}
+	if !ok {
+		// if the service account does not exist, return an FVM error
+		return nil, errors.NewCouldNotGetExecutionParameterFromStateError(
+			service.Hex(),
+			blueprints.TransactionFeesExecutionMemoryWeightsPathDomain,
+			blueprints.TransactionFeesExecutionMemoryWeightsPathIdentifier)
+	}
+
+	value, err := env.VM().Runtime.ReadStored(
+		service,
+		cadence.Path{
+			Domain:     blueprints.TransactionFeesExecutionMemoryWeightsPathDomain,
+			Identifier: blueprints.TransactionFeesExecutionMemoryWeightsPathIdentifier,
+		},
+		runtime.Context{Interface: env},
+	)
+	if err != nil {
+		// this might be fatal, return as is
+		return nil, err
+	}
+
+	memoryWeightsRaw, ok := utils.CadenceValueToWeights(value)
+	if !ok {
+		// this is a non-fatal error. It is expected if the weights are not set up on the network yet.
+		return nil, errors.NewCouldNotGetExecutionParameterFromStateError(
+			service.Hex(),
+			blueprints.TransactionFeesExecutionMemoryWeightsPathDomain,
+			blueprints.TransactionFeesExecutionMemoryWeightsPathIdentifier)
+	}
+
+	memoryWeights = make(weighted.ExecutionMemoryWeights)
+	for k, v := range memoryWeightsRaw {
+		memoryWeights[common.MemoryKind(k)] = v
+	}
+
+	return memoryWeights, nil
 }

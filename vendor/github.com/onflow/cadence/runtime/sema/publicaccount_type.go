@@ -1,7 +1,7 @@
 /*
  * Cadence - The resource-oriented smart contract programming language
  *
- * Copyright 2019-2021 Dapper Labs, Inc.
+ * Copyright 2019-2022 Dapper Labs, Inc.
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -31,6 +31,7 @@ const PublicAccountStorageCapacityField = "storageCapacity"
 const PublicAccountGetCapabilityField = "getCapability"
 const PublicAccountGetTargetLinkField = "getLinkTarget"
 const PublicAccountKeysField = "keys"
+const PublicAccountContractsField = "contracts"
 
 // PublicAccountType represents the publicly accessible portion of an account.
 //
@@ -45,58 +46,65 @@ var PublicAccountType = func() *CompositeType {
 		nestedTypes: func() *StringTypeOrderedMap {
 			nestedTypes := NewStringTypeOrderedMap()
 			nestedTypes.Set(AccountKeysTypeName, PublicAccountKeysType)
+			nestedTypes.Set(PublicAccountContractsTypeName, PublicAccountContractsType)
 			return nestedTypes
 		}(),
 	}
 
 	var members = []*Member{
-		NewPublicConstantFieldMember(
+		NewUnmeteredPublicConstantFieldMember(
 			publicAccountType,
 			PublicAccountAddressField,
 			&AddressType{},
 			accountTypeAddressFieldDocString,
 		),
-		NewPublicConstantFieldMember(
+		NewUnmeteredPublicConstantFieldMember(
 			publicAccountType,
 			PublicAccountBalanceField,
 			UFix64Type,
 			accountTypeAccountBalanceFieldDocString,
 		),
-		NewPublicConstantFieldMember(
+		NewUnmeteredPublicConstantFieldMember(
 			publicAccountType,
 			PublicAccountAvailableBalanceField,
 			UFix64Type,
 			accountTypeAccountAvailableBalanceFieldDocString,
 		),
-		NewPublicConstantFieldMember(
+		NewUnmeteredPublicConstantFieldMember(
 			publicAccountType,
 			PublicAccountStorageUsedField,
 			UInt64Type,
 			accountTypeStorageUsedFieldDocString,
 		),
-		NewPublicConstantFieldMember(
+		NewUnmeteredPublicConstantFieldMember(
 			publicAccountType,
 			PublicAccountStorageCapacityField,
 			UInt64Type,
 			accountTypeStorageCapacityFieldDocString,
 		),
-		NewPublicFunctionMember(
+		NewUnmeteredPublicFunctionMember(
 			publicAccountType,
 			PublicAccountGetCapabilityField,
-			publicAccountTypeGetCapabilityFunctionType,
+			PublicAccountTypeGetCapabilityFunctionType,
 			publicAccountTypeGetLinkTargetFunctionDocString,
 		),
-		NewPublicFunctionMember(
+		NewUnmeteredPublicFunctionMember(
 			publicAccountType,
 			PublicAccountGetTargetLinkField,
-			accountTypeGetLinkTargetFunctionType,
+			AccountTypeGetLinkTargetFunctionType,
 			accountTypeGetLinkTargetFunctionDocString,
 		),
-		NewPublicConstantFieldMember(
+		NewUnmeteredPublicConstantFieldMember(
 			publicAccountType,
 			PublicAccountKeysField,
 			PublicAccountKeysType,
 			accountTypeKeysFieldDocString,
+		),
+		NewUnmeteredPublicConstantFieldMember(
+			publicAccountType,
+			PublicAccountContractsField,
+			PublicAccountContractsType,
+			accountTypeContractsFieldDocString,
 		),
 	}
 
@@ -115,10 +123,10 @@ var PublicAccountKeysType = func() *CompositeType {
 	}
 
 	var members = []*Member{
-		NewPublicFunctionMember(
+		NewUnmeteredPublicFunctionMember(
 			accountKeys,
 			AccountKeysGetFunctionName,
-			accountKeysTypeGetFunctionType,
+			AccountKeysTypeGetFunctionType,
 			accountKeysTypeGetFunctionDocString,
 		),
 	}
@@ -132,6 +140,37 @@ func init() {
 	// Set the container type after initializing the AccountKeysTypes, to avoid initializing loop.
 	PublicAccountKeysType.SetContainerType(PublicAccountType)
 }
+
+var PublicAccountTypeGetCapabilityFunctionType = func() *FunctionType {
+
+	typeParameter := &TypeParameter{
+		TypeBound: &ReferenceType{
+			Type: AnyType,
+		},
+		Name:     "T",
+		Optional: true,
+	}
+
+	return &FunctionType{
+		TypeParameters: []*TypeParameter{
+			typeParameter,
+		},
+		Parameters: []*Parameter{
+			{
+				Label:          ArgumentLabelNotRequired,
+				Identifier:     "capabilityPath",
+				TypeAnnotation: NewTypeAnnotation(PublicPathType),
+			},
+		},
+		ReturnTypeAnnotation: NewTypeAnnotation(
+			&CapabilityType{
+				BorrowType: &GenericType{
+					TypeParameter: typeParameter,
+				},
+			},
+		),
+	}
+}()
 
 const publicAccountTypeGetLinkTargetFunctionDocString = `
 Returns the capability at the given public path, or nil if it does not exist

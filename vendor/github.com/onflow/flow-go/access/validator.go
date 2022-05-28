@@ -113,12 +113,13 @@ func (v *TransactionValidator) Validate(tx *flow.TransactionBody) (err error) {
 	if err != nil {
 		return err
 	}
-	// TODO replace checkSignatureFormat by verifying the account/payer signatures
 
 	err = v.checkSignatureDuplications(tx)
 	if err != nil {
 		return err
 	}
+
+	// TODO replace checkSignatureFormat by verifying the account/payer signatures
 
 	return nil
 }
@@ -168,7 +169,7 @@ func (v *TransactionValidator) checkGasLimit(tx *flow.TransactionBody) error {
 	if tx.Payer == v.serviceAccountAddress {
 		return nil
 	}
-	if tx.GasLimit > v.options.MaxGasLimit {
+	if tx.GasLimit > v.options.MaxGasLimit || tx.GasLimit == 0 {
 		return InvalidGasLimitError{
 			Actual:  tx.GasLimit,
 			Maximum: v.options.MaxGasLimit,
@@ -228,7 +229,7 @@ func (v *TransactionValidator) checkExpiry(tx *flow.TransactionBody) error {
 
 func (v *TransactionValidator) checkCanBeParsed(tx *flow.TransactionBody) error {
 	if v.options.CheckScriptsParse {
-		_, err := parser2.ParseProgram(string(tx.Script))
+		_, err := parser2.ParseProgram(string(tx.Script), nil)
 		if err != nil {
 			return InvalidScriptError{ParserErr: err}
 		}
@@ -268,7 +269,7 @@ func (v *TransactionValidator) checkAddresses(tx *flow.TransactionBody) error {
 func (v *TransactionValidator) checkSignatureDuplications(tx *flow.TransactionBody) error {
 	observedSigs := make(map[string]bool)
 	for _, sig := range append(tx.PayloadSignatures, tx.EnvelopeSignatures...) {
-		keyStr := fmt.Sprintf("%s-%d", sig.Address.String(), sig.KeyIndex)
+		keyStr := sig.UniqueKeyString()
 		if observedSigs[keyStr] {
 			return DuplicatedSignatureError{Address: sig.Address, KeyIndex: sig.KeyIndex}
 		}

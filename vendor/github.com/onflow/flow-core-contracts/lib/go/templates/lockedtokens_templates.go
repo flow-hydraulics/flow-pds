@@ -6,13 +6,16 @@ import (
 
 const (
 	// admin templates
-	deployLockedTokensFilename              = "lockedTokens/admin/admin_deploy_contract.cdc"
-	createLockedAccountsFilename            = "lockedTokens/admin/admin_create_shared_accounts.cdc"
-	checkSharedRegistrationFilename         = "lockedTokens/admin/check_shared_registration.cdc"
-	checkMainRegistrationFilename           = "lockedTokens/admin/check_main_registration.cdc"
-	depositLockedTokensFilename             = "lockedTokens/admin/deposit_locked_tokens.cdc"
-	increaseUnlockLimitFilename             = "lockedTokens/admin/unlock_tokens.cdc"
-	depositAccountCreatorCapabilityFilename = "lockedTokens/admin/admin_deposit_account_creator.cdc"
+	deployLockedTokensFilename                     = "lockedTokens/admin/admin_deploy_contract.cdc"
+	createLockedAccountsFilename                   = "lockedTokens/admin/admin_create_shared_accounts.cdc"
+	checkSharedRegistrationFilename                = "lockedTokens/admin/check_shared_registration.cdc"
+	checkMainRegistrationFilename                  = "lockedTokens/admin/check_main_registration.cdc"
+	depositLockedTokensFilename                    = "lockedTokens/admin/deposit_locked_tokens.cdc"
+	increaseUnlockLimitFilename                    = "lockedTokens/admin/unlock_tokens.cdc"
+	increaseUnlockLimitForMultipleAccountsFilename = "lockedTokens/admin/unlock_tokens_for_multiple_accounts.cdc"
+	depositAccountCreatorCapabilityFilename        = "lockedTokens/admin/admin_deposit_account_creator.cdc"
+	removeDelegatorFilename                        = "lockedTokens/admin/admin_remove_delegator.cdc"
+	getBadAccountsFilename                         = "lockedTokens/admin/get_unlocking_bad_accounts.cdc"
 
 	// Custody Provider / Wallet provider Account creation templates
 	setupCustodyAccountFilename                  = "lockedTokens/admin/custody_setup_account_creator.cdc"
@@ -27,6 +30,7 @@ const (
 	getLockedAccountAddressFilename = "lockedTokens/user/get_locked_account_address.cdc"
 	getLockedAccountBalanceFilename = "lockedTokens/user/get_locked_account_balance.cdc"
 	getUnlockLimitFilename          = "lockedTokens/user/get_unlock_limit.cdc"
+	getTotalBalanceFilename         = "lockedTokens/user/get_total_balance.cdc"
 
 	// staker templates
 	registerLockedNodeFilename                 = "lockedTokens/staker/register_node.cdc"
@@ -40,6 +44,7 @@ const (
 	withdrawLockedUnstakedTokensFilename       = "lockedTokens/staker/withdraw_unstaked_tokens.cdc"
 	withdrawLockedRewardedTokensFilename       = "lockedTokens/staker/withdraw_rewarded_tokens.cdc"
 	withdrawLockedRewardedTokensLockedFilename = "lockedTokens/staker/withdraw_rewarded_tokens_locked.cdc"
+	lockedNodeUpdateNetworkingAddressFilename  = "lockedTokens/staker/update_networking_address.cdc"
 
 	// delegator templates
 	registerLockedDelegatorFilename                     = "lockedTokens/delegator/register_delegator.cdc"
@@ -91,8 +96,26 @@ func GenerateIncreaseUnlockLimitScript(env Environment) []byte {
 	return []byte(replaceAddresses(code, env))
 }
 
+func GenerateIncreaseUnlockLimitForMultipleAccountsScript(env Environment) []byte {
+	code := assets.MustAssetString(increaseUnlockLimitForMultipleAccountsFilename)
+
+	return []byte(replaceAddresses(code, env))
+}
+
 func GenerateDepositAccountCreatorScript(env Environment) []byte {
 	code := assets.MustAssetString(depositAccountCreatorCapabilityFilename)
+
+	return []byte(replaceAddresses(code, env))
+}
+
+func GenerateRemoveDelegatorScript(env Environment) []byte {
+	code := assets.MustAssetString(removeDelegatorFilename)
+
+	return []byte(replaceAddresses(code, env))
+}
+
+func GenerateGetBadAccountsScript(env Environment) []byte {
+	code := assets.MustAssetString(getBadAccountsFilename)
 
 	return []byte(replaceAddresses(code, env))
 }
@@ -157,6 +180,12 @@ func GenerateGetLockedAccountBalanceScript(env Environment) []byte {
 
 func GenerateGetUnlockLimitScript(env Environment) []byte {
 	code := assets.MustAssetString(getUnlockLimitFilename)
+
+	return []byte(replaceAddresses(code, env))
+}
+
+func GenerateGetTotalBalanceScript(env Environment) []byte {
+	code := assets.MustAssetString(getTotalBalanceFilename)
 
 	return []byte(replaceAddresses(code, env))
 }
@@ -227,6 +256,13 @@ func GenerateWithdrawLockedUnstakedTokensScript(env Environment) []byte {
 // The unusual name is to avoid a clash with idtables_staking_templates.go .
 func GenerateWithdrawLockedRewardedTokensScript(env Environment) []byte {
 	code := assets.MustAssetString(withdrawLockedRewardedTokensFilename)
+
+	return []byte(replaceAddresses(code, env))
+}
+
+// Change the networking address of a locked node
+func GenerateLockedNodeUpdateNetworkingAddressScript(env Environment) []byte {
+	code := assets.MustAssetString(lockedNodeUpdateNetworkingAddressFilename)
 
 	return []byte(replaceAddresses(code, env))
 }

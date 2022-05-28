@@ -38,17 +38,30 @@ func DeployFlowTokenContractTransaction(service, fungibleToken, flowToken flow.A
 		AddAuthorizer(service)
 }
 
-const getFlowTokenBalanceScriptTemplate = `
-import FlowServiceAccount from 0x%s
+const createFlowTokenMinterTransactionTemplate = `
+import FlowToken from %s
 
-pub fun main(): UFix64 {
-  let acct = getAccount(0x%s)
-  return FlowServiceAccount.defaultTokenBalance(acct)
+transaction {
+	prepare(serviceAccount: AuthAccount) {
+    /// Borrow a reference to the Flow Token Admin in the account storage
+    let flowTokenAdmin = serviceAccount.borrow<&FlowToken.Administrator>(from: /storage/flowTokenAdmin)
+        ?? panic("Could not borrow a reference to the Flow Token Admin resource")
+
+    /// Create a flowTokenMinterResource
+    let flowTokenMinter <- flowTokenAdmin.createNewMinter(allowedAmount: 1000000000.0)
+
+    serviceAccount.save(<-flowTokenMinter, to: /storage/flowTokenMinter)
+	}
 }
 `
 
-func GetFlowTokenBalanceScript(accountAddress, serviceAddress flow.Address) []byte {
-	return []byte(fmt.Sprintf(getFlowTokenBalanceScriptTemplate, serviceAddress, accountAddress))
+// CreateFlowTokenMinterTransaction returns a transaction which creates a Flow
+// token Minter resource and stores it in the service account. This Minter is
+// expected to be stored here by the epoch smart contracts.
+func CreateFlowTokenMinterTransaction(service, flowToken flow.Address) *flow.TransactionBody {
+	return flow.NewTransactionBody().
+		SetScript([]byte(fmt.Sprintf(createFlowTokenMinterTransactionTemplate, flowToken.HexWithPrefix()))).
+		AddAuthorizer(service)
 }
 
 const mintFlowTokenTransactionTemplate = `

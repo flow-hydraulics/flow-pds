@@ -1,7 +1,7 @@
 /*
  * Cadence - The resource-oriented smart contract programming language
  *
- * Copyright 2019-2020 Dapper Labs, Inc.
+ * Copyright 2019-2022 Dapper Labs, Inc.
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -25,20 +25,7 @@ import (
 
 func (checker *Checker) VisitWhileStatement(statement *ast.WhileStatement) ast.Repr {
 
-	testExpression := statement.Test
-	testType := checker.VisitExpression(testExpression, nil)
-
-	if !testType.IsInvalidType() &&
-		!IsSubType(testType, BoolType) {
-
-		checker.report(
-			&TypeMismatchError{
-				ExpectedType: BoolType,
-				ActualType:   testType,
-				Range:        ast.NewRangeFromPositioned(testExpression),
-			},
-		)
-	}
+	checker.VisitExpression(statement.Test, BoolType)
 
 	// The body of the loop will maybe be evaluated.
 	// That means that resource invalidations and
@@ -53,7 +40,7 @@ func (checker *Checker) VisitWhileStatement(statement *ast.WhileStatement) ast.R
 		return nil
 	})
 
-	checker.reportResourceUsesInLoop(statement.StartPos, statement.EndPosition())
+	checker.reportResourceUsesInLoop(statement.StartPos, statement.EndPosition(checker.memoryGauge))
 
 	return nil
 }
@@ -120,10 +107,15 @@ func (checker *Checker) VisitBreakStatement(statement *ast.BreakStatement) ast.R
 		checker.report(
 			&ControlStatementError{
 				ControlStatement: common.ControlStatementBreak,
-				Range:            ast.NewRangeFromPositioned(statement),
+				Range:            ast.NewRangeFromPositioned(checker.memoryGauge, statement),
 			},
 		)
+		return nil
 	}
+
+	functionActivation := checker.functionActivations.Current()
+	checker.resources.JumpsOrReturns = true
+	functionActivation.ReturnInfo.DefinitelyJumped = true
 
 	return nil
 }
@@ -136,10 +128,15 @@ func (checker *Checker) VisitContinueStatement(statement *ast.ContinueStatement)
 		checker.report(
 			&ControlStatementError{
 				ControlStatement: common.ControlStatementContinue,
-				Range:            ast.NewRangeFromPositioned(statement),
+				Range:            ast.NewRangeFromPositioned(checker.memoryGauge, statement),
 			},
 		)
+		return nil
 	}
+
+	functionActivation := checker.functionActivations.Current()
+	checker.resources.JumpsOrReturns = true
+	functionActivation.ReturnInfo.DefinitelyJumped = true
 
 	return nil
 }

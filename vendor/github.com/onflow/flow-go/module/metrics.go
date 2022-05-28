@@ -9,8 +9,28 @@ import (
 
 type EntriesFunc func() uint
 
-// Network Metrics
+// ResolverMetrics encapsulates the metrics collectors for dns resolver module of the networking layer.
+type ResolverMetrics interface {
+	// DNSLookupDuration tracks the time spent to resolve a DNS address.
+	DNSLookupDuration(duration time.Duration)
+
+	// OnDNSCacheMiss tracks the total number of dns requests resolved through looking up the network.
+	OnDNSCacheMiss()
+
+	// DNSCacheResolution tracks the total number of dns requests resolved through the cache without
+	// looking up the network.
+	OnDNSCacheHit()
+
+	// OnDNSCacheInvalidated is called whenever dns cache is invalidated for an entry
+	OnDNSCacheInvalidated()
+
+	// OnDNSLookupRequestDropped tracks the number of dns lookup requests that are dropped due to a full queue
+	OnDNSLookupRequestDropped()
+}
+
 type NetworkMetrics interface {
+	ResolverMetrics
+
 	// NetworkMessageSent size in bytes and count of the network message sent
 	NetworkMessageSent(sizeBytes int, topic string, messageType string)
 
@@ -30,8 +50,15 @@ type NetworkMetrics interface {
 	// QueueDuration tracks the time spent by a message with the given priority in the queue
 	QueueDuration(duration time.Duration, priority int)
 
-	// InboundProcessDuration tracks the time a queue worker blocked by an engine for processing an incoming message on specified topic (i.e., channel).
-	InboundProcessDuration(topic string, duration time.Duration)
+	DirectMessageStarted(topic string)
+
+	DirectMessageFinished(topic string)
+
+	// MessageProcessingStarted tracks the start of a call to process a message from the given topic
+	MessageProcessingStarted(topic string)
+
+	// MessageProcessingFinished tracks the time a queue worker blocked by an engine for processing an incoming message on specified topic (i.e., channel).
+	MessageProcessingFinished(topic string, duration time.Duration)
 
 	// OutboundConnections updates the metric tracking the number of outbound connections of this node
 	OutboundConnections(connectionCount uint)
@@ -53,6 +80,13 @@ type ComplianceMetrics interface {
 	BlockFinalized(*flow.Block)
 	BlockSealed(*flow.Block)
 	BlockProposalDuration(duration time.Duration)
+	CurrentEpochCounter(counter uint64)
+	CurrentEpochPhase(phase flow.EpochPhase)
+	CurrentEpochFinalView(view uint64)
+	CurrentDKGPhase1FinalView(view uint64)
+	CurrentDKGPhase2FinalView(view uint64)
+	CurrentDKGPhase3FinalView(view uint64)
+	EpochEmergencyFallbackTriggered()
 }
 
 type CleanerMetrics interface {
@@ -60,13 +94,13 @@ type CleanerMetrics interface {
 }
 
 type CacheMetrics interface {
-	// report the total number of cached items
+	// CacheEntries report the total number of cached items
 	CacheEntries(resource string, entries uint)
-	// report the number of times the queried item is found in the cache
+	// CacheHit report the number of times the queried item is found in the cache
 	CacheHit(resource string)
-	// report the number of items the queried item is not found in the cache, nor found in the database
+	// CacheNotFound records the number of times the queried item was not found in either cache or database.
 	CacheNotFound(resource string)
-	// report the number of items the queried item is not found in the cache, but found in the database
+	// CacheMiss report the number of times the queried item is not found in the cache, but found in the database.
 	CacheMiss(resource string)
 }
 
@@ -160,35 +194,19 @@ type ConsensusMetrics interface {
 }
 
 type VerificationMetrics interface {
-	// TODO: remove this event handlers once we have new architecture in place.
-	// OnExecutionReceiptReceived is called whenever a new execution receipt arrives
-	// at Finder engine. It increments total number of received receipts.
-	OnExecutionReceiptReceived()
-	// OnExecutionResultSent is called whenever a new execution result is sent by
-	// Finder engine to the match engine. It increments total number of sent execution results.
-	OnExecutionResultSent()
-	// OnExecutionResultReceived is called whenever a new execution result is successfully received
-	// by Match engine from Finder engine.
-	// It increments the total number of received execution results.
-	OnExecutionResultReceived()
-	// OnVerifiableChunkSent is called on a successful submission of matched chunk
-	// by Match engine to Verifier engine.
-	// It increments the total number of chunks matched by match engine.
-	OnVerifiableChunkSent()
-	// OnChunkDataPackReceived is called on a receiving a chunk data pack by Match engine
-	// It increments the total number of chunk data packs received.
-	OnChunkDataPackReceived()
-	// OnChunkDataPackRequested is called on requesting a chunk data pack by Match engine
-	// It increments the total number of chunk data packs requested.
-	OnChunkDataPackRequested()
+	// OnBlockConsumerJobDone is invoked by block consumer whenever it is notified a job is done by a worker. It
+	// sets the last processed block job index.
+	OnBlockConsumerJobDone(uint64)
+	// OnChunkConsumerJobDone is invoked by chunk consumer whenever it is notified a job is done by a worker. It
+	// sets the last processed chunk job index.
+	OnChunkConsumerJobDone(uint64)
+	// OnExecutionResultReceivedAtAssignerEngine is called whenever a new execution result arrives
+	// at Assigner engine. It increments total number of received execution results.
+	OnExecutionResultReceivedAtAssignerEngine()
 
 	// OnVerifiableChunkReceivedAtVerifierEngine increments a counter that keeps track of number of verifiable chunks received at
 	// verifier engine from fetcher engine.
 	OnVerifiableChunkReceivedAtVerifierEngine()
-
-	// OnResultApprovalDispatchedInNetwork increments a counter that keeps track of number of result approvals dispatched in the network
-	// by verifier engine.
-	OnResultApprovalDispatchedInNetwork()
 
 	// OnFinalizedBlockArrivedAtAssigner sets a gauge that keeps track of number of the latest block height arrives
 	// at assigner engine. Note that it assumes blocks are coming to assigner engine in strictly increasing order of their height.
@@ -215,11 +233,16 @@ type VerificationMetrics interface {
 
 	// OnChunkDataPackRequestDispatchedInNetwork increments a counter that keeps track of number of chunk data pack requests that the
 	// requester engine dispatches in the network (to the execution nodes).
-	OnChunkDataPackRequestDispatchedInNetwork()
+	OnChunkDataPackRequestDispatchedInNetworkByRequester()
 
 	// OnChunkDataPackResponseReceivedFromNetwork increments a counter that keeps track of number of chunk data pack responses that the
 	// requester engine receives from execution nodes (through network).
-	OnChunkDataPackResponseReceivedFromNetwork()
+	OnChunkDataPackResponseReceivedFromNetworkByRequester()
+
+	// SetMaxChunkDataPackAttemptsForNextUnsealedHeightAtRequester is invoked when a cycle of requesting chunk data packs is done by requester engine.
+	// It updates the maximum number of attempts made by requester engine for requesting the chunk data packs of the next unsealed height.
+	// The maximum is taken over the history of all chunk data packs requested during that cycle that belong to the next unsealed height.
+	SetMaxChunkDataPackAttemptsForNextUnsealedHeightAtRequester(attempts uint64)
 
 	// OnChunkDataPackSentToFetcher increments a counter that keeps track of number of chunk data packs sent to the fetcher engine from
 	// requester engine.
@@ -231,6 +254,10 @@ type VerificationMetrics interface {
 
 	// OnVerifiableChunkSentToVerifier increments a counter that keeps track of number of verifiable chunks fetcher engine sent to verifier engine.
 	OnVerifiableChunkSentToVerifier()
+
+	// OnResultApprovalDispatchedInNetwork increments a counter that keeps track of number of result approvals dispatched in the network
+	// by verifier engine.
+	OnResultApprovalDispatchedInNetworkByVerifier()
 }
 
 // LedgerMetrics provides an interface to record Ledger Storage metrics.
@@ -247,13 +274,16 @@ type LedgerMetrics interface {
 	LatestTrieRegCount(number uint64)
 
 	// LatestTrieRegCountDiff records the difference between the number of unique register allocated of the latest created trie and parent trie
-	LatestTrieRegCountDiff(number uint64)
+	LatestTrieRegCountDiff(number int64)
 
-	// LatestTrieMaxDepth records the maximum depth of the last created trie
-	LatestTrieMaxDepth(number uint64)
+	// LatestTrieRegSize records the size of unique register allocated (the latest created trie)
+	LatestTrieRegSize(size uint64)
 
-	// LatestTrieMaxDepthDiff records the difference between the max depth of the latest created trie and parent trie
-	LatestTrieMaxDepthDiff(number uint64)
+	// LatestTrieRegSizeDiff records the difference between the size of unique register allocated of the latest created trie and parent trie
+	LatestTrieRegSizeDiff(size int64)
+
+	// LatestTrieMaxDepthTouched records the maximum depth touched of the lastest created trie
+	LatestTrieMaxDepthTouched(maxDepth uint16)
 
 	// UpdateCount increase a counter of performed updates
 	UpdateCount()
@@ -289,6 +319,16 @@ type LedgerMetrics interface {
 type WALMetrics interface {
 	// DiskSize records the amount of disk space used by the storage (in bytes)
 	DiskSize(uint64)
+}
+
+type ExecutionDataServiceMetrics interface {
+	ExecutionDataAddStarted()
+
+	ExecutionDataAddFinished(duration time.Duration, success bool, blobTreeSize uint64)
+
+	ExecutionDataGetStarted()
+
+	ExecutionDataGetFinished(duration time.Duration, success bool, blobTreeSize uint64)
 }
 
 type RuntimeMetrics interface {
@@ -354,6 +394,10 @@ type ExecutionMetrics interface {
 
 	// ExecutionSync reports when the state syncing is triggered or stopped.
 	ExecutionSync(syncing bool)
+
+	ExecutionBlockDataUploadStarted()
+
+	ExecutionBlockDataUploadFinished(dur time.Duration)
 }
 
 type TransactionMetrics interface {
@@ -380,6 +424,41 @@ type PingMetrics interface {
 	// The nodeInfo provides additional information about the node such as the name of the node operator
 	NodeReachable(node *flow.Identity, nodeInfo string, rtt time.Duration)
 
-	// NodeInfo tracks the software version and sealed height of a node
-	NodeInfo(node *flow.Identity, nodeInfo string, version string, sealedHeight uint64)
+	// NodeInfo tracks the software version, sealed height and hotstuff view of a node
+	NodeInfo(node *flow.Identity, nodeInfo string, version string, sealedHeight uint64, hotstuffCurView uint64)
+}
+
+type HeroCacheMetrics interface {
+	// BucketAvailableSlots keeps track of number of available slots in buckets of cache.
+	BucketAvailableSlots(uint64, uint64)
+
+	// OnKeyPutSuccess is called whenever a new (key, entity) pair is successfully added to the cache.
+	OnKeyPutSuccess()
+
+	// OnKeyPutFailure is tracking the total number of unsuccessful writes caused by adding a duplicate key to the cache.
+	// A duplicate key is dropped by the cache when it is written to the cache.
+	// Note: in context of HeroCache, the key corresponds to the identifier of its entity. Hence, a duplicate key corresponds to
+	// a duplicate entity.
+	OnKeyPutFailure()
+
+	// OnKeyGetSuccess tracks total number of successful read queries.
+	// A read query is successful if the entity corresponding to its key is available in the cache.
+	// Note: in context of HeroCache, the key corresponds to the identifier of its entity.
+	OnKeyGetSuccess()
+
+	// OnKeyGetFailure tracks total number of unsuccessful read queries.
+	// A read query is unsuccessful if the entity corresponding to its key is not available in the cache.
+	// Note: in context of HeroCache, the key corresponds to the identifier of its entity.
+	OnKeyGetFailure()
+
+	// OnEntityEjectionDueToFullCapacity is called whenever adding a new (key, entity) to the cache results in ejection of another (key', entity') pair.
+	// This normally happens -- and is expected -- when the cache is full.
+	// Note: in context of HeroCache, the key corresponds to the identifier of its entity.
+	OnEntityEjectionDueToFullCapacity()
+
+	// OnEntityEjectionDueToEmergency is called whenever a bucket is found full and all of its keys are valid, i.e.,
+	// each key belongs to an existing (key, entity) pair.
+	// Hence, adding a new key to that bucket will replace the oldest valid key inside that bucket.
+	// Note: in context of HeroCache, the key corresponds to the identifier of its entity.
+	OnEntityEjectionDueToEmergency()
 }

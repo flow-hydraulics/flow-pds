@@ -3,9 +3,12 @@
 package network
 
 import (
-	"time"
+	"github.com/ipfs/go-datastore"
+	"github.com/libp2p/go-libp2p-core/peer"
+	"github.com/libp2p/go-libp2p-core/protocol"
 
 	"github.com/onflow/flow-go/model/flow"
+	"github.com/onflow/flow-go/module/component"
 	"github.com/onflow/flow-go/network/message"
 )
 
@@ -21,22 +24,12 @@ func (t Topic) String() string {
 // our direct neighbours on the network. It handles the creation & teardown of
 // connections, as well as reading & writing to/from the connections.
 type Middleware interface {
-	// Start will start the middleware.
-	Start(overlay Overlay) error
+	component.Component
 
-	// Stop will end the execution of the middleware and wait for it to end.
-	Stop()
+	// SetOverlay sets the overlay used by the middleware. This must be called before the middleware can be Started.
+	SetOverlay(Overlay)
 
-	// Send sends the message to the set of target ids
-	// If there is only one target NodeID, then a direct 1-1 connection is used by calling middleware.sendDirect
-	// Otherwise, middleware.Publish is used, which uses the PubSub method of communication.
-	//
-	// Deprecated: Send exists for historical compatibility, and should not be used on new
-	// developments. It is planned to be cleaned up in near future. Proper utilization of Dispatch or
-	// Publish are recommended instead.
-	Send(channel Channel, msg *message.Message, targetIDs ...flow.Identifier) error
-
-	// Dispatch sends msg on a 1-1 direct connection to the target ID. It models a guaranteed delivery asynchronous
+	// SendDirect sends msg on a 1-1 direct connection to the target ID. It models a guaranteed delivery asynchronous
 	// direct one-to-one connection on the underlying network. No intermediate node on the overlay is utilized
 	// as the router.
 	//
@@ -55,12 +48,17 @@ type Middleware interface {
 	// Unsubscribe unsubscribes the middleware from a channel.
 	Unsubscribe(channel Channel) error
 
-	// Ping pings the target node and returns the ping RTT or an error
-	Ping(targetID flow.Identifier) (message.PingResponse, time.Duration, error)
+	// UpdateNodeAddresses fetches and updates the addresses of all the authorized participants
+	// in the Flow protocol.
+	UpdateNodeAddresses()
 
-	// UpdateAllowList fetches the most recent identity of the nodes from overlay
-	// and updates the underlying libp2p node.
-	UpdateAllowList() error
+	// NewBlobService creates a new BlobService for the given channel.
+	NewBlobService(channel Channel, store datastore.Batching, opts ...BlobServiceOption) BlobService
+
+	// NewPingService creates a new PingService for the given ping protocol ID.
+	NewPingService(pingProtocol protocol.ID, provider PingInfoProvider) PingService
+
+	IsConnected(nodeID flow.Identifier) (bool, error)
 }
 
 // Overlay represents the interface that middleware uses to interact with the
@@ -68,8 +66,13 @@ type Middleware interface {
 type Overlay interface {
 	// Topology returns an identity list of nodes which this node should be directly connected to as peers
 	Topology() (flow.IdentityList, error)
-	// Identity returns a map of all identifier to flow identity
-	Identity() (map[flow.Identifier]flow.Identity, error)
+
+	// Identities returns a list of all Flow identities on the network
+	Identities() flow.IdentityList
+
+	// GetIdentity returns the Identity associated with the given peer ID, if it exists
+	Identity(peer.ID) (*flow.Identity, bool)
+
 	Receive(nodeID flow.Identifier, msg *message.Message) error
 }
 

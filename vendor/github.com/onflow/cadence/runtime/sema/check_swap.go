@@ -1,7 +1,7 @@
 /*
  * Cadence - The resource-oriented smart contract programming language
  *
- * Copyright 2019-2020 Dapper Labs, Inc.
+ * Copyright 2019-2022 Dapper Labs, Inc.
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -42,17 +42,17 @@ func (checker *Checker) VisitSwapStatement(swap *ast.SwapStatement) ast.Repr {
 			&TypeMismatchError{
 				ExpectedType: leftType,
 				ActualType:   rightType,
-				Range:        ast.NewRangeFromPositioned(swap.Right),
+				Range:        ast.NewRangeFromPositioned(checker.memoryGauge, swap.Right),
 			},
 		)
 	}
 
 	if leftType.IsResourceType() {
-		checker.elaborateIndexExpressionResourceMove(swap.Left)
+		checker.elaborateNestedResourceMoveExpression(swap.Left)
 	}
 
 	if rightType.IsResourceType() {
-		checker.elaborateIndexExpressionResourceMove(swap.Right)
+		checker.elaborateNestedResourceMoveExpression(swap.Right)
 	}
 
 	return nil
@@ -70,7 +70,7 @@ func (checker *Checker) checkSwapStatementExpression(
 		checker.report(
 			&InvalidSwapExpressionError{
 				Side:  opSide,
-				Range: ast.NewRangeFromPositioned(expression),
+				Range: ast.NewRangeFromPositioned(checker.memoryGauge, expression),
 			},
 		)
 		return false

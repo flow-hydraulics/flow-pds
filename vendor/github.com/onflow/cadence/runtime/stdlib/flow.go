@@ -1,7 +1,7 @@
 /*
  * Cadence - The resource-oriented smart contract programming language
  *
- * Copyright 2019-2020 Dapper Labs, Inc.
+ * Copyright 2019-2022 Dapper Labs, Inc.
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -68,7 +68,7 @@ var getAccountFunctionType = &sema.FunctionType{
 	),
 }
 
-var logFunctionType = &sema.FunctionType{
+var LogFunctionType = &sema.FunctionType{
 	Parameters: []*sema.Parameter{
 		{
 			Label:      sema.ArgumentLabelNotRequired,
@@ -157,7 +157,7 @@ func FlowBuiltInFunctions(impls FlowBuiltinImpls) StandardLibraryFunctions {
 		),
 		NewStandardLibraryFunction(
 			"log",
-			logFunctionType,
+			LogFunctionType,
 			logFunctionDocString,
 			impls.Log,
 		),
@@ -198,7 +198,10 @@ func DefaultFlowBuiltinImpls() FlowBuiltinImpls {
 			panic(fmt.Errorf("cannot get blocks"))
 		},
 		UnsafeRandom: func(invocation interpreter.Invocation) interpreter.Value {
-			return interpreter.UInt64Value(rand.Uint64())
+			return interpreter.NewUInt64Value(
+				invocation.Interpreter,
+				rand.Uint64,
+			)
 		},
 	}
 }
@@ -245,7 +248,7 @@ func (l FlowLocation) MarshalJSON() ([]byte, error) {
 func init() {
 	common.RegisterTypeIDDecoder(
 		FlowLocationPrefix,
-		func(typeID string) (location common.Location, qualifiedIdentifier string, err error) {
+		func(_ common.MemoryGauge, typeID string) (location common.Location, qualifiedIdentifier string, err error) {
 			return decodeFlowLocationTypeID(typeID)
 		},
 	)
@@ -306,7 +309,7 @@ func newFlowEventType(identifier string, parameters ...*sema.Parameter) *sema.Co
 
 		eventType.Members.Set(
 			parameter.Identifier,
-			sema.NewPublicConstantFieldMember(
+			sema.NewUnmeteredPublicConstantFieldMember(
 				eventType,
 				parameter.Identifier,
 				parameter.TypeAnnotation.Type,
@@ -347,9 +350,7 @@ var AccountEventCodeHashParameter = &sema.Parameter{
 var AccountEventPublicKeyParameter = &sema.Parameter{
 	Identifier: "publicKey",
 	TypeAnnotation: sema.NewTypeAnnotation(
-		&sema.VariableSizedType{
-			Type: sema.UInt8Type,
-		},
+		sema.ByteArrayType,
 	),
 }
 

@@ -6,6 +6,7 @@ package topo
 
 import (
 	"gonum.org/v1/gonum/graph"
+	"gonum.org/v1/gonum/graph/internal/ordered"
 	"gonum.org/v1/gonum/graph/traverse"
 )
 
@@ -37,8 +38,8 @@ func IsPathIn(g graph.Graph, path []graph.Node) bool {
 	}
 }
 
-// PathExistsIn returns whether there is a path in g starting at from extending
-// to to.
+// PathExistsIn returns whether there is a path in g starting at 'from' extending
+// to 'to'.
 //
 // PathExistsIn exists as a helper function. If many tests for path existence
 // are being performed, other approaches will be more efficient.
@@ -65,4 +66,45 @@ func ConnectedComponents(g graph.Undirected) [][]graph.Node {
 	w.WalkAll(g, nil, after, during)
 
 	return cc
+}
+
+// Equal returns whether two graphs are topologically equal. To be
+// considered topologically equal, a and b must have identical sets
+// of nodes and be identically traversable.
+func Equal(a, b graph.Graph) bool {
+	aNodes := a.Nodes()
+	bNodes := b.Nodes()
+	if aNodes.Len() != bNodes.Len() {
+		return false
+	}
+
+	aNodeSlice := graph.NodesOf(aNodes)
+	bNodeSlice := graph.NodesOf(bNodes)
+	ordered.ByID(aNodeSlice)
+	ordered.ByID(bNodeSlice)
+	for i, aU := range aNodeSlice {
+		id := aU.ID()
+		if id != bNodeSlice[i].ID() {
+			return false
+		}
+
+		toA := a.From(id)
+		toB := b.From(id)
+		if toA.Len() != toB.Len() {
+			return false
+		}
+
+		aAdjacent := graph.NodesOf(toA)
+		bAdjacent := graph.NodesOf(toB)
+		ordered.ByID(aAdjacent)
+		ordered.ByID(bAdjacent)
+		for i, aV := range aAdjacent {
+			id := aV.ID()
+			if id != bAdjacent[i].ID() {
+				return false
+			}
+		}
+	}
+
+	return true
 }

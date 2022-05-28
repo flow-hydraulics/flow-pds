@@ -1,7 +1,7 @@
 /*
  * Cadence - The resource-oriented smart contract programming language
  *
- * Copyright 2019-2020 Dapper Labs, Inc.
+ * Copyright 2019-2022 Dapper Labs, Inc.
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -71,7 +71,7 @@ func (checker *Checker) visitVariableDeclaration(declaration *ast.VariableDeclar
 				&TypeMismatchError{
 					ExpectedType: &OptionalType{},
 					ActualType:   valueType,
-					Range:        ast.NewRangeFromPositioned(declaration.Value),
+					Range:        ast.NewRangeFromPositioned(checker.memoryGauge, declaration.Value),
 				},
 			)
 		} else if declarationType == nil {
@@ -84,8 +84,6 @@ func (checker *Checker) visitVariableDeclaration(declaration *ast.VariableDeclar
 	}
 
 	checker.Elaboration.VariableDeclarationTargetTypes[declaration] = declarationType
-
-	checker.checkVariableDeclarationUsability(declaration)
 
 	checker.checkTransfer(declaration.Transfer, declarationType)
 
@@ -120,7 +118,7 @@ func (checker *Checker) visitVariableDeclaration(declaration *ast.VariableDeclar
 		if !IsValidAssignmentTargetExpression(declaration.Value) {
 			checker.report(
 				&InvalidAssignmentTargetError{
-					Range: ast.NewRangeFromPositioned(declaration.Value),
+					Range: ast.NewRangeFromPositioned(checker.memoryGauge, declaration.Value),
 				},
 			)
 		} else {
@@ -143,7 +141,7 @@ func (checker *Checker) visitVariableDeclaration(declaration *ast.VariableDeclar
 				checker.report(
 					&NonResourceTypeError{
 						ActualType: valueType,
-						Range:      ast.NewRangeFromPositioned(declaration.Value),
+						Range:      ast.NewRangeFromPositioned(checker.memoryGauge, declaration.Value),
 					},
 				)
 			}
@@ -168,7 +166,7 @@ func (checker *Checker) visitVariableDeclaration(declaration *ast.VariableDeclar
 			checker.Elaboration.VariableDeclarationSecondValueTypes[declaration] = secondValueType
 
 			if valueIsResource {
-				checker.elaborateIndexExpressionResourceMove(declaration.Value)
+				checker.elaborateNestedResourceMoveExpression(declaration.Value)
 			}
 		}
 	}
@@ -204,7 +202,7 @@ func (checker *Checker) recordVariableDeclarationRange(
 	activation := checker.valueActivations.Current()
 	activation.LeaveCallbacks = append(
 		activation.LeaveCallbacks,
-		func(getEndPosition func() ast.Position) {
+		func(getEndPosition EndPositionGetter) {
 			if getEndPosition == nil {
 				return
 			}
@@ -214,14 +212,14 @@ func (checker *Checker) recordVariableDeclarationRange(
 
 			var startPosition ast.Position
 			if declaration.SecondValue != nil {
-				startPosition = declaration.SecondValue.EndPosition()
+				startPosition = declaration.SecondValue.EndPosition(checker.memoryGauge)
 			} else {
-				startPosition = declaration.Value.EndPosition()
+				startPosition = declaration.Value.EndPosition(checker.memoryGauge)
 			}
 
 			checker.Ranges.Put(
 				startPosition,
-				getEndPosition(),
+				getEndPosition(checker.memoryGauge),
 				Range{
 					Identifier:      identifier,
 					DeclarationKind: declaration.DeclarationKind(),
@@ -233,46 +231,9 @@ func (checker *Checker) recordVariableDeclarationRange(
 	)
 }
 
-func (checker *Checker) checkVariableDeclarationUsability(declaration *ast.VariableDeclaration) {
-
-	// If the variable declaration has no type annotation
-	// and the value is an empty array literal,
-	// then the type is inferred to `[Never]`,
-	// which is effectively useless
-	// (it is an empty array to which no values can be added).
-	//
-	// Require an explicit type annotation
-
-	if declaration.TypeAnnotation == nil {
-		switch value := declaration.Value.(type) {
-		case *ast.ArrayExpression:
-			if len(value.Values) == 0 {
-				checker.report(
-					&TypeAnnotationRequiredError{
-						Cause: "empty array literal",
-						Pos:   declaration.Identifier.EndPosition().Shifted(1),
-					},
-				)
-			}
-
-		case *ast.DictionaryExpression:
-			if len(value.Entries) == 0 {
-				checker.report(
-					&TypeAnnotationRequiredError{
-						Cause: "empty dictionary literal",
-						Pos:   declaration.Identifier.EndPosition().Shifted(1),
-					},
-				)
-			}
-		}
+func (checker *Checker) elaborateNestedResourceMoveExpression(expression ast.Expression) {
+	switch expression.(type) {
+	case *ast.IndexExpression, *ast.MemberExpression:
+		checker.Elaboration.IsNestedResourceMoveExpression[expression] = struct{}{}
 	}
-}
-
-func (checker *Checker) elaborateIndexExpressionResourceMove(expression ast.Expression) {
-	indexExpression, ok := expression.(*ast.IndexExpression)
-	if !ok {
-		return
-	}
-
-	checker.Elaboration.IsResourceMoveIndexExpression[indexExpression] = true
 }

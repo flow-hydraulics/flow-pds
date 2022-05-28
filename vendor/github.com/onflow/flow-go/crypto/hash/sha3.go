@@ -1,65 +1,51 @@
 package hash
 
-import (
-	"hash"
+const (
+	rateSHA3_256 = 136
+	rateSHA3_384 = 104
 
-	"golang.org/x/crypto/sha3"
+	dsByteSHA3 = byte(0x6)
 )
 
-// sha3_256Algo, embeds commonHasher
-type sha3_256Algo struct {
-	*commonHasher
-	hash.Hash
-}
-
-// NewSHA3_256 returns a new instance of SHA3-256 hasher
+// NewSHA3_256 returns a new instance of SHA3-256 hasher.
 func NewSHA3_256() Hasher {
-	return &sha3_256Algo{
-		commonHasher: &commonHasher{
-			algo:       SHA3_256,
-			outputSize: HashLenSha3_256},
-		Hash: sha3.New256()}
+	return &spongeState{
+		algo:      SHA3_256,
+		rate:      rateSHA3_256,
+		dsByte:    dsByteSHA3,
+		outputLen: HashLenSHA3_256,
+		bufIndex:  bufNilValue,
+		bufSize:   bufNilValue,
+	}
 }
 
-// ComputeHash calculates and returns the SHA3-256 output of input byte array.
-// It does not reset the state to allow further writing.
-func (s *sha3_256Algo) ComputeHash(data []byte) Hash {
-	s.Reset()
-	_, _ = s.Write(data)
-	return s.Sum(nil)
-}
-
-// SumHash returns the SHA3-256 output.
-// It does not reset the state to allow further writing.
-func (s *sha3_256Algo) SumHash() Hash {
-	return s.Sum(nil)
-}
-
-// sha3_384Algo, embeds commonHasher
-type sha3_384Algo struct {
-	*commonHasher
-	hash.Hash
-}
-
-// NewSHA3_384 returns a new instance of SHA3-384 hasher
+// NewSHA3_384 returns a new instance of SHA3-384 hasher.
 func NewSHA3_384() Hasher {
-	return &sha3_384Algo{
-		commonHasher: &commonHasher{
-			algo:       SHA3_384,
-			outputSize: HashLenSha3_384},
-		Hash: sha3.New384()}
+	return &spongeState{
+		algo:      SHA3_384,
+		rate:      rateSHA3_384,
+		dsByte:    dsByteSHA3,
+		outputLen: HashLenSHA3_384,
+		bufIndex:  bufNilValue,
+		bufSize:   bufNilValue,
+	}
 }
 
-// ComputeHash calculates and returns the SHA3-384 output of input byte array.
-// It does not reset the state to allow further writing.
-func (s *sha3_384Algo) ComputeHash(data []byte) Hash {
-	s.Reset()
-	_, _ = s.Write(data)
-	return s.Sum(nil)
-}
-
-// SumHash returns the SHA3-384 output.
-// It does not reset the state to allow further writing.
-func (s *sha3_384Algo) SumHash() Hash {
-	return s.Sum(nil)
+// ComputeSHA3_256 computes the SHA3-256 digest of data
+// and copies the result to the result buffer.
+//
+// The function is not part of the Hasher API. It is a light API
+// that allows a simple computation of a hash and minimizes
+// heap allocations.
+func ComputeSHA3_256(result *[HashLenSHA3_256]byte, data []byte) {
+	state := &spongeState{
+		rate:      rateSHA3_256,
+		dsByte:    dsByteSHA3,
+		outputLen: HashLenSHA3_256,
+		bufIndex:  bufNilValue,
+		bufSize:   bufNilValue,
+	}
+	state.write(data)
+	state.padAndPermute()
+	copyOut(result[:], state)
 }

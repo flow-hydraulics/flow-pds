@@ -258,6 +258,26 @@ func (ec ExtraDecErrorCond) valid() bool {
 	return ec < maxExtraDecError
 }
 
+// UTF8Mode option specifies if decoder should
+// decode CBOR Text containing invalid UTF-8 string.
+type UTF8Mode int
+
+const (
+	// UTF8RejectInvalid rejects CBOR Text containing
+	// invalid UTF-8 string.
+	UTF8RejectInvalid UTF8Mode = iota
+
+	// UTF8DecodeInvalid allows decoding CBOR Text containing
+	// invalid UTF-8 string.
+	UTF8DecodeInvalid
+
+	maxUTF8Mode
+)
+
+func (um UTF8Mode) valid() bool {
+	return um < maxUTF8Mode
+}
+
 // DecOptions specifies decoding options.
 type DecOptions struct {
 	// DupMapKey specifies whether to enforce duplicate map key.
@@ -293,6 +313,15 @@ type DecOptions struct {
 
 	// ExtraReturnErrors specifies extra conditions that should be treated as errors.
 	ExtraReturnErrors ExtraDecErrorCond
+
+	// DefaultMapType specifies Go map type to create and decode to
+	// when unmarshalling CBOR into an empty interface value.
+	// By default, unmarshal uses map[interface{}]interface{}.
+	DefaultMapType reflect.Type
+
+	// UTF8 specifies if decoder should decode CBOR Text containing invalid UTF-8.
+	// By default, unmarshal rejects CBOR text containing invalid UTF-8.
+	UTF8 UTF8Mode
 }
 
 // DecMode returns DecMode with immutable options and no tags (safe for concurrency).
@@ -401,6 +430,12 @@ func (opts DecOptions) decMode() (*decMode, error) {
 	if !opts.ExtraReturnErrors.valid() {
 		return nil, errors.New("cbor: invalid ExtraReturnErrors " + strconv.Itoa(int(opts.ExtraReturnErrors)))
 	}
+	if opts.DefaultMapType != nil && opts.DefaultMapType.Kind() != reflect.Map {
+		return nil, fmt.Errorf("cbor: invalid DefaultMapType %s", opts.DefaultMapType)
+	}
+	if !opts.UTF8.valid() {
+		return nil, errors.New("cbor: invalid UTF8 " + strconv.Itoa(int(opts.UTF8)))
+	}
 	dm := decMode{
 		dupMapKey:         opts.DupMapKey,
 		timeTag:           opts.TimeTag,
@@ -411,6 +446,8 @@ func (opts DecOptions) decMode() (*decMode, error) {
 		tagsMd:            opts.TagsMd,
 		intDec:            opts.IntDec,
 		extraReturnErrors: opts.ExtraReturnErrors,
+		defaultMapType:    opts.DefaultMapType,
+		utf8:              opts.UTF8,
 	}
 	return &dm, nil
 }
@@ -449,6 +486,8 @@ type decMode struct {
 	tagsMd            TagsMode
 	intDec            IntDecMode
 	extraReturnErrors ExtraDecErrorCond
+	defaultMapType    reflect.Type
+	utf8              UTF8Mode
 }
 
 var defaultDecMode, _ = DecOptions{}.decMode()
@@ -465,6 +504,7 @@ func (dm *decMode) DecOptions() DecOptions {
 		TagsMd:            dm.tagsMd,
 		IntDec:            dm.intDec,
 		ExtraReturnErrors: dm.extraReturnErrors,
+		UTF8:              dm.utf8,
 	}
 }
 
@@ -579,6 +619,37 @@ const (
 // parseToValue decodes CBOR data to value.  It assumes data is well-formed,
 // and does not perform bounds checking.
 func (d *decoder) parseToValue(v reflect.Value, tInfo *typeInfo) error { //nolint:gocyclo
+
+	if tInfo.spclType == specialTypeIface {
+		if !v.IsNil() {
+			// Use value type
+			v = v.Elem()
+			tInfo = getTypeInfo(v.Type())
+		} else {
+			// Create and use registered type if CBOR data is registered tag
+			if d.dm.tags != nil && d.nextCBORType() == cborTypeTag {
+
+				off := d.off
+				var tagNums []uint64
+				for d.nextCBORType() == cborTypeTag {
+					_, _, tagNum := d.getHead()
+					tagNums = append(tagNums, tagNum)
+				}
+				d.off = off
+
+				registeredType := d.dm.tags.getTypeFromTagNum(tagNums)
+				if registeredType != nil {
+					if registeredType.Implements(tInfo.nonPtrType) ||
+						reflect.PtrTo(registeredType).Implements(tInfo.nonPtrType) {
+						v.Set(reflect.New(registeredType))
+						v = v.Elem()
+						tInfo = getTypeInfo(registeredType)
+					}
+				}
+			}
+		}
+	}
+
 	// Create new value for the pointer v to point to if CBOR value is not nil/undefined.
 	if !d.nextCBORNil() {
 		for v.Kind() == reflect.Ptr {
@@ -1019,6 +1090,14 @@ func (d *decoder) parse(skipSelfDescribedTag bool) (interface{}, error) { //noli
 	case cborTypeArray:
 		return d.parseArray()
 	case cborTypeMap:
+		if d.dm.defaultMapType != nil {
+			m := reflect.New(d.dm.defaultMapType)
+			err := d.parseToValue(m, getTypeInfo(m.Elem().Type()))
+			if err != nil {
+				return nil, err
+			}
+			return m.Elem().Interface(), nil
+		}
 		return d.parseMap()
 	}
 	return nil, nil
@@ -1052,7 +1131,7 @@ func (d *decoder) parseTextString() ([]byte, error) {
 	if ai != 31 {
 		b := d.data[d.off : d.off+int(val)]
 		d.off += int(val)
-		if !utf8.Valid(b) {
+		if d.dm.utf8 == UTF8RejectInvalid && !utf8.Valid(b) {
 			return nil, &SemanticError{"cbor: invalid UTF-8 string"}
 		}
 		return b, nil
@@ -1063,7 +1142,7 @@ func (d *decoder) parseTextString() ([]byte, error) {
 		_, _, val = d.getHead()
 		x := d.data[d.off : d.off+int(val)]
 		d.off += int(val)
-		if !utf8.Valid(x) {
+		if d.dm.utf8 == UTF8RejectInvalid && !utf8.Valid(x) {
 			for !d.foundBreak() {
 				d.skip() // Skip remaining chunk on error
 			}
@@ -1148,7 +1227,7 @@ func (d *decoder) parseArrayToArray(v reflect.Value, tInfo *typeInfo) error {
 	return err
 }
 
-func (d *decoder) parseMap() (map[interface{}]interface{}, error) {
+func (d *decoder) parseMap() (interface{}, error) {
 	_, ai, val := d.getHead()
 	hasSize := (ai != 31)
 	count := int(val)

@@ -9,7 +9,6 @@ import (
 	"github.com/onflow/flow-go/state/cluster"
 	"github.com/onflow/flow-go/state/protocol"
 	"github.com/onflow/flow-go/state/protocol/invalid"
-	"github.com/onflow/flow-go/state/protocol/seed"
 )
 
 // Epoch is a memory-backed implementation of protocol.Epoch.
@@ -17,16 +16,21 @@ type Epoch struct {
 	enc EncodableEpoch
 }
 
-func (e Epoch) Counter() (uint64, error)   { return e.enc.Counter, nil }
-func (e Epoch) FirstView() (uint64, error) { return e.enc.FirstView, nil }
-func (e Epoch) FinalView() (uint64, error) { return e.enc.FinalView, nil }
+func (e Epoch) Encodable() EncodableEpoch {
+	return e.enc
+}
+
+func (e Epoch) Counter() (uint64, error)            { return e.enc.Counter, nil }
+func (e Epoch) FirstView() (uint64, error)          { return e.enc.FirstView, nil }
+func (e Epoch) DKGPhase1FinalView() (uint64, error) { return e.enc.DKGPhase1FinalView, nil }
+func (e Epoch) DKGPhase2FinalView() (uint64, error) { return e.enc.DKGPhase2FinalView, nil }
+func (e Epoch) DKGPhase3FinalView() (uint64, error) { return e.enc.DKGPhase3FinalView, nil }
+func (e Epoch) FinalView() (uint64, error)          { return e.enc.FinalView, nil }
 func (e Epoch) InitialIdentities() (flow.IdentityList, error) {
 	return e.enc.InitialIdentities, nil
 }
-func (e Epoch) RandomSource() ([]byte, error) { return e.enc.RandomSource, nil }
-
-func (e Epoch) Seed(indices ...uint32) ([]byte, error) {
-	return seed.FromRandomSource(indices, e.enc.RandomSource)
+func (e Epoch) RandomSource() ([]byte, error) {
+	return e.enc.RandomSource, nil
 }
 
 func (e Epoch) Clustering() (flow.ClusterList, error) {
@@ -85,6 +89,18 @@ func (es *setupEpoch) FirstView() (uint64, error) {
 	return es.setupEvent.FirstView, nil
 }
 
+func (es *setupEpoch) DKGPhase1FinalView() (uint64, error) {
+	return es.setupEvent.DKGPhase1FinalView, nil
+}
+
+func (es *setupEpoch) DKGPhase2FinalView() (uint64, error) {
+	return es.setupEvent.DKGPhase2FinalView, nil
+}
+
+func (es *setupEpoch) DKGPhase3FinalView() (uint64, error) {
+	return es.setupEvent.DKGPhase3FinalView, nil
+}
+
 func (es *setupEpoch) FinalView() (uint64, error) {
 	return es.setupEvent.FinalView, nil
 }
@@ -113,10 +129,6 @@ func (es *setupEpoch) DKG() (protocol.DKG, error) {
 
 func (es *setupEpoch) RandomSource() ([]byte, error) {
 	return es.setupEvent.RandomSource, nil
-}
-
-func (es *setupEpoch) Seed(indices ...uint32) ([]byte, error) {
-	return seed.FromRandomSource(indices, es.setupEvent.RandomSource)
 }
 
 // committedEpoch is an implementation of protocol.Epoch backed by an EpochSetup
@@ -182,7 +194,7 @@ func (es *committedEpoch) DKG() (protocol.DKG, error) {
 	return dkg, err
 }
 
-// NewSetupEpoch returns an memory-backed epoch implementation based on an
+// NewSetupEpoch returns a memory-backed epoch implementation based on an
 // EpochSetup event. Epoch information available after the setup phase will
 // not be accessible in the resulting epoch instance.
 func NewSetupEpoch(setupEvent *flow.EpochSetup) (*Epoch, error) {
@@ -192,7 +204,7 @@ func NewSetupEpoch(setupEvent *flow.EpochSetup) (*Epoch, error) {
 	return FromEpoch(convertible)
 }
 
-// NewSetupEpoch returns an memory-backed epoch implementation based on an
+// NewCommittedEpoch returns a memory-backed epoch implementation based on an
 // EpochSetup and EpochCommit event.
 func NewCommittedEpoch(setupEvent *flow.EpochSetup, commitEvent *flow.EpochCommit) (*Epoch, error) {
 	convertible := &committedEpoch{

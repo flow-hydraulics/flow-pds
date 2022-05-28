@@ -1,7 +1,7 @@
 /*
  * Cadence - The resource-oriented smart contract programming language
  *
- * Copyright 2019-2020 Dapper Labs, Inc.
+ * Copyright 2019-2022 Dapper Labs, Inc.
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -21,6 +21,8 @@ package ast
 import (
 	"encoding/json"
 
+	"github.com/turbolent/prettier"
+
 	"github.com/onflow/cadence/runtime/common"
 )
 
@@ -38,15 +40,49 @@ type VariableDeclaration struct {
 	DocString         string
 }
 
+func NewVariableDeclaration(
+	gauge common.MemoryGauge,
+	access Access,
+	isLet bool,
+	identifier Identifier,
+	typeAnnotation *TypeAnnotation,
+	value Expression,
+	transfer *Transfer,
+	startPos Position,
+	secondTransfer *Transfer,
+	secondValue Expression,
+	docString string,
+) *VariableDeclaration {
+	common.UseMemory(gauge, common.VariableDeclarationMemoryUsage)
+
+	return &VariableDeclaration{
+		Access:         access,
+		IsConstant:     isLet,
+		Identifier:     identifier,
+		TypeAnnotation: typeAnnotation,
+		Value:          value,
+		Transfer:       transfer,
+		StartPos:       startPos,
+		SecondTransfer: secondTransfer,
+		SecondValue:    secondValue,
+		DocString:      docString,
+	}
+}
+
+func NewEmptyVariableDeclaration(gauge common.MemoryGauge) *VariableDeclaration {
+	common.UseMemory(gauge, common.VariableDeclarationMemoryUsage)
+	return &VariableDeclaration{}
+}
+
 func (d *VariableDeclaration) StartPosition() Position {
 	return d.StartPos
 }
 
-func (d *VariableDeclaration) EndPosition() Position {
+func (d *VariableDeclaration) EndPosition(memoryGauge common.MemoryGauge) Position {
 	if d.SecondValue != nil {
-		return d.SecondValue.EndPosition()
+		return d.SecondValue.EndPosition(memoryGauge)
 	}
-	return d.Value.EndPosition()
+	return d.Value.EndPosition(memoryGauge)
 }
 
 func (*VariableDeclaration) isIfStatementTest() {}
@@ -90,6 +126,42 @@ func (d *VariableDeclaration) DeclarationDocString() string {
 	return d.DocString
 }
 
+var varKeywordDoc prettier.Doc = prettier.Text("var")
+var letKeywordDoc prettier.Doc = prettier.Text("let")
+
+func (d *VariableDeclaration) Doc() prettier.Doc {
+	keywordDoc := varKeywordDoc
+	if d.IsConstant {
+		keywordDoc = letKeywordDoc
+	}
+
+	// TODO: second transfer and value (if any)
+
+	// TODO: potentially parenthesize
+	valueDoc := d.Value.Doc()
+
+	return prettier.Group{
+		Doc: prettier.Concat{
+			keywordDoc,
+			prettier.Space,
+			prettier.Group{
+				Doc: prettier.Concat{
+					prettier.Text(d.Identifier.Identifier),
+					prettier.Space,
+					// TODO: type annotation, if any
+					d.Transfer.Doc(),
+					prettier.Space,
+					prettier.Group{
+						Doc: prettier.Indent{
+							Doc: valueDoc,
+						},
+					},
+				},
+			},
+		},
+	}
+}
+
 func (d *VariableDeclaration) MarshalJSON() ([]byte, error) {
 	type Alias VariableDeclaration
 	return json.Marshal(&struct {
@@ -98,7 +170,7 @@ func (d *VariableDeclaration) MarshalJSON() ([]byte, error) {
 		*Alias
 	}{
 		Type:  "VariableDeclaration",
-		Range: NewRangeFromPositioned(d),
+		Range: NewUnmeteredRangeFromPositioned(d),
 		Alias: (*Alias)(d),
 	})
 }

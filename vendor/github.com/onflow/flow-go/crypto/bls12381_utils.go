@@ -6,8 +6,8 @@ package crypto
 // these tools are shared by the BLS signature scheme, the BLS based threshold signature
 // and the BLS distributed key generation protcols
 
-// #cgo CFLAGS: -g -Wall -std=c99 -I./ -I./relic/build/include
-// #cgo LDFLAGS: -Lrelic/build/lib -l relic_s
+// #cgo CFLAGS: -g -Wall -std=c99 -I${SRCDIR}/ -I${SRCDIR}/relic/build/include
+// #cgo LDFLAGS: -L${SRCDIR}/relic/build/lib -l relic_s
 // #include "bls12381_utils.h"
 import "C"
 import (
@@ -46,12 +46,12 @@ func (ct *ctx) initContext() error {
 // relic context must be initialized before seeding.
 func seedRelic(seed []byte) error {
 	if len(seed) < (securityBits / 8) {
-		return newInvalidInputsError(
+		return invalidInputsErrorf(
 			"seed length needs to be larger than %d",
 			securityBits/8)
 	}
 	if len(seed) > maxRelicPrgSeed {
-		return newInvalidInputsError(
+		return invalidInputsErrorf(
 			"seed length needs to be less than %x",
 			maxRelicPrgSeed)
 	}
@@ -107,7 +107,7 @@ func randZrStar(x *scalar) {
 // the resulting scalar is in the range 0 < k < r
 func mapToZr(x *scalar, src []byte) error {
 	if len(src) > maxScalarSize {
-		return newInvalidInputsError(
+		return invalidInputsErrorf(
 			"input slice length must be less than %d",
 			maxScalarSize)
 	}
@@ -134,6 +134,8 @@ func readScalar(x *scalar, src []byte) {
 }
 
 // writePointG2 writes a G2 point in a slice of bytes
+// The slice should be of size PubKeyLenBLSBLS12381 and the serialization will
+// follow the Zcash format specified in draft-irtf-cfrg-pairing-friendly-curves
 func writePointG2(dest []byte, a *pointG2) {
 	C.ep2_write_bin_compact((*C.uchar)(&dest[0]),
 		(*C.ep2_st)(a),
@@ -141,7 +143,19 @@ func writePointG2(dest []byte, a *pointG2) {
 	)
 }
 
-// readVerifVector reads a G2 point from a slice of bytes
+// writePointG1 writes a G1 point in a slice of bytes
+// The slice should be of size SignatureLenBLSBLS12381 and the serialization will
+// follow the Zcash format specified in draft-irtf-cfrg-pairing-friendly-curves
+func writePointG1(dest []byte, a *pointG1) {
+	C.ep_write_bin_compact((*C.uchar)(&dest[0]),
+		(*C.ep_st)(a),
+		(C.int)(signatureLengthBLSBLS12381),
+	)
+}
+
+// readPointG2 reads a G2 point from a slice of bytes
+// The slice is expected to be of size PubKeyLenBLSBLS12381 and the deserialization will
+// follow the Zcash format specified in draft-irtf-cfrg-pairing-friendly-curves
 func readPointG2(a *pointG2, src []byte) error {
 	switch C.ep2_read_bin_compact((*C.ep2_st)(a),
 		(*C.uchar)(&src[0]),
@@ -149,9 +163,25 @@ func readPointG2(a *pointG2, src []byte) error {
 	case valid:
 		return nil
 	case invalid:
-		return newInvalidInputsError("input is not a G2 point")
+		return invalidInputsErrorf("input is not a G2 point")
 	default:
-		return errors.New("reading a G2 point has failed")
+		return errors.New("reading a G2 point failed")
+	}
+}
+
+// readPointG1 reads a G1 point from a slice of bytes
+// The slice should be of size SignatureLenBLSBLS12381 and the deserialization will
+// follow the Zcash format specified in draft-irtf-cfrg-pairing-friendly-curves
+func readPointG1(a *pointG1, src []byte) error {
+	switch C.ep_read_bin_compact((*C.ep_st)(a),
+		(*C.uchar)(&src[0]),
+		(C.int)(len(src))) {
+	case valid:
+		return nil
+	case invalid:
+		return invalidInputsErrorf("input is not a G1 point")
+	default:
+		return errors.New("reading a G1 point failed")
 	}
 }
 
@@ -166,8 +196,36 @@ func checkG1Test(inG1 int, method int) bool {
 }
 
 // This is only a TEST function.
+// It wraps a call to a subgroup check in G1 since cgo can't be used
+// in go test files.
+func checkInG1Test(pt *pointG1) bool {
+	return C.check_membership_G1((*C.ep_st)(pt)) == valid
+}
+
+// This is only a TEST function.
 // It wraps calls to subgroup checks since cgo can't be used
 // in go test files.
 func benchG1Test() {
 	_ = C.subgroup_check_G1_bench()
+}
+
+// This is only a TEST function.
+// It hashes `data` to a G1 point using the tag `dst` and returns the G1 point serialization.
+// The function uses xmd with SHA256 in the hash-to-field.
+func hashToG1Bytes(data, dst []byte) []byte {
+	hash := make([]byte, opSwUInputLenBLSBLS12381)
+	// XMD using SHA256
+	C.xmd_sha256((*C.uchar)(&hash[0]),
+		(C.int)(opSwUInputLenBLSBLS12381),
+		(*C.uchar)(&data[0]), (C.int)(len(data)),
+		(*C.uchar)(&dst[0]), (C.int)(len(dst)))
+
+	// map the hash to G1
+	var point pointG1
+	C.map_to_G1((*C.ep_st)(&point), (*C.uchar)(&hash[0]), (C.int)(len(hash)))
+
+	// serialize the point
+	pointBytes := make([]byte, signatureLengthBLSBLS12381)
+	writePointG1(pointBytes, &point)
+	return pointBytes
 }

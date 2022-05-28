@@ -1,7 +1,7 @@
 /*
  * Cadence - The resource-oriented smart contract programming language
  *
- * Copyright 2019-2020 Dapper Labs, Inc.
+ * Copyright 2019-2022 Dapper Labs, Inc.
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -25,7 +25,12 @@ import (
 
 func (checker *Checker) VisitUnaryExpression(expression *ast.UnaryExpression) ast.Repr {
 
-	valueType := checker.VisitExpression(expression.Expression, nil)
+	var expectedType Type
+	if expression.Operation == ast.OperationMove {
+		expectedType = checker.expectedType
+	}
+
+	valueType := checker.VisitExpressionWithForceType(expression.Expression, expectedType, false)
 
 	reportInvalidUnaryOperator := func(expectedType Type) {
 		checker.report(
@@ -33,7 +38,7 @@ func (checker *Checker) VisitUnaryExpression(expression *ast.UnaryExpression) as
 				Operation:    expression.Operation,
 				ExpectedType: expectedType,
 				ActualType:   valueType,
-				Range:        ast.NewRangeFromPositioned(expression.Expression),
+				Range:        ast.NewRangeFromPositioned(checker.memoryGauge, expression.Expression),
 			},
 		)
 	}
@@ -41,7 +46,7 @@ func (checker *Checker) VisitUnaryExpression(expression *ast.UnaryExpression) as
 	switch expression.Operation {
 	case ast.OperationNegate:
 		expectedType := BoolType
-		if !IsSubType(valueType, expectedType) {
+		if !IsSameTypeKind(valueType, expectedType) {
 			reportInvalidUnaryOperator(expectedType)
 			return InvalidType
 		}
@@ -49,7 +54,7 @@ func (checker *Checker) VisitUnaryExpression(expression *ast.UnaryExpression) as
 
 	case ast.OperationMinus:
 		expectedType := SignedNumberType
-		if !IsSubType(valueType, expectedType) {
+		if !IsSameTypeKind(valueType, expectedType) {
 			reportInvalidUnaryOperator(expectedType)
 			return InvalidType
 		}
@@ -62,14 +67,20 @@ func (checker *Checker) VisitUnaryExpression(expression *ast.UnaryExpression) as
 
 			checker.report(
 				&InvalidMoveOperationError{
-					Range: ast.Range{
-						StartPos: expression.StartPos,
-						EndPos:   expression.Expression.StartPosition(),
-					},
+					Range: ast.NewRange(
+						checker.memoryGauge,
+						expression.StartPos,
+						expression.Expression.StartPosition(),
+					),
 				},
 			)
-			return InvalidType
 		}
+
+		checker.recordResourceInvalidation(
+			expression.Expression,
+			valueType,
+			ResourceInvalidationKindMoveDefinite,
+		)
 
 		return valueType
 	}
@@ -77,6 +88,6 @@ func (checker *Checker) VisitUnaryExpression(expression *ast.UnaryExpression) as
 	panic(&unsupportedOperation{
 		kind:      common.OperationKindUnary,
 		operation: expression.Operation,
-		Range:     ast.NewRangeFromPositioned(expression),
+		Range:     ast.NewRangeFromPositioned(checker.memoryGauge, expression),
 	})
 }

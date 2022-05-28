@@ -43,7 +43,11 @@ var EmptyAddress = Address{}
 
 // HexToAddress converts a hex string to an Address.
 func HexToAddress(h string) Address {
-	b, _ := hex.DecodeString(h)
+	trimmed := strings.TrimPrefix(h, "0x")
+	if len(trimmed)%2 == 1 {
+		trimmed = "0" + trimmed
+	}
+	b, _ := hex.DecodeString(trimmed)
 	return BytesToAddress(b)
 }
 
@@ -245,10 +249,14 @@ const (
 	maxIndex = (1 << linearCodeK) - 1
 )
 
-// invalid code-words in the [64,45] code
-// these constants are used to generate non-Flow-Mainnet addresses
-const invalidCodeTestnet = uint64(0x6834ba37b3980209)
-const invalidCodeEmulator = uint64(0x1cb159857af02018)
+// The following are invalid code-words in the [64,45] code.
+// These constants are used to generate non-Flow-Mainnet addresses
+
+// invalidCodeTestNetwork is the invalid codeword used for long-lived test networks.
+const invalidCodeTestNetwork = uint64(0x6834ba37b3980209)
+
+// invalidCodeTransientNetwork  is the invalid codeword used for transient test networks.
+const invalidCodeTransientNetwork = uint64(0x1cb159857af02018)
 
 // encodeWord encodes a word into a code word.
 // In Flow, the word is the account index while the code word

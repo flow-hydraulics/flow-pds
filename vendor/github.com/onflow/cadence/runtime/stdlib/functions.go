@@ -1,7 +1,7 @@
 /*
  * Cadence - The resource-oriented smart contract programming language
  *
- * Copyright 2019-2020 Dapper Labs, Inc.
+ * Copyright 2019-2022 Dapper Labs, Inc.
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -31,9 +31,9 @@ import (
 
 type StandardLibraryFunction struct {
 	Name           string
-	Type           sema.InvokableType
+	Type           *sema.FunctionType
 	DocString      string
-	Function       interpreter.HostFunctionValue
+	Function       *interpreter.HostFunctionValue
 	ArgumentLabels []string
 	Available      func(common.Location) bool
 }
@@ -42,7 +42,7 @@ func (f StandardLibraryFunction) ValueDeclarationName() string {
 	return f.Name
 }
 
-func (f StandardLibraryFunction) ValueDeclarationValue() interpreter.Value {
+func (f StandardLibraryFunction) ValueDeclarationValue(_ *interpreter.Interpreter) interpreter.Value {
 	return f.Function
 }
 
@@ -59,7 +59,7 @@ func (StandardLibraryFunction) ValueDeclarationKind() common.DeclarationKind {
 }
 
 func (StandardLibraryFunction) ValueDeclarationPosition() ast.Position {
-	return ast.Position{}
+	return ast.EmptyPosition
 }
 
 func (StandardLibraryFunction) ValueDeclarationIsConstant() bool {
@@ -79,12 +79,12 @@ func (f StandardLibraryFunction) ValueDeclarationArgumentLabels() []string {
 
 func NewStandardLibraryFunction(
 	name string,
-	functionType sema.InvokableType,
+	functionType *sema.FunctionType,
 	docString string,
 	function interpreter.HostFunction,
 ) StandardLibraryFunction {
 
-	parameters := functionType.InvocationFunctionType().Parameters
+	parameters := functionType.Parameters
 
 	argumentLabels := make([]string, len(parameters))
 
@@ -92,7 +92,8 @@ func NewStandardLibraryFunction(
 		argumentLabels[i] = parameter.EffectiveArgumentLabel()
 	}
 
-	functionValue := interpreter.NewHostFunctionValue(function)
+	functionValue := interpreter.NewUnmeteredHostFunctionValue(function, functionType)
+
 	return StandardLibraryFunction{
 		Name:           name,
 		Type:           functionType,

@@ -1,7 +1,7 @@
 /*
  * Cadence - The resource-oriented smart contract programming language
  *
- * Copyright 2019-2020 Dapper Labs, Inc.
+ * Copyright 2019-2022 Dapper Labs, Inc.
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -42,10 +42,11 @@ func (checker *Checker) checkEventParameters(
 			checker.report(
 				&InvalidEventParameterTypeError{
 					Type: parameterType,
-					Range: ast.Range{
-						StartPos: parameter.StartPos,
-						EndPos:   parameter.TypeAnnotation.EndPosition(),
-					},
+					Range: ast.NewRange(
+						checker.memoryGauge,
+						parameter.StartPos,
+						parameter.TypeAnnotation.EndPosition(checker.memoryGauge),
+					),
 				},
 			)
 		}
@@ -96,7 +97,7 @@ func IsValidEventParameterType(t Type, results map[*Member]bool) bool {
 			return true
 		}
 
-		return IsSubType(t, NumberType) ||
-			IsSubType(t, PathType)
+		return IsSameTypeKind(t, NumberType) ||
+			IsSameTypeKind(t, PathType)
 	}
 }

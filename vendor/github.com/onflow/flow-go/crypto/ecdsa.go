@@ -14,6 +14,7 @@ import (
 	"fmt"
 	"math/big"
 
+	"github.com/btcsuite/btcd/btcec"
 	"github.com/onflow/flow-go/crypto/hash"
 )
 
@@ -42,7 +43,7 @@ func bitsToBytes(bits int) int {
 func (sk *PrKeyECDSA) signHash(h hash.Hash) (Signature, error) {
 	r, s, err := goecdsa.Sign(rand.Reader, sk.goPrKey, h)
 	if err != nil {
-		return nil, fmt.Errorf("ECDSA Sign has failed: %w", err)
+		return nil, fmt.Errorf("ECDSA Sign failed: %w", err)
 	}
 	rBytes := r.Bytes()
 	sBytes := s.Bytes()
@@ -62,9 +63,9 @@ func (sk *PrKeyECDSA) signHash(h hash.Hash) (Signature, error) {
 // where r and s are padded to the curve order size.
 func (sk *PrKeyECDSA) Sign(data []byte, alg hash.Hasher) (Signature, error) {
 	// no need to check the hasher output size as all supported hash algos
-	// have at lease 32 bytes output
+	// have at least 32 bytes output
 	if alg == nil {
-		return nil, newInvalidInputsError("Sign requires a Hasher")
+		return nil, invalidInputsErrorf("hasher is nil")
 	}
 	h := alg.ComputeHash(data)
 	return sk.signHash(h)
@@ -96,7 +97,7 @@ func (pk *PubKeyECDSA) Verify(sig Signature, data []byte, alg hash.Hasher) (bool
 	// no need to check the hasher output size as all supported hash algos
 	// have at lease 32 bytes output
 	if alg == nil {
-		return false, newInvalidInputsError("Verify requires a Hasher")
+		return false, invalidInputsErrorf("hasher is nil")
 	}
 
 	h := alg.ComputeHash(data)
@@ -160,7 +161,7 @@ func (a *ecdsaAlgo) generatePrivateKey(seed []byte) (PrivateKey, error) {
 	// use extra 128 bits to reduce the modular reduction bias
 	minSeedLen := Nlen + (securityBits / 8)
 	if len(seed) < minSeedLen || len(seed) > KeyGenSeedMaxLenECDSA {
-		return nil, newInvalidInputsError("seed byte length should be between %d and %d",
+		return nil, invalidInputsErrorf("seed byte length should be between %d and %d",
 			minSeedLen, KeyGenSeedMaxLenECDSA)
 	}
 	sk := goecdsaGenerateKey(a.curve, seed)
@@ -175,13 +176,13 @@ func (a *ecdsaAlgo) rawDecodePrivateKey(der []byte) (PrivateKey, error) {
 	n := a.curve.Params().N
 	nlen := bitsToBytes(n.BitLen())
 	if len(der) != nlen {
-		return nil, newInvalidInputsError("input has incorrect %s key size", a.algo)
+		return nil, invalidInputsErrorf("input has incorrect %s key size", a.algo)
 	}
 	var d big.Int
 	d.SetBytes(der)
 
 	if d.Cmp(n) >= 0 {
-		return nil, newInvalidInputsError("input is not a valid %s key", a.algo)
+		return nil, invalidInputsErrorf("input is not a valid %s key", a.algo)
 	}
 
 	priv := goecdsa.PrivateKey{
@@ -204,7 +205,7 @@ func (a *ecdsaAlgo) rawDecodePublicKey(der []byte) (PublicKey, error) {
 	p := (a.curve.Params().P)
 	plen := bitsToBytes(p.BitLen())
 	if len(der) != 2*plen {
-		return nil, newInvalidInputsError("input has incorrect %s key size", a.algo)
+		return nil, invalidInputsErrorf("input has incorrect %s key size", a.algo)
 	}
 	var x, y big.Int
 	x.SetBytes(der[:plen])
@@ -213,7 +214,7 @@ func (a *ecdsaAlgo) rawDecodePublicKey(der []byte) (PublicKey, error) {
 	// all the curves supported for now have a cofactor equal to 1,
 	// so that IsOnCurve guarantees the point is on the right subgroup.
 	if x.Cmp(p) >= 0 || y.Cmp(p) >= 0 || !a.curve.IsOnCurve(&x, &y) {
-		return nil, newInvalidInputsError("input is not a valid %s key", a.algo)
+		return nil, invalidInputsErrorf("input %x is not a valid %s key", der, a.algo)
 	}
 
 	pk := goecdsa.PublicKey{
@@ -221,11 +222,44 @@ func (a *ecdsaAlgo) rawDecodePublicKey(der []byte) (PublicKey, error) {
 		X:     &x,
 		Y:     &y,
 	}
+
 	return &PubKeyECDSA{a, &pk}, nil
 }
 
 func (a *ecdsaAlgo) decodePublicKey(der []byte) (PublicKey, error) {
 	return a.rawDecodePublicKey(der)
+}
+
+// decodePublicKeyCompressed returns a public key given the bytes of a compressed public key according to X9.62 section 4.3.6.
+// this compressed representation uses an extra byte to disambiguate sign
+func (a *ecdsaAlgo) decodePublicKeyCompressed(pkBytes []byte) (PublicKey, error) {
+	expectedLen := bitsToBytes(a.curve.Params().BitSize) + 1
+	if len(pkBytes) != expectedLen {
+		return nil, invalidInputsErrorf(fmt.Sprintf("input length incompatible, expected %d, got %d", expectedLen, len(pkBytes)))
+	}
+	var goPubKey *goecdsa.PublicKey
+
+	if a.curve == elliptic.P256() {
+		x, y := elliptic.UnmarshalCompressed(a.curve, pkBytes)
+		if x == nil {
+			return nil, invalidInputsErrorf("Key %x can't be interpreted as %v", pkBytes, a.algo.String())
+		}
+		goPubKey = new(goecdsa.PublicKey)
+		goPubKey.Curve = a.curve
+		goPubKey.X = x
+		goPubKey.Y = y
+
+	} else if a.curve == btcec.S256() {
+		pk, err := btcec.ParsePubKey(pkBytes, btcec.S256())
+		if err != nil {
+			return nil, invalidInputsErrorf("Key %x can't be interpreted as %v", pkBytes, a.algo.String())
+		}
+		// This assertion never fails
+		goPubKey = (*goecdsa.PublicKey)(pk)
+	} else {
+		return nil, invalidInputsErrorf("the input curve is not supported")
+	}
+	return &PubKeyECDSA{a, goPubKey}, nil
 }
 
 // PrKeyECDSA is the private key of ECDSA, it implements the generic PrivateKey
@@ -314,6 +348,16 @@ func (pk *PubKeyECDSA) Algorithm() SigningAlgorithm {
 // Size returns the length of the public key in bytes
 func (pk *PubKeyECDSA) Size() int {
 	return 2 * bitsToBytes((pk.goPubKey.Params().P).BitLen())
+}
+
+// EncodeCompressed returns a compressed encoding according to X9.62 section 4.3.6.
+// This compressed representation uses an extra byte to disambiguate sign.
+// The expected input is a public key (x,y).
+func (pk *PubKeyECDSA) EncodeCompressed() []byte {
+	if pk.alg.curve == btcec.S256() {
+		return (*btcec.PublicKey)(pk.goPubKey).SerializeCompressed()
+	}
+	return elliptic.MarshalCompressed(pk.goPubKey, pk.goPubKey.X, pk.goPubKey.Y)
 }
 
 // given a public key (x,y), returns a raw uncompressed encoding bytes(x)||bytes(y)

@@ -1,6 +1,7 @@
 package cbor
 
 import (
+	"encoding/binary"
 	"errors"
 	"fmt"
 	"io"
@@ -68,7 +69,27 @@ type WrongTypeError struct {
 }
 
 func (e *WrongTypeError) Error() string {
-	return fmt.Sprintf("cannot decode %s to %s", e.ActualType.String(), e.ExpectedType)
+	return fmt.Sprintf("cbor: cannot decode %s to %s", e.ActualType.String(), e.ExpectedType)
+}
+
+// IndefiniteLengthNotSupportedError is returned by NextSize() if next CBOR data
+// is indefinite length.
+type IndefiniteLengthNotSupportedError struct {
+	t Type
+}
+
+func (e *IndefiniteLengthNotSupportedError) Error() string {
+	return fmt.Sprintf("cbor: size is unavailable for indefinite length %s", e.t)
+}
+
+// TypeNotSupportedError is returned by NextSize() if next CBOR type
+// is not supported/implemented by NextSize().
+type TypeNotSupportedError struct {
+	t Type
+}
+
+func (e *TypeNotSupportedError) Error() string {
+	return fmt.Sprintf("cbor: size operation is not supported for %s", e.t)
 }
 
 // StreamDecoder validates complete CBOR data and decodes it in chunks.
@@ -84,9 +105,10 @@ func (e *WrongTypeError) Error() string {
 // If DecodeXXX() function returns other types of error,
 // CBOR data is skipped.  User can decode next CBOR data.
 type StreamDecoder struct {
-	dec            *Decoder
-	err            error
-	remainingBytes int // remaining bytes of a complete and validated CBOR data
+	dec             *Decoder
+	err             error
+	remainingBytes  int // remaining bytes of a complete and validated CBOR data
+	decodedMsgBytes int // number of bytes of decoded CBOR messages
 }
 
 // NewStreamDecoder returns a new StreamDecoder that reads from r using default DecMode.
@@ -134,6 +156,59 @@ func (sd *StreamDecoder) NextType() (Type, error) {
 		return OtherType, nil
 	}
 	return UndefinedType, errors.New("cbor: unrecognized type")
+}
+
+// NextSize returns the next CBOR data size for five types.
+// Returned uint64 represents different kind of size depending on
+// the type:
+// - ByteStringType : length (in bytes) of byte string
+// - TextStringType : length (in bytes) of text string
+// - ArrayType      : number of array elements
+// - MapType        : number of key/value pairs
+// - BigNumType     : length (in bytes) of encoded big number
+// Error is returned for indef length data and unsupported types.
+// Support for additional types wasn't added for simplicity.
+func (sd *StreamDecoder) NextSize() (uint64, error) {
+	t, err := sd.NextType()
+	if err != nil {
+		return 0, err
+	}
+
+	off := sd.dec.d.off
+
+	if t == BigNumType {
+		// NextType() validates CBOR tag data (tag number + tag content),
+		// so it's safe to increment offset to access tag content.
+		off++              // Increment offset to point to tag content
+		t = ByteStringType // tag content type is CBOR byte string
+	}
+
+	switch t {
+
+	case ByteStringType, TextStringType, ArrayType, MapType:
+		ai := sd.dec.d.data[off] & 0x1f
+		off++
+
+		// This function only interprets valid head because
+		// CBOR data is validated in NextType().
+		var size uint64
+		if ai < 24 {
+			size = uint64(ai)
+		} else if ai == 24 {
+			size = uint64(sd.dec.d.data[off])
+		} else if ai == 25 {
+			size = uint64(binary.BigEndian.Uint16(sd.dec.d.data[off : off+2]))
+		} else if ai == 26 {
+			size = uint64(binary.BigEndian.Uint32(sd.dec.d.data[off : off+4]))
+		} else if ai == 27 {
+			size = binary.BigEndian.Uint64(sd.dec.d.data[off : off+8])
+		} else if ai == 31 {
+			return 0, &IndefiniteLengthNotSupportedError{t}
+		}
+		return size, nil
+	}
+
+	return 0, &TypeNotSupportedError{t}
 }
 
 // Skip skips next CBOR data.
@@ -357,7 +432,7 @@ func (sd *StreamDecoder) DecodeString() (string, error) {
 
 	sd.updateState(end - start)
 
-	if !utf8.Valid(b) {
+	if d.dm.utf8 == UTF8RejectInvalid && !utf8.Valid(b) {
 		return "", &SemanticError{"cbor: invalid UTF-8 string"}
 	}
 
@@ -447,6 +522,35 @@ func (sd *StreamDecoder) DecodeArrayHead() (uint64, error) {
 	return val, nil
 }
 
+// DecodeMapHead decodes next CBOR data as map size.  WrongType error is returned if type is mismatched.
+func (sd *StreamDecoder) DecodeMapHead() (uint64, error) {
+	if err := sd.prepareNext(); err != nil {
+		return 0, err
+	}
+
+	d := sd.dec.d
+
+	if d.nextCBORType() != cborTypeMap {
+		t, _ := sd.NextType()
+		return 0, &WrongTypeError{t, "map"}
+	}
+
+	start := d.off
+	_, ai, val := d.getHead()
+	end := d.off
+
+	if ai == 31 {
+		// Indefinite length map isn't supported in StreamDecoder.  Skip it.
+		d.off = start
+		_ = sd.Skip()
+		return 0, errors.New("cbor: indefinite length map isn't supported")
+	}
+
+	sd.updateState(end - start)
+
+	return val, nil
+}
+
 // prepareNext reads and validates next CBOR data.
 // prepareNext can return io error or CBOR validation error.
 func (sd *StreamDecoder) prepareNext() error {
@@ -462,11 +566,16 @@ func (sd *StreamDecoder) prepareNext() error {
 }
 
 func (sd *StreamDecoder) readAndValidateNext() error {
+
+	lastMsgBytes := sd.dec.d.off
+
 	length, err := sd._readAndValidateNext()
 	if err != nil {
 		sd.err = err
 		return err
 	}
+
+	sd.decodedMsgBytes += lastMsgBytes
 
 	sd.remainingBytes = length
 
@@ -524,4 +633,9 @@ func (sd *StreamDecoder) updateState(bytesRead int) {
 	if sd.remainingBytes < 0 {
 		sd.err = errors.New("remaining bytes are out of sync")
 	}
+}
+
+// NumBytesDecoded returns the accumulated number of bytes decoded using "DecodeXXX()"
+func (sd *StreamDecoder) NumBytesDecoded() int {
+	return sd.decodedMsgBytes + sd.dec.d.off
 }

@@ -27,6 +27,7 @@ import (
 	"github.com/onflow/cadence"
 	jsoncdc "github.com/onflow/cadence/encoding/json"
 	"github.com/onflow/cadence/runtime"
+	"github.com/onflow/cadence/runtime/ast"
 	"github.com/onflow/cadence/runtime/cmd"
 	"github.com/onflow/cadence/runtime/common"
 	"github.com/onflow/cadence/runtime/sema"
@@ -41,7 +42,7 @@ func (v CadenceArgument) MarshalJSON() ([]byte, error) {
 }
 
 func (v *CadenceArgument) UnmarshalJSON(b []byte) (err error) {
-	v.Value, err = jsoncdc.Decode(b)
+	v.Value, err = jsoncdc.Decode(nil, b)
 	if err != nil {
 		return err
 	}
@@ -120,20 +121,32 @@ func ParseArguments(args []string, argsJSON string) (scriptArgs []cadence.Value,
 	return
 }
 
-func ParseArgumentsWithoutType(code []byte, args []string) (scriptArgs []cadence.Value, err error) {
+func ParseArgumentsWithoutType(fileName string, code []byte, args []string) (scriptArgs []cadence.Value, err error) {
 
 	var resultArgs []cadence.Value = make([]cadence.Value, 0)
 
 	codes := map[common.LocationID]string{}
-	location := common.StringLocation("")
+	location := common.StringLocation(fileName)
 	program, must := cmd.PrepareProgram(string(code), location, codes)
 	checker, _ := cmd.PrepareChecker(program, location, codes, nil, must)
 
-	err = checker.Check()
-	var parameterList []*sema.Parameter = checker.EntryPointParameters()
+	var parameterList []*ast.Parameter
 
-	//return on checker error or no entry
-	if err != nil || parameterList == nil {
+	functionDeclaration := sema.FunctionEntryPointDeclaration(program)
+	if functionDeclaration != nil {
+		if functionDeclaration.ParameterList != nil {
+			parameterList = functionDeclaration.ParameterList.Parameters
+		}
+	}
+
+	transactionDeclaration := program.TransactionDeclarations()
+	if len(transactionDeclaration) == 1 {
+		if transactionDeclaration[0].ParameterList != nil {
+			parameterList = transactionDeclaration[0].ParameterList.Parameters
+		}
+	}
+
+	if parameterList == nil {
 		return resultArgs, nil
 	}
 
@@ -142,7 +155,8 @@ func ParseArgumentsWithoutType(code []byte, args []string) (scriptArgs []cadence
 	}
 
 	for index, argumentString := range args {
-		semaType := parameterList[index].TypeAnnotation.Type
+		astType := parameterList[index].TypeAnnotation.Type
+		semaType := checker.ConvertType(astType)
 
 		switch semaType {
 		case sema.StringType:
@@ -159,7 +173,7 @@ func ParseArgumentsWithoutType(code []byte, args []string) (scriptArgs []cadence
 
 		}
 
-		var value, err = runtime.ParseLiteral(argumentString, semaType)
+		var value, err = runtime.ParseLiteral(argumentString, semaType, nil)
 		if err != nil {
 			return nil, fmt.Errorf("argument `%s` is not expected type `%s`", parameterList[index].Identifier, semaType)
 		}

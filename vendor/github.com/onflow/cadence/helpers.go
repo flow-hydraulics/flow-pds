@@ -1,7 +1,7 @@
 /*
  * Cadence - The resource-oriented smart contract programming language
  *
- * Copyright 2019-2020 Dapper Labs, Inc.
+ * Copyright 2019-2022 Dapper Labs, Inc.
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -23,7 +23,7 @@ import "fmt"
 func NewValue(value interface{}) (Value, error) {
 	switch v := value.(type) {
 	case string:
-		return NewString(v), nil
+		return NewString(v)
 	case int:
 		return NewInt(v), nil
 	case int8:

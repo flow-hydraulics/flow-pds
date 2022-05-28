@@ -1,7 +1,7 @@
 /*
  * Cadence - The resource-oriented smart contract programming language
  *
- * Copyright 2019-2020 Dapper Labs, Inc.
+ * Copyright 2019-2022 Dapper Labs, Inc.
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -33,6 +33,27 @@ type InterfaceDeclaration struct {
 	Members       *Members
 	DocString     string
 	Range
+}
+
+func NewInterfaceDeclaration(
+	gauge common.MemoryGauge,
+	access Access,
+	compositeKind common.CompositeKind,
+	identifier Identifier,
+	members *Members,
+	docString string,
+	declRange Range,
+) *InterfaceDeclaration {
+	common.UseMemory(gauge, common.InterfaceDeclarationMemoryUsage)
+
+	return &InterfaceDeclaration{
+		Access:        access,
+		CompositeKind: compositeKind,
+		Identifier:    identifier,
+		Members:       members,
+		DocString:     docString,
+		Range:         declRange,
+	}
 }
 
 func (d *InterfaceDeclaration) Accept(visitor Visitor) Repr {

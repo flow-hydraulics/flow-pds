@@ -1,7 +1,7 @@
 /*
  * Cadence - The resource-oriented smart contract programming language
  *
- * Copyright 2019-2020 Dapper Labs, Inc.
+ * Copyright 2019-2022 Dapper Labs, Inc.
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -19,33 +19,12 @@
 package lexer
 
 import (
-	"context"
 	"fmt"
 	"unicode/utf8"
 
 	"github.com/onflow/cadence/runtime/ast"
+	"github.com/onflow/cadence/runtime/common"
 )
-
-type Token struct {
-	Type  TokenType
-	Value interface{}
-	ast.Range
-}
-
-func (t Token) Is(ty TokenType) bool {
-	return t.Type == ty
-}
-
-func (t Token) IsString(ty TokenType, s string) bool {
-	if !t.Is(ty) {
-		return false
-	}
-	v, ok := t.Value.(string)
-	if !ok {
-		return false
-	}
-	return v == s
-}
 
 type position struct {
 	line   int
@@ -53,56 +32,99 @@ type position struct {
 }
 
 type lexer struct {
-	ctx context.Context
-	// the entire input string
+	// input is the entire input string
 	input string
-	// the start offset of the current word in the current line
+	// startOffset is the start offset of the current word in the current line
 	startOffset int
-	// the end offset of the current word in the current line
+	// endOffset is the end offset of the current word in the current line
 	endOffset int
-	// the previous end offset, used for stepping back
+	// prevEndOffset is the previous end offset, used for stepping back
 	prevEndOffset int
-	// the current rune is scanned
+	// current is the currently scanned rune
 	current rune
-	// the previous rune was scanned, used for stepping back
+	// prev is the previously scanned rune, used for stepping back
 	prev rune
-	// the channel of tokens that has been scanned.
-	tokens chan Token
-	// signal whether stepping back is allowed
+	// canBackup indicates whether stepping back is allowed
 	canBackup bool
-	// the start position of the current word
+	// startPos is the start position of the current word
 	startPos position
+	// cursor is the offset in the token stream
+	cursor int
+	// tokens contains all tokens of the stream
+	tokens []Token
+	// tokenCount is the number of tokens in the stream
+	tokenCount int
+	// memoryGauge is used for metering memory usage
+	memoryGauge common.MemoryGauge
 }
 
-func Lex(ctx context.Context, input string) chan Token {
+var _ TokenStream = &lexer{}
+
+func (l *lexer) Next() Token {
+	if l.cursor >= l.tokenCount {
+
+		// At the end of the token stream,
+		// emit a synthetic EOF token
+
+		endPos := l.endPos()
+		pos := ast.NewPosition(
+			l.memoryGauge,
+			l.endOffset-1,
+			endPos.line,
+			endPos.column,
+		)
+
+		return Token{
+			Type: TokenEOF,
+			Range: ast.NewRange(
+				l.memoryGauge,
+				pos,
+				pos,
+			),
+		}
+
+	}
+	token := l.tokens[l.cursor]
+	l.cursor++
+	return token
+}
+
+func (l *lexer) Input() string {
+	return l.input
+}
+
+func (l *lexer) Cursor() int {
+	return l.cursor
+}
+
+func (l *lexer) Revert(cursor int) {
+	l.cursor = cursor
+}
+
+func Lex(input string, memoryGauge common.MemoryGauge) TokenStream {
 	l := &lexer{
-		ctx:           ctx,
 		input:         input,
 		startPos:      position{line: 1},
 		endOffset:     0,
 		prevEndOffset: 0,
 		current:       EOF,
 		prev:          EOF,
-		tokens:        make(chan Token),
+		memoryGauge:   memoryGauge,
 	}
-	go l.run(rootState)
-	return l.tokens
+	l.run(rootState)
+	return l
 }
 
-type done struct{}
-
 // run executes the stateFn, which will scan the runes in the input
-// and emit tokens to the tokens channel.
+// and emit tokens.
 //
 // stateFn might return another stateFn to indicate further scanning work,
 // or nil if there is no scanning work left to be done,
 // i.e. run will keep running the returned stateFn until no more
 // stateFn is returned, which for example happens when reaching the end of the file.
 //
-// When all stateFn have been executed, the tokens channel will be closed.
+// When all stateFn have been executed, an EOF token is emitted.
 func (l *lexer) run(state stateFn) {
-	// Close token channel, no token remaining
-	defer close(l.tokens)
 
 	// catch panic exceptions, emit it to the tokens channel before
 	// closing it
@@ -110,8 +132,6 @@ func (l *lexer) run(state stateFn) {
 		if r := recover(); r != nil {
 			var err error
 			switch r := r.(type) {
-			case done:
-				return
 			case error:
 				err = r
 			default:
@@ -164,6 +184,10 @@ func (l *lexer) backupOne() {
 	l.current = l.prev
 }
 
+func (l *lexer) wordLength() int {
+	return l.endOffset - l.startOffset
+}
+
 func (l *lexer) word() string {
 	start := l.startOffset
 	end := l.endOffset
@@ -189,23 +213,20 @@ func (l *lexer) emit(ty TokenType, val interface{}, rangeStart ast.Position, con
 	token := Token{
 		Type:  ty,
 		Value: val,
-		Range: ast.Range{
-			StartPos: rangeStart,
-			EndPos: ast.Position{
-				Line:   endPos.line,
-				Column: endPos.column,
-				Offset: l.endOffset - 1,
-			},
-		},
+		Range: ast.NewRange(
+			l.memoryGauge,
+			rangeStart,
+			ast.NewPosition(
+				l.memoryGauge,
+				l.endOffset-1,
+				endPos.line,
+				endPos.column,
+			),
+		),
 	}
 
-	select {
-	case <-l.ctx.Done():
-		panic(done{})
-
-	case l.tokens <- token:
-
-	}
+	l.tokens = append(l.tokens, token)
+	l.tokenCount = len(l.tokens)
 
 	if consume {
 		l.startOffset = l.endOffset
@@ -223,11 +244,12 @@ func (l *lexer) emit(ty TokenType, val interface{}, rangeStart ast.Position, con
 }
 
 func (l *lexer) startPosition() ast.Position {
-	return ast.Position{
-		Line:   l.startPos.line,
-		Column: l.startPos.column,
-		Offset: l.startOffset,
-	}
+	return ast.NewPosition(
+		l.memoryGauge,
+		l.startOffset,
+		l.startPos.line,
+		l.startPos.column,
+	)
 }
 
 func (l *lexer) endPos() position {
@@ -253,20 +275,36 @@ func (l *lexer) endPos() position {
 }
 
 func (l *lexer) emitType(ty TokenType) {
+	if l.memoryGauge != nil {
+		// Token value is always nil. Hence, only the wrapper is metered.
+		// No memory is used for the 'value' potion.
+		common.UseMemory(l.memoryGauge, common.SyntaxTokenMemoryUsage)
+	}
+
 	l.emit(ty, nil, l.startPosition(), true)
 }
 
 func (l *lexer) emitValue(ty TokenType) {
+	if l.memoryGauge != nil {
+		// Token wrapper
+		common.UseMemory(l.memoryGauge, common.ValueTokenMemoryUsage)
+
+		// Token content
+		usage := l.tokenValueMemoryUsage(ty)
+		common.UseMemory(l.memoryGauge, usage)
+	}
+
 	l.emit(ty, l.word(), l.startPosition(), true)
 }
 
 func (l *lexer) emitError(err error) {
 	endPos := l.endPos()
-	rangeStart := ast.Position{
-		Line:   endPos.line,
-		Column: endPos.column,
-		Offset: l.endOffset - 1,
-	}
+	rangeStart := ast.NewPosition(
+		l.memoryGauge,
+		l.endOffset-1,
+		endPos.line,
+		endPos.column,
+	)
 	l.emit(TokenError, err, rangeStart, false)
 }
 
@@ -381,6 +419,21 @@ func (l *lexer) scanFixedPointRemainder() {
 		return
 	}
 	l.acceptWhile(isDecimalDigitOrUnderscore)
+}
+
+// tokenValueMemoryUsage returns the memory usage, given the token type of the value.
+// All tokens are retained in AST in its string representation. Hence, memory usage
+// is always a string. However, string literals are special since they are
+// later represented as graphemes.
+//
+func (l *lexer) tokenValueMemoryUsage(tokenType TokenType) common.MemoryUsage {
+	tokenLength := l.wordLength()
+
+	if tokenType == TokenString {
+		return common.NewStringMemoryUsage(tokenLength)
+	}
+
+	return common.NewRawStringMemoryUsage(tokenLength)
 }
 
 func isDecimalDigitOrUnderscore(r rune) bool {

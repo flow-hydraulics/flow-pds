@@ -87,6 +87,7 @@ func (t *Transactions) Build(
 	gasLimit uint64,
 	args []cadence.Value,
 	network string,
+	approveBuild bool,
 ) (*flowkit.Transaction, error) {
 
 	latestBlock, err := t.gateway.GetLatestBlock()
@@ -101,10 +102,12 @@ func (t *Transactions) Build(
 
 	tx := flowkit.NewTransaction().
 		SetPayer(payer).
-		SetProposer(proposerAccount, proposerKeyIndex).
-		AddAuthorizers(authorizers).
 		SetGasLimit(gasLimit).
 		SetBlockReference(latestBlock)
+
+	if err := tx.SetProposer(proposerAccount, proposerKeyIndex); err != nil {
+		return nil, err
+	}
 
 	resolver, err := contracts.NewResolver(code)
 	if err != nil {
@@ -139,6 +142,19 @@ func (t *Transactions) Build(
 		return nil, err
 	}
 
+	tx, err = tx.AddAuthorizers(authorizers)
+	if err != nil {
+		return nil, err
+	}
+
+	if approveBuild {
+		return tx, nil
+	}
+
+	if !output.ApproveTransactionForBuildingPrompt(tx) {
+		return nil, fmt.Errorf("transaction was not approved")
+	}
+
 	return tx, nil
 }
 
@@ -166,7 +182,7 @@ func (t *Transactions) Sign(
 		return tx.Sign()
 	}
 
-	if !output.ApproveTransactionPrompt(tx) {
+	if !output.ApproveTransactionForSigningPrompt(tx) {
 		return nil, fmt.Errorf("transaction was not approved for signing")
 	}
 
@@ -176,10 +192,14 @@ func (t *Transactions) Sign(
 // SendSigned sends the transaction that is already signed.
 func (t *Transactions) SendSigned(
 	payload []byte,
+	approveSend bool,
 ) (*flow.Transaction, *flow.TransactionResult, error) {
 	tx, err := flowkit.NewTransactionFromPayload(payload)
 	if err != nil {
 		return nil, nil, err
+	}
+	if !approveSend && !output.ApproveTransactionForSendingPrompt(tx) {
+		return nil, nil, fmt.Errorf("transaction was not approved for sending")
 	}
 
 	t.logger.StartProgress(fmt.Sprintf("Sending transaction with ID: %s", tx.FlowTransaction().ID()))
@@ -223,6 +243,7 @@ func (t *Transactions) Send(
 		gasLimit,
 		args,
 		network,
+		true,
 	)
 	if err != nil {
 		return nil, nil, err

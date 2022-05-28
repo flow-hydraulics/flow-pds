@@ -1,7 +1,7 @@
 /*
  * Cadence - The resource-oriented smart contract programming language
  *
- * Copyright 2019-2020 Dapper Labs, Inc.
+ * Copyright 2019-2022 Dapper Labs, Inc.
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -100,3 +100,19 @@ func (h *AlwaysSucceedingForceCastHint) Hint() string {
 }
 
 func (*AlwaysSucceedingForceCastHint) isHint() {}
+
+// UnnecessaryCastHint
+
+type UnnecessaryCastHint struct {
+	TargetType Type
+	ast.Range
+}
+
+func (h *UnnecessaryCastHint) Hint() string {
+	return fmt.Sprintf(
+		"cast to `%s` is redundant",
+		h.TargetType,
+	)
+}
+
+func (*UnnecessaryCastHint) isHint() {}
