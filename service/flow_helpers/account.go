@@ -118,7 +118,7 @@ func (a *Account) GetProposalKey(ctx context.Context, flowClient *client.Client)
 func (a Account) GetSigner() (crypto.Signer, error) {
 	// Get Google KMS Signer if using KMS key
 	if a.PrivateKeyType == GOOGLE_KMS_KEY_TYPE {
-		s, err := getGoogleKMSSigner(a.Address, a.PrivateKey)
+		s, err := getGoogleKMSSigner(a.PrivateKey)
 		if err != nil {
 			return nil, fmt.Errorf("error in flow_helpers.Account.GetSigner: %w", err)
 		}
@@ -134,7 +134,7 @@ func (a Account) GetSigner() (crypto.Signer, error) {
 	return crypto.NewNaiveSigner(p, crypto.SHA3_256), nil
 }
 
-func getGoogleKMSSigner(address flow.Address, resourceId string) (crypto.Signer, error) {
+func getGoogleKMSSigner(resourceId string) (crypto.Signer, error) {
 	ctx := context.Background()
 	c, err := cloudkms.NewClient(ctx)
 	if err != nil {
@@ -146,7 +146,7 @@ func getGoogleKMSSigner(address flow.Address, resourceId string) (crypto.Signer,
 		return nil, err
 	}
 
-	s, err := c.SignerForKey(ctx, address, k)
+	s, err := c.SignerForKey(ctx, k)
 
 	if err != nil {
 		return nil, err

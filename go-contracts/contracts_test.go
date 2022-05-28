@@ -11,6 +11,7 @@ import (
 	"github.com/flow-hydraulics/flow-pds/go-contracts/packnft"
 	"github.com/flow-hydraulics/flow-pds/go-contracts/pds"
 	"github.com/flow-hydraulics/flow-pds/go-contracts/util"
+	"github.com/flow-hydraulics/flow-pds/utils"
 	"github.com/onflow/cadence"
 
 	"github.com/stretchr/testify/assert"
@@ -95,7 +96,7 @@ func TestIssuerCanLinkProviderCap(t *testing.T) {
 
 func TestCannotCreateDistWithoutCap(t *testing.T) {
 	g := gwtf.NewGoWithTheFlow(util.FlowJSON, os.Getenv("NETWORK"), false, 3)
-	keyPair := cadence.KeyValuePair{Key: cadence.NewString("metadataKey"), Value: cadence.NewString("metadataValue")}
+	keyPair := cadence.KeyValuePair{Key: utils.NewCadenceString("metadataKey"), Value: utils.NewCadenceString("metadataValue")}
 	var keypairArr []cadence.KeyValuePair
 	keypairArr = append(keypairArr, keyPair)
 	metadata := cadence.NewDictionary(keypairArr)
@@ -116,7 +117,7 @@ func TestCreateDistWithCap(t *testing.T) {
 	nextDistId, err := pds.GetNextDistID(g)
 	assert.NoError(t, err)
 
-	keyPair := cadence.KeyValuePair{Key: cadence.NewString("metadataKey"), Value: cadence.NewString("metadataValue")}
+	keyPair := cadence.KeyValuePair{Key: utils.NewCadenceString("metadataKey"), Value: utils.NewCadenceString("metadataValue")}
 	stringifiedKeyPair := "{\"metadataKey\": \"metadataValue\"}"
 	var keypairArr []cadence.KeyValuePair
 	keypairArr = append(keypairArr, keyPair)
@@ -317,7 +318,7 @@ func TestPDSCannotRevealwithWrongSalt(t *testing.T) {
 	var name []cadence.Value
 	var ids []cadence.Value
 	addrBytes := cadence.BytesToAddress(g.Account("issuer").Address().Bytes())
-	nameString := cadence.NewString("ExampleNFT")
+	nameString := utils.NewCadenceString("ExampleNFT")
 	for i := 0; i < 2; i++ {
 		addrs = append(addrs, addrBytes)
 		name = append(name, nameString)
@@ -357,7 +358,7 @@ func TestPDSCannotRevealwithWrongNFTs(t *testing.T) {
 
 	// toHash := "f24dfdf9911df152,A.01cf0e2f2f715450.ExampleNFT.0,A.01cf0e2f2f715450.ExampleNFT.3"
 	salt := "f24dfdf9911df152"
-	nameString := cadence.NewString("ExampleNFT")
+	nameString := utils.NewCadenceString("ExampleNFT")
 	var addrs []cadence.Value
 	var name []cadence.Value
 	var ids []cadence.Value
@@ -414,7 +415,7 @@ func TestPDSRevealPackNFTs(t *testing.T) {
 	addrBytes := cadence.BytesToAddress(g.Account("issuer").Address().Bytes())
 	for i := 0; i < 2; i++ {
 		addrs = append(addrs, addrBytes)
-		name = append(name, cadence.NewString("ExampleNFT"))
+		name = append(name, utils.NewCadenceString("ExampleNFT"))
 	}
 	ids = append(ids, cadence.UInt64(gonfts[0].(uint64)))
 	ids = append(ids, cadence.UInt64(gonfts[1].(uint64)))
@@ -461,7 +462,7 @@ func TestPublicFailRevealPackNFTsWithWrongIds(t *testing.T) {
 	addrBytes := cadence.BytesToAddress(g.Account("issuer").Address().Bytes())
 	for i := 0; i < 2; i++ {
 		addrs = append(addrs, addrBytes)
-		name = append(name, cadence.NewString("ExampleNFT"))
+		name = append(name, utils.NewCadenceString("ExampleNFT"))
 	}
 	ids = append(ids, cadence.UInt64(5))
 	ids = append(ids, cadence.UInt64(5))
@@ -497,7 +498,7 @@ func TestPublicRevealPackNFTs(t *testing.T) {
 	addrBytes := cadence.BytesToAddress(g.Account("issuer").Address().Bytes())
 	for i := 0; i < 2; i++ {
 		addrs = append(addrs, addrBytes)
-		name = append(name, cadence.NewString("ExampleNFT"))
+		name = append(name, utils.NewCadenceString("ExampleNFT"))
 	}
 	ids = append(ids, cadence.UInt64(2))
 	ids = append(ids, cadence.UInt64(4))
@@ -549,7 +550,7 @@ func TestPDSRevealAndOpenPackNFT(t *testing.T) {
 	addrBytes := cadence.BytesToAddress(g.Account("issuer").Address().Bytes())
 	for i := 0; i < 2; i++ {
 		addrs = append(addrs, addrBytes)
-		name = append(name, cadence.NewString("ExampleNFT"))
+		name = append(name, utils.NewCadenceString("ExampleNFT"))
 	}
 	ids = append(ids, cadence.UInt64(gonfts[2].(uint64)))
 	ids = append(ids, cadence.UInt64(gonfts[3].(uint64)))
@@ -644,7 +645,7 @@ func TestPDSFailOpenPackNFTsWithWrongIds(t *testing.T) {
 	addrBytes := cadence.BytesToAddress(g.Account("issuer").Address().Bytes())
 	for i := 0; i < 2; i++ {
 		addrs = append(addrs, addrBytes)
-		name = append(name, cadence.NewString("ExampleNFT"))
+		name = append(name, utils.NewCadenceString("ExampleNFT"))
 	}
 	ids = append(ids, cadence.UInt64(11))
 	ids = append(ids, cadence.UInt64(33))
@@ -685,7 +686,7 @@ func TestPDSOpenPackNFTs(t *testing.T) {
 	addrBytes := cadence.BytesToAddress(g.Account("issuer").Address().Bytes())
 	for i := 0; i < 2; i++ {
 		addrs = append(addrs, addrBytes)
-		name = append(name, cadence.NewString("ExampleNFT"))
+		name = append(name, utils.NewCadenceString("ExampleNFT"))
 	}
 	ids = append(ids, cadence.UInt64(gonfts[0].(uint64)))
 	ids = append(ids, cadence.UInt64(gonfts[1].(uint64)))

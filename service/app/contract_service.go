@@ -9,6 +9,7 @@ import (
 	"github.com/flow-hydraulics/flow-pds/service/config"
 	"github.com/flow-hydraulics/flow-pds/service/flow_helpers"
 	"github.com/flow-hydraulics/flow-pds/service/transactions"
+	"github.com/flow-hydraulics/flow-pds/utils"
 	"github.com/google/uuid"
 	"github.com/onflow/cadence"
 	"github.com/onflow/flow-go-sdk"
@@ -441,7 +442,7 @@ func (svc *ContractService) StartMinting(ctx context.Context, db *gorm.DB, dist 
 
 		commitmentHashes := make([]cadence.Value, len(batch))
 		for i, p := range batch {
-			commitmentHashes[i] = cadence.NewString(p.CommitmentHash.String())
+			commitmentHashes[i] = utils.NewCadenceString(p.CommitmentHash.String())
 		}
 
 		arguments := []cadence.Value{

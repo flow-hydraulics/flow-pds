@@ -13,6 +13,7 @@ import (
 	"github.com/flow-hydraulics/flow-pds/service/app"
 	"github.com/flow-hydraulics/flow-pds/service/common"
 	"github.com/flow-hydraulics/flow-pds/service/flow_helpers"
+	"github.com/flow-hydraulics/flow-pds/utils"
 	"github.com/onflow/cadence"
 	"github.com/onflow/flow-go-sdk"
 	"github.com/onflow/flow-go-sdk/client"
@@ -35,7 +36,6 @@ func TestE2E(t *testing.T) {
 	if err != nil {
 		t.Fatal(err)
 	}
-
 	issuer := common.FlowAddress(g.Account("issuer").Address())
 
 	t.Log("Setting up collectible NFT (ExampleNFT) collection for owner")
@@ -151,7 +151,7 @@ func TestE2E(t *testing.T) {
 		t.Fatal(err)
 	}
 
-	keyPair := cadence.KeyValuePair{Key: cadence.NewString("metadataKey"), Value: cadence.NewString("metadataValue")}
+	keyPair := cadence.KeyValuePair{Key: utils.NewCadenceString("metadataKey"), Value: utils.NewCadenceString("metadataValue")}
 	stringifiedKeyPair := "{\"metadataKey\": \"metadataValue\"}"
 	var keypairArr []cadence.KeyValuePair
 	keypairArr = append(keypairArr, keyPair)
