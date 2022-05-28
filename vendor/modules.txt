@@ -4,15 +4,13 @@ cloud.google.com/go
 # cloud.google.com/go/compute v1.3.0
 ## explicit; go 1.15
 cloud.google.com/go/compute/metadata
-# cloud.google.com/go/iam v0.1.0
-## explicit; go 1.11
+# cloud.google.com/go/iam v0.3.0
+## explicit; go 1.15
 cloud.google.com/go/iam
 # cloud.google.com/go/kms v1.4.0
 ## explicit; go 1.16
 cloud.google.com/go/kms/apiv1
 cloud.google.com/go/kms/internal
-# github.com/HdrHistogram/hdrhistogram-go v1.1.2
-## explicit; go 1.14
 # github.com/a8m/envsubst v1.3.0
 ## explicit; go 1.17
 github.com/a8m/envsubst
@@ -297,7 +295,7 @@ github.com/multiformats/go-varint
 # github.com/onflow/atree v0.3.0
 ## explicit; go 1.15
 github.com/onflow/atree
-# github.com/onflow/cadence v0.23.3 => github.com/onflow/cadence v0.21.3-0.20220419065337-d5202c162010
+# github.com/onflow/cadence v0.21.3-0.20220422215834-5ba7ff3666fd
 ## explicit; go 1.16
 github.com/onflow/cadence
 github.com/onflow/cadence/encoding/json
@@ -318,7 +316,7 @@ github.com/onflow/cadence/runtime/stdlib
 github.com/onflow/cadence/runtime/stdlib/contracts
 github.com/onflow/cadence/runtime/stdlib/rlp
 github.com/onflow/cadence/runtime/tests/utils
-# github.com/onflow/flow-cli v0.33.2-0.20220425184358-8797257ba650 => github.com/onflow/flow-cli v0.33.2-0.20220425184358-8797257ba650
+# github.com/onflow/flow-cli v0.33.2-0.20220425184358-8797257ba650
 ## explicit; go 1.16
 github.com/onflow/flow-cli/pkg/flowkit
 github.com/onflow/flow-cli/pkg/flowkit/config
@@ -336,7 +334,7 @@ github.com/onflow/flow-core-contracts/lib/go/contracts/internal/assets
 ## explicit; go 1.16
 github.com/onflow/flow-core-contracts/lib/go/templates
 github.com/onflow/flow-core-contracts/lib/go/templates/internal/assets
-# github.com/onflow/flow-emulator v0.31.2-0.20220425182052-d5f0dac75b48 => github.com/onflow/flow-emulator v0.31.2-0.20220422152808-6c116a9d88b7
+# github.com/onflow/flow-emulator v0.31.2-0.20220425182052-d5f0dac75b48
 ## explicit; go 1.16
 github.com/onflow/flow-emulator
 github.com/onflow/flow-emulator/convert
@@ -416,7 +414,7 @@ github.com/onflow/flow-go/utils/binstat
 github.com/onflow/flow-go/utils/grpcutils
 github.com/onflow/flow-go/utils/logging
 github.com/onflow/flow-go/utils/slices
-# github.com/onflow/flow-go-sdk v0.24.1-0.20220421152843-9ce4d554036e => github.com/onflow/flow-go-sdk v0.24.1-0.20220421152843-9ce4d554036e
+# github.com/onflow/flow-go-sdk v0.24.1-0.20220421152843-9ce4d554036e
 ## explicit; go 1.13
 github.com/onflow/flow-go-sdk
 github.com/onflow/flow-go-sdk/client
@@ -832,8 +830,4 @@ gorm.io/gorm/utils
 # lukechampine.com/blake3 v1.1.7
 ## explicit; go 1.13
 lukechampine.com/blake3
-# github.com/onflow/cadence => github.com/onflow/cadence v0.21.3-0.20220419065337-d5202c162010
-# github.com/onflow/flow-emulator => github.com/onflow/flow-emulator v0.31.2-0.20220422152808-6c116a9d88b7
-# github.com/onflow/flow-go-sdk => github.com/onflow/flow-go-sdk v0.24.1-0.20220421152843-9ce4d554036e
-# github.com/onflow/flow-cli => github.com/onflow/flow-cli v0.33.2-0.20220425184358-8797257ba650
 # github.com/bjartek/go-with-the-flow/v2 => /Users/sadiefreeman/go-with-the-flow

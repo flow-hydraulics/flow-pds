@@ -463,7 +463,6 @@ func (VoidValue) Walk(_ *Interpreter, _ func(Value)) {
 }
 
 func (VoidValue) StaticType(interpreter *Interpreter) StaticType {
-	common.UseConstantMemory(interpreter, common.MemoryKindPrimitiveStaticType)
 	return NewPrimitiveStaticType(interpreter, PrimitiveStaticTypeVoid)
 }
 
@@ -2705,9 +2704,7 @@ func (v IntValue) RecursiveString(_ SeenReferences) string {
 func (v IntValue) Negate(interpreter *Interpreter) NumberValue {
 	return NewIntValueFromBigInt(
 		interpreter,
-		common.NewBigIntMemoryUsage(
-			common.BigIntByteLength(v.BigInt),
-		),
+		common.NewNegateBigIntMemoryUsage(v.BigInt),
 		func() *big.Int {
 			return new(big.Int).Neg(v.BigInt)
 		},
