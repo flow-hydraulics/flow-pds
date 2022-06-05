@@ -174,7 +174,7 @@ pub contract PackNFT: NonFungibleToken, IPackNFT {
         // borrowNFT gets a reference to an NFT in the collection
         // so that the caller can read its metadata and call its methods
         pub fun borrowNFT(id: UInt64): &NonFungibleToken.NFT {
-            return &self.ownedNFTs[id] as &NonFungibleToken.NFT
+            return (&self.ownedNFTs[id] as &NonFungibleToken.NFT?)!
         }
 
         pub fun borrowPackNFT(id: UInt64): &IPackNFT.NFT? {
@@ -208,7 +208,7 @@ pub contract PackNFT: NonFungibleToken, IPackNFT {
     }
 
     pub fun borrowPackRepresentation(id: UInt64):  &Pack? {
-        return &self.packs[id] as &Pack
+        return (&self.packs[id] as &Pack?)!
     }
 
     pub fun createEmptyCollection(): @NonFungibleToken.Collection {
