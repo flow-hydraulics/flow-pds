@@ -80,7 +80,7 @@ func (t *StorableTransaction) ArgumentsAsCadence() ([]cadence.Value, error) {
 
 	argsCadence := make([]cadence.Value, len(bytes))
 	for i, a := range bytes {
-		b, err := c_json.Decode(a)
+		b, err := c_json.Decode(nil, a)
 		if err != nil {
 			return nil, err
 		}

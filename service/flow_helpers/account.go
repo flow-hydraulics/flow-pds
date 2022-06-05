@@ -127,7 +127,7 @@ func (a *Account) GetProposalKey(ctx context.Context, flowClient *client.Client)
 func (a Account) GetSigner() (crypto.Signer, error) {
 	// Get Google KMS Signer if using KMS key
 	if a.PrivateKeyType == GOOGLE_KMS_KEY_TYPE {
-		signer, err := getGoogleKMSSignerFromClient(context.Background(), a.kmsClient, a.Address, a.PrivateKey)
+		signer, err := getGoogleKMSSignerFromClient(context.Background(), a.kmsClient, a.PrivateKey)
 		if err != nil {
 			return nil, err
 		}
@@ -163,13 +163,13 @@ func getGoogleKMSClient(ctx context.Context) (*cloudkms.Client, error) {
 	return c, nil
 }
 
-func getGoogleKMSSignerFromClient(ctx context.Context, client *cloudkms.Client, address flow.Address, resourceId string) (crypto.Signer, error) {
+func getGoogleKMSSignerFromClient(ctx context.Context, client *cloudkms.Client, resourceId string) (crypto.Signer, error) {
 	k, err := cloudkms.KeyFromResourceID(resourceId)
 	if err != nil {
 		return nil, err
 	}
 
-	s, err := client.SignerForKey(ctx, address, k)
+	s, err := client.SignerForKey(ctx, k)
 
 	if err != nil {
 		return nil, err

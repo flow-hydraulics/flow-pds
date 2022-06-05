@@ -3,10 +3,12 @@ package app
 import (
 	"context"
 	"fmt"
+
 	"github.com/flow-hydraulics/flow-pds/service/common"
 	"github.com/flow-hydraulics/flow-pds/service/config"
 	"github.com/flow-hydraulics/flow-pds/service/flow_helpers"
 	"github.com/flow-hydraulics/flow-pds/service/transactions"
+	"github.com/flow-hydraulics/flow-pds/utils"
 	"github.com/google/uuid"
 	"github.com/onflow/cadence"
 	"github.com/onflow/flow-go-sdk"
@@ -444,7 +446,7 @@ func (svc *ContractService) StartMinting(ctx context.Context, db *gorm.DB, dist 
 
 		commitmentHashes := make([]cadence.Value, len(batch))
 		for i, p := range batch {
-			commitmentHashes[i] = cadence.NewString(p.CommitmentHash.String())
+			commitmentHashes[i] = utils.NewCadenceString(p.CommitmentHash.String())
 		}
 
 		arguments := []cadence.Value{
@@ -1012,6 +1014,7 @@ func (svc *ContractService) UpdateCirculatingPackContract(ctx context.Context, d
 
 					// Make sure the pack is in correct state
 					if err := pack.Reveal(); err != nil {
+						log.Printf("\n\nERROR WHILE DOIONG THING: %v\n\n", err)
 						err := fmt.Errorf("error while handling %s: %w", eventName, err)
 						eventLogger.Warn(fmt.Sprintf("distID:%s distFlowID:%s packID:%s packFlowID:%s err:%s", distribution.ID, distribution.FlowID, pack.ID, pack.FlowID, err.Error()))
 						continue
@@ -1019,8 +1022,10 @@ func (svc *ContractService) UpdateCirculatingPackContract(ctx context.Context, d
 
 					// Update the pack in database
 					if err := UpdatePack(db, pack); err != nil {
+						log.Printf("\n\nERROR WHILE UPDATING: %v\n\n", err)
 						return err // rollback
 					}
+					log.Printf("\n\n updated???? %v", true)
 
 				// -- OPEN_REQUEST, Owner has requested to open a pack ----------------
 				case OPEN_REQUEST:
