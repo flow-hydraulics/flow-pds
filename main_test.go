@@ -4,16 +4,17 @@ import (
 	"bytes"
 	"encoding/json"
 	"fmt"
-	"github.com/bjartek/go-with-the-flow/v2/gwtf"
+	"net/http"
+	"net/http/httptest"
+	"testing"
+	"time"
+
+	"github.com/bjartek/overflow/overflow"
 	"github.com/flow-hydraulics/flow-pds/go-contracts/util"
 	"github.com/flow-hydraulics/flow-pds/service/common"
 	pds_http "github.com/flow-hydraulics/flow-pds/service/http"
 	"github.com/google/uuid"
 	"github.com/onflow/flow-go-sdk"
-	"net/http"
-	"net/http/httptest"
-	"testing"
-	"time"
 )
 
 func TestCreate(t *testing.T) {
@@ -115,14 +116,17 @@ func TestSetDistCap(t *testing.T) {
 		cleanup()
 	}()
 
-	g := gwtf.NewGoWithTheFlow([]string{"./flow.json"}, "emulator", false, 0)
+	g, err := overflow.NewOverflowEmulator().Config("./flow.json").ExistingEmulator().StartE()
+	if err != nil {
+		t.Fatal(err)
+	}
 
 	t.Log("Issuer create PackIssuer resource to store DistCap")
 
 	createPackIssuer := "./cadence-transactions/pds/create_new_pack_issuer.cdc"
 	createPackIssuerCode := util.ParseCadenceTemplate(createPackIssuer)
-	_, err := g.
-		TransactionFromFile(createPackIssuer, createPackIssuerCode).
+	_, err = g.
+		Transaction(string(createPackIssuerCode)).
 		SignProposeAndPayAs("issuer").
 		RunE()
 	if err != nil {
