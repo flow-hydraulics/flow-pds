@@ -6,7 +6,7 @@ import (
 	"strings"
 
 	"github.com/flow-hydraulics/flow-pds/service/common"
-	"github.com/onflow/flow-go-sdk"
+	flow "github.com/onflow/flow-go-sdk"
 )
 
 // Collectible is a reference to an NFT which can be included in a pack.

@@ -5,7 +5,7 @@ import (
 	"fmt"
 	"time"
 
-	"github.com/onflow/flow-go-sdk"
+	flow "github.com/onflow/flow-go-sdk"
 	flowGrpc "github.com/onflow/flow-go-sdk/access/grpc"
 )
 

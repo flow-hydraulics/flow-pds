@@ -3,7 +3,7 @@ package app
 import (
 	"fmt"
 
-	"github.com/onflow/flow-go-sdk"
+	flow "github.com/onflow/flow-go-sdk"
 )
 
 func (dist Distribution) Validate() error {

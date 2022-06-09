@@ -14,7 +14,7 @@ import (
 	"github.com/flow-hydraulics/flow-pds/service/common"
 	pds_http "github.com/flow-hydraulics/flow-pds/service/http"
 	"github.com/google/uuid"
-	"github.com/onflow/flow-go-sdk"
+	flow "github.com/onflow/flow-go-sdk"
 )
 
 func TestCreate(t *testing.T) {

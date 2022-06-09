@@ -5,7 +5,7 @@ import (
 	"fmt"
 
 	"github.com/onflow/cadence"
-	"github.com/onflow/flow-go-sdk"
+	flow "github.com/onflow/flow-go-sdk"
 )
 
 type FlowAddress flow.Address

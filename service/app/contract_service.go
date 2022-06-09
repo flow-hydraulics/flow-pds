@@ -11,7 +11,7 @@ import (
 	"github.com/flow-hydraulics/flow-pds/utils"
 	"github.com/google/uuid"
 	"github.com/onflow/cadence"
-	"github.com/onflow/flow-go-sdk"
+	flow "github.com/onflow/flow-go-sdk"
 	flowGrpc "github.com/onflow/flow-go-sdk/access/grpc"
 	log "github.com/sirupsen/logrus"
 	"gorm.io/gorm"

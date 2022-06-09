@@ -15,7 +15,7 @@ import (
 	"github.com/flow-hydraulics/flow-pds/service/flow_helpers"
 	"github.com/flow-hydraulics/flow-pds/utils"
 	"github.com/onflow/cadence"
-	"github.com/onflow/flow-go-sdk"
+	flow "github.com/onflow/flow-go-sdk"
 	flowGrpc "github.com/onflow/flow-go-sdk/access/grpc"
 	"github.com/stretchr/testify/assert"
 	"google.golang.org/grpc"

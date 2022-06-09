@@ -9,7 +9,7 @@ import (
 
 	"github.com/flow-hydraulics/flow-pds/service/common"
 	pds_http "github.com/flow-hydraulics/flow-pds/service/http"
-	"github.com/onflow/flow-go-sdk"
+	flow "github.com/onflow/flow-go-sdk"
 )
 
 func benchmarkCreate(packs, slots uint, b *testing.B) {

@@ -6,7 +6,7 @@ import (
 
 	"text/template"
 
-	"github.com/caarlos0/env/v6"
+	env "github.com/caarlos0/env/v6"
 )
 
 type CadenceTemplateVars struct {

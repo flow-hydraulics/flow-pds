@@ -4,9 +4,10 @@ import (
 	"context"
 	"errors"
 	"fmt"
-	"github.com/onflow/flow-go-sdk"
 	"sync"
 	"time"
+
+	flow "github.com/onflow/flow-go-sdk"
 
 	"github.com/flow-hydraulics/flow-pds/service/common"
 	"github.com/flow-hydraulics/flow-pds/service/flow_helpers"
@@ -94,7 +95,7 @@ func sendableTransactionPoller(app *App) {
 
 // transactionPoller is responsible for sending flow transactions and check transaction status
 func sentTransactionsPoller(app *App) {
-	ticker := time.NewTicker(3*time.Second) // TODO (latenssi): configurable?
+	ticker := time.NewTicker(3 * time.Second) // TODO (latenssi): configurable?
 	ctx := context.Background()
 	ctx, cancel := context.WithCancel(ctx)
 	for {
@@ -409,9 +410,8 @@ func handleSentTransactions(ctx context.Context, app *App) error {
 		return nil
 	})
 
-
-	if err != nil && !errors.Is(err, gorm.ErrRecordNotFound){
-		return  err
+	if err != nil && !errors.Is(err, gorm.ErrRecordNotFound) {
+		return err
 	}
 
 	return nil

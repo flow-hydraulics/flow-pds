@@ -15,7 +15,7 @@ import (
 
 	"github.com/bjartek/overflow/overflow"
 	"github.com/onflow/cadence"
-	"github.com/onflow/flow-go-sdk"
+	flow "github.com/onflow/flow-go-sdk"
 	"github.com/stretchr/testify/assert"
 )
 
