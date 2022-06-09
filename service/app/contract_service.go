@@ -12,7 +12,7 @@ import (
 	"github.com/google/uuid"
 	"github.com/onflow/cadence"
 	"github.com/onflow/flow-go-sdk"
-	"github.com/onflow/flow-go-sdk/client"
+	flowGrpc "github.com/onflow/flow-go-sdk/access/grpc"
 	log "github.com/sirupsen/logrus"
 	"gorm.io/gorm"
 )
@@ -38,11 +38,11 @@ const (
 // ContractService handles interfacing with the chain
 type ContractService struct {
 	cfg        *config.Config
-	flowClient *client.Client
+	flowClient *flowGrpc.BaseClient
 	account    *flow_helpers.Account
 }
 
-func NewContractService(cfg *config.Config, flowClient *client.Client) (*ContractService, error) {
+func NewContractService(cfg *config.Config, flowClient *flowGrpc.BaseClient) (*ContractService, error) {
 	if cfg.AdminAddress != cfg.PDSAddress {
 		return nil, fmt.Errorf("admin (FLOW_PDS_ADMIN_ADDRESS) and pds (PDS_ADDRESS) addresses should equal")
 	}
@@ -571,7 +571,7 @@ func (svc *ContractService) UpdateSettlementStatus(ctx context.Context, db *gorm
 
 	err = NotSettledCollectiblesInBatches(db, settlement.ID, svc.cfg.BatchProcessSize, func(tx *gorm.DB, batchNumber int, batch SettlementCollectibles) error {
 		for contract, collectibles := range batch.GroupByContract() {
-			arr, err := svc.flowClient.GetEventsForHeightRange(ctx, client.EventRangeQuery{
+			arr, err := svc.flowClient.GetEventsForHeightRange(ctx, flowGrpc.EventRangeQuery{
 				Type:        fmt.Sprintf("%s.Deposit", contract.String()),
 				StartHeight: begin,
 				EndHeight:   end,
@@ -707,7 +707,7 @@ func (svc *ContractService) UpdateMintingStatus(ctx context.Context, db *gorm.DB
 
 	reference := dist.PackTemplate.PackReference.String()
 
-	arr, err := svc.flowClient.GetEventsForHeightRange(ctx, client.EventRangeQuery{
+	arr, err := svc.flowClient.GetEventsForHeightRange(ctx, flowGrpc.EventRangeQuery{
 		Type:        fmt.Sprintf("%s.Mint", reference),
 		StartHeight: begin,
 		EndHeight:   end,
@@ -871,7 +871,7 @@ func (svc *ContractService) UpdateCirculatingPackContract(ctx context.Context, d
 	contractRef := AddressLocation{Name: cpc.Name, Address: cpc.Address}
 
 	for _, eventName := range eventNames {
-		arr, err := svc.flowClient.GetEventsForHeightRange(ctx, client.EventRangeQuery{
+		arr, err := svc.flowClient.GetEventsForHeightRange(ctx, flowGrpc.EventRangeQuery{
 			Type:        cpc.EventName(eventName),
 			StartHeight: begin,
 			EndHeight:   end,

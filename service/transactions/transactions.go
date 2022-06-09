@@ -12,7 +12,7 @@ import (
 	"github.com/onflow/cadence"
 	c_json "github.com/onflow/cadence/encoding/json"
 	"github.com/onflow/flow-go-sdk"
-	"github.com/onflow/flow-go-sdk/client"
+	flowGrpc "github.com/onflow/flow-go-sdk/access/grpc"
 	log "github.com/sirupsen/logrus"
 	"gorm.io/datatypes"
 	"gorm.io/gorm"
@@ -91,7 +91,7 @@ func (t *StorableTransaction) ArgumentsAsCadence() ([]cadence.Value, error) {
 }
 
 // Prepare parses the transaction into a sendable state.
-func (t *StorableTransaction) Prepare(ctx context.Context, flowClient *client.Client, account *flow_helpers.Account, gasLimit uint64) (*flow.Transaction, flow_helpers.UnlockKeyFunc, error) {
+func (t *StorableTransaction) Prepare(ctx context.Context, flowClient *flowGrpc.BaseClient, account *flow_helpers.Account, gasLimit uint64) (*flow.Transaction, flow_helpers.UnlockKeyFunc, error) {
 	args, err := t.ArgumentsAsCadence()
 	if err != nil {
 		return nil, nil, err
@@ -124,7 +124,7 @@ func (t *StorableTransaction) Prepare(ctx context.Context, flowClient *client.Cl
 
 // HandleResult checks the results of a transaction onchain and updates the
 // StorableTransaction accordingly.
-func (t *StorableTransaction) HandleResult(ctx context.Context, flowClient *client.Client) error {
+func (t *StorableTransaction) HandleResult(ctx context.Context, flowClient *flowGrpc.BaseClient) error {
 	logger := log.WithFields(log.Fields{
 		"name":           t.Name,
 		"transactionID":  t.TransactionID,
@@ -166,7 +166,7 @@ func (t *StorableTransaction) HandleResult(ctx context.Context, flowClient *clie
 	return nil
 }
 
-func (t *StorableTransaction) WaitForFinalize(ctx context.Context, flowClient *client.Client, pollInterval time.Duration) (*flow.TransactionResult, error) {
+func (t *StorableTransaction) WaitForFinalize(ctx context.Context, flowClient *flowGrpc.BaseClient, pollInterval time.Duration) (*flow.TransactionResult, error) {
 	for ctx.Err() == nil {
 		result, err := flowClient.GetTransactionResult(ctx, flow.HexToID(t.TransactionID))
 		if err != nil {

@@ -16,9 +16,10 @@ import (
 	"github.com/flow-hydraulics/flow-pds/utils"
 	"github.com/onflow/cadence"
 	"github.com/onflow/flow-go-sdk"
-	"github.com/onflow/flow-go-sdk/client"
+	flowGrpc "github.com/onflow/flow-go-sdk/access/grpc"
 	"github.com/stretchr/testify/assert"
 	"google.golang.org/grpc"
+	"google.golang.org/grpc/credentials/insecure"
 )
 
 func TestE2E(t *testing.T) {
@@ -35,7 +36,7 @@ func TestE2E(t *testing.T) {
 		t.Fatal(err)
 	}
 
-	flowClient, err := client.New("localhost:3569", grpc.WithInsecure())
+	flowClient, err := flowGrpc.NewBaseClient("localhost:3569", grpc.WithTransportCredentials(insecure.NewCredentials()))
 	if err != nil {
 		t.Fatal(err)
 	}
