@@ -1421,8 +1421,8 @@ github.com/olekukonko/tablewriter v0.0.2-0.20190409134802-7e037d187b0c/go.mod h1
 github.com/onflow/atree v0.3.0/go.mod h1:tSPKjdmbNOQyVrSvcxKZG8+EDL4jdjoJBGAjNVk8zkA=
 github.com/onflow/atree v0.3.1-0.20220531231935-525fbc26f40a h1:ldQ7U2iddVJCwJA2ckK7y6AdH4INzxOSu2VnejkcBro=
 github.com/onflow/atree v0.3.1-0.20220531231935-525fbc26f40a/go.mod h1:PZESmRR4bI/w/9nEDCqRoWxBq/jFNUEzkfypHf0j8cw=
-github.com/onflow/cadence v0.24.0 h1:n83/KphAHHmPlHqHJdgVCgMeYh1M76nlmalzCxvr2CM=
-github.com/onflow/cadence v0.24.0/go.mod h1:tIJiQ4RIq1WUTXdBewv8p+gNUETN93Eb7jSFedjqs5w=
+github.com/onflow/cadence v0.24.1 h1:ERWaKaNXyeUwJkVp+66Yfp/DsojrzQ0btvY3D6XK9sY=
+github.com/onflow/cadence v0.24.1/go.mod h1:tIJiQ4RIq1WUTXdBewv8p+gNUETN93Eb7jSFedjqs5w=
 github.com/onflow/cadence/languageserver v0.24.0/go.mod h1:5w1rJx0mvrto0EvWgZkbF4STuK2SggMyamwL1spTGlQ=
 github.com/onflow/fcl-dev-wallet v0.4.2/go.mod h1:xWVEyGZgdDt4/+PLSlpuqhtzobjnWy5giceIGoErPzs=
 github.com/onflow/flow v0.2.4/go.mod h1:lzyAYmbu1HfkZ9cfnL5/sjrrsnJiUU8fRL26CqLP7+c=
@@ -1458,8 +1458,8 @@ github.com/onflow/flow-go v0.25.13-0.20220513151142-7858f76e703b/go.mod h1:GU4O0
 github.com/onflow/flow-go v0.26.2/go.mod h1:RCc7ztvK/XEuN5G6CYyO7x50Lfz+hSvS/HSdVsLf/Wk=
 github.com/onflow/flow-go v0.26.3 h1:q1af+gkJd4xzxICtzkOHAopcX4kntozuNgr53iKcVHI=
 github.com/onflow/flow-go v0.26.3/go.mod h1:MDUuR+YWgmiW9XY1bW7FOFcsULBCoG5VNr87EQbtyDk=
-github.com/onflow/flow-go-sdk v0.26.0 h1:FCoHWsEeXTwlc/xKnXusIiTVUSMPCUo6ue9guG8IYb4=
-github.com/onflow/flow-go-sdk v0.26.0/go.mod h1:PzRE6FkdcIEl10M3H/cRnsj8SRJzKgaXqQCvLO1cOL0=
+github.com/onflow/flow-go-sdk v0.26.1 h1:v0rzbBQPy+LEuAmX6d7E9TUBUW6lLyBIStUxchXwh9k=
+github.com/onflow/flow-go-sdk v0.26.1/go.mod h1:Z0SxMQgapt5aBgIdI3trG+IvAAux8WAvCKhgZ7tP6dQ=
 github.com/onflow/flow-go/crypto v0.12.0/go.mod h1:oXuvU0Dr4lHKgye6nHEFbBXIWNv+dBQUzoVW5Go38+o=
 github.com/onflow/flow-go/crypto v0.18.0/go.mod h1:3Ah843iPyjIL+7nH9EillV3OWNptrL+DrQUbVKgg2E4=
 github.com/onflow/flow-go/crypto v0.24.3 h1:5puosmiy853m1GPmBLJr4PiLVcCzE4n5o60hRPo9kYA=

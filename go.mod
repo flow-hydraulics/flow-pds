@@ -9,7 +9,7 @@ require (
 	github.com/gorilla/handlers v1.5.1
 	github.com/gorilla/mux v1.8.0
 	github.com/joho/godotenv v1.4.0
-	github.com/onflow/cadence v0.24.0
+	github.com/onflow/cadence v0.24.1
 	github.com/onflow/flow-go v0.26.3
 	github.com/onflow/flow-go-sdk v0.26.0
 	github.com/sirupsen/logrus v1.8.1
@@ -152,10 +152,10 @@ require (
 	lukechampine.com/blake3 v1.1.7 // indirect
 )
 
-replace github.com/onflow/cadence => github.com/onflow/cadence v0.24.0
+replace github.com/onflow/cadence => github.com/onflow/cadence v0.24.1
 
 replace github.com/onflow/flow-cli => github.com/onflow/flow-cli v0.35.1-0.20220608233544-d81953181e19
 
-replace github.com/onflow/flow-go-sdk => github.com/onflow/flow-go-sdk v0.26.0
+replace github.com/onflow/flow-go-sdk => github.com/onflow/flow-go-sdk v0.26.1
 
 replace github.com/bjartek/overflow => github.com/bjartek/overflow v0.0.0-20220607085354-564c7f084a1a
