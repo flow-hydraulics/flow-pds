@@ -11,7 +11,7 @@ require (
 	github.com/joho/godotenv v1.4.0
 	github.com/onflow/cadence v0.24.1
 	github.com/onflow/flow-go v0.26.3
-	github.com/onflow/flow-go-sdk v0.26.0
+	github.com/onflow/flow-go-sdk v0.26.1
 	github.com/sirupsen/logrus v1.8.1
 	github.com/stretchr/testify v1.7.1
 	github.com/trailofbits/go-mutexasserts v0.0.0-20200708152505-19999e7d3cef
@@ -103,7 +103,7 @@ require (
 	github.com/onflow/flow-cli v0.35.1-0.20220608233544-d81953181e19 // indirect
 	github.com/onflow/flow-core-contracts/lib/go/contracts v0.11.2-0.20220513155751-c4c1f8d59f83 // indirect
 	github.com/onflow/flow-core-contracts/lib/go/templates v0.11.2-0.20220513155751-c4c1f8d59f83 // indirect
-	github.com/onflow/flow-emulator v0.33.0 // indirect
+	github.com/onflow/flow-emulator v0.33.1 // indirect
 	github.com/onflow/flow-ft/lib/go/contracts v0.5.0 // indirect
 	github.com/onflow/flow-go/crypto v0.24.3 // indirect
 	github.com/onflow/flow/protobuf/go/flow v0.3.1 // indirect
@@ -152,9 +152,9 @@ require (
 	lukechampine.com/blake3 v1.1.7 // indirect
 )
 
-replace github.com/onflow/cadence => github.com/onflow/cadence v0.24.1
+replace github.com/onflow/cadence => github.com/onflow/cadence v0.24.2
 
-replace github.com/onflow/flow-cli => github.com/onflow/flow-cli v0.35.1-0.20220608233544-d81953181e19
+replace github.com/onflow/flow-cli => github.com/onflow/flow-cli v0.36.0
 
 replace github.com/onflow/flow-go-sdk => github.com/onflow/flow-go-sdk v0.26.1
 
