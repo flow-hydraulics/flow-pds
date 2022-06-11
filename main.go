@@ -17,7 +17,7 @@ import (
 	"google.golang.org/grpc/credentials/insecure"
 )
 
-const version = "0.5.0"
+const version = "0.7.0"
 
 var (
 	sha1ver   string // sha1 revision used to build the program
