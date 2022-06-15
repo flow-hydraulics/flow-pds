@@ -8,11 +8,11 @@ import (
 	"sync"
 	"time"
 
-	"github.com/onflow/flow-go-sdk"
-	"github.com/onflow/flow-go-sdk/client"
+	flow "github.com/onflow/flow-go-sdk"
+	flowGrpc "github.com/onflow/flow-go-sdk/access/grpc"
 	"github.com/onflow/flow-go-sdk/crypto"
 	"github.com/onflow/flow-go-sdk/crypto/cloudkms"
-	"github.com/trailofbits/go-mutexasserts"
+	mutexasserts "github.com/trailofbits/go-mutexasserts"
 )
 
 var ErrNoAccountKeyAvailable = errors.New("no account key available")
@@ -106,7 +106,7 @@ func GetAccount(address flow.Address, privateKey, privateKeyType string, keyInde
 	return new, nil
 }
 
-func (a *Account) GetProposalKey(ctx context.Context, flowClient *client.Client) (*flow.AccountKey, UnlockKeyFunc, error) {
+func (a *Account) GetProposalKey(ctx context.Context, flowClient *flowGrpc.BaseClient) (*flow.AccountKey, UnlockKeyFunc, error) {
 	account, err := flowClient.GetAccount(ctx, a.Address)
 	if err != nil {
 		return nil, nil, fmt.Errorf("error in flow_helpers.Account.GetProposalKey: %w", err)
@@ -127,7 +127,7 @@ func (a *Account) GetProposalKey(ctx context.Context, flowClient *client.Client)
 func (a Account) GetSigner() (crypto.Signer, error) {
 	// Get Google KMS Signer if using KMS key
 	if a.PrivateKeyType == GOOGLE_KMS_KEY_TYPE {
-		signer, err := getGoogleKMSSignerFromClient(context.Background(), a.kmsClient, a.Address, a.PrivateKey)
+		signer, err := getGoogleKMSSignerFromClient(context.Background(), a.kmsClient, a.PrivateKey)
 		if err != nil {
 			return nil, err
 		}
@@ -140,7 +140,11 @@ func (a Account) GetSigner() (crypto.Signer, error) {
 		return nil, fmt.Errorf("error in flow_helpers.Account.GetSigner: %w", err)
 	}
 
-	return crypto.NewNaiveSigner(p, crypto.SHA3_256), nil
+	signer, err := crypto.NewNaiveSigner(p, crypto.SHA3_256)
+	if err != nil {
+		return nil, fmt.Errorf("error in flow_helpers.Account.GetSigner.NewNaiveSigner: %w", err)
+	}
+	return signer, nil
 }
 
 func (a *Account) AvailableKeys() int {
@@ -163,13 +167,13 @@ func getGoogleKMSClient(ctx context.Context) (*cloudkms.Client, error) {
 	return c, nil
 }
 
-func getGoogleKMSSignerFromClient(ctx context.Context, client *cloudkms.Client, address flow.Address, resourceId string) (crypto.Signer, error) {
+func getGoogleKMSSignerFromClient(ctx context.Context, client *cloudkms.Client, resourceId string) (crypto.Signer, error) {
 	k, err := cloudkms.KeyFromResourceID(resourceId)
 	if err != nil {
 		return nil, err
 	}
 
-	s, err := client.SignerForKey(ctx, address, k)
+	s, err := client.SignerForKey(ctx, k)
 
 	if err != nil {
 		return nil, err

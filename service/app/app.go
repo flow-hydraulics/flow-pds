@@ -3,10 +3,11 @@ package app
 import (
 	"context"
 	"fmt"
+
 	"github.com/flow-hydraulics/flow-pds/service/common"
 	"github.com/flow-hydraulics/flow-pds/service/config"
 	"github.com/google/uuid"
-	"github.com/onflow/flow-go-sdk/client"
+	flowGrpc "github.com/onflow/flow-go-sdk/access/grpc"
 	log "github.com/sirupsen/logrus"
 	"gorm.io/gorm"
 )
@@ -15,12 +16,12 @@ import (
 type App struct {
 	cfg        *config.Config
 	db         *gorm.DB
-	flowClient *client.Client
+	flowClient *flowGrpc.BaseClient
 	service    *ContractService
 	quit       chan bool // Chan type does not matter as we only use this to 'close'
 }
 
-func New(cfg *config.Config, db *gorm.DB, flowClient *client.Client, poll bool) (*App, error) {
+func New(cfg *config.Config, db *gorm.DB, flowClient *flowGrpc.BaseClient, poll bool) (*App, error) {
 	service, err := NewContractService(cfg, flowClient)
 	if err != nil {
 		return nil, err

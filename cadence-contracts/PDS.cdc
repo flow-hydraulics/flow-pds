@@ -117,7 +117,7 @@ pub contract PDS{
         
 
         init(
-            withdrawCap: Capability<&{NonFungibleToken.Provider}>
+            withdrawCap: Capability<&{NonFungibleToken.Provider}>,
             operatorCap: Capability<&{IPackNFT.IOperator}>
 
         ){
@@ -258,7 +258,7 @@ pub contract PDS{
     }
 
     pub fun createSharedCapabilities (
-            withdrawCap: Capability<&{NonFungibleToken.Provider}>
+            withdrawCap: Capability<&{NonFungibleToken.Provider}>,
             operatorCap: Capability<&{IPackNFT.IOperator}>
     ): @SharedCapabilities{
         return <- create SharedCapabilities(

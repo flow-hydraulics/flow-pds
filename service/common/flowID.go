@@ -1,7 +1,7 @@
 package common
 
 import (
-	"database/sql"
+	sql "database/sql"
 	"database/sql/driver"
 	"encoding/json"
 	"fmt"

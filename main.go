@@ -11,12 +11,13 @@ import (
 	"github.com/flow-hydraulics/flow-pds/service/config"
 	"github.com/flow-hydraulics/flow-pds/service/http"
 	"github.com/flow-hydraulics/flow-pds/service/transactions"
-	"github.com/onflow/flow-go-sdk/client"
+	flowGrpc "github.com/onflow/flow-go-sdk/access/grpc"
 	log "github.com/sirupsen/logrus"
 	"google.golang.org/grpc"
+	"google.golang.org/grpc/credentials/insecure"
 )
 
-const version = "0.4.0"
+const version = "0.7.0"
 
 var (
 	sha1ver   string // sha1 revision used to build the program
@@ -86,7 +87,7 @@ func runServer(cfg *config.Config) error {
 	// Flow client
 	// TODO: WithInsecure()?
 	maxSize := 1024 * 1024 * 64
-	flowClient, err := client.New(cfg.AccessAPIHost, grpc.WithInsecure(),
+	flowClient, err := flowGrpc.NewBaseClient(cfg.AccessAPIHost, grpc.WithTransportCredentials(insecure.NewCredentials()),
 		grpc.WithDefaultCallOptions(grpc.MaxCallRecvMsgSize(maxSize)),
 	)
 	if err != nil {

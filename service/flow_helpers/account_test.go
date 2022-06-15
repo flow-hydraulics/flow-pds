@@ -2,11 +2,12 @@ package flow_helpers
 
 import (
 	"fmt"
-	"github.com/stretchr/testify/assert"
 	"sync"
 	"testing"
 
-	"github.com/onflow/flow-go-sdk"
+	"github.com/stretchr/testify/assert"
+
+	flow "github.com/onflow/flow-go-sdk"
 )
 
 func TestAccountKeyRotation(t *testing.T) {

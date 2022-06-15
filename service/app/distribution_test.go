@@ -5,7 +5,7 @@ import (
 	"testing"
 
 	"github.com/flow-hydraulics/flow-pds/service/common"
-	"github.com/onflow/flow-go-sdk"
+	flow "github.com/onflow/flow-go-sdk"
 )
 
 func makeCollection(size int) []common.FlowID {

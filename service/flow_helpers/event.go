@@ -2,7 +2,7 @@ package flow_helpers
 
 import (
 	"github.com/onflow/cadence"
-	"github.com/onflow/flow-go-sdk"
+	flow "github.com/onflow/flow-go-sdk"
 )
 
 // Convert the values in an flow.Event to a map for accessing by identifier

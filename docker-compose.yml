@@ -20,7 +20,7 @@ services:
       - "5050:80"
 
   emulator:
-    image: gcr.io/flow-container-registry/emulator:0.23.0
+    image: gcr.io/flow-container-registry/emulator:0.33.0
     restart: unless-stopped
     command: emulator
     ports:

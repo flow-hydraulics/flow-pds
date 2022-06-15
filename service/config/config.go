@@ -1,10 +1,11 @@
 package config
 
 import (
-	"github.com/caarlos0/env/v6"
+	"time"
+
+	env "github.com/caarlos0/env/v6"
 	"github.com/joho/godotenv"
 	log "github.com/sirupsen/logrus"
-	"time"
 )
 
 type Config struct {

@@ -2,7 +2,7 @@ package main
 
 import (
 	"context"
-	"math/big"
+	big "math/big"
 	"reflect"
 	"strings"
 	"testing"
@@ -14,9 +14,10 @@ import (
 	"github.com/flow-hydraulics/flow-pds/service/http"
 	"github.com/flow-hydraulics/flow-pds/service/transactions"
 	"github.com/onflow/cadence"
-	"github.com/onflow/flow-go-sdk"
-	"github.com/onflow/flow-go-sdk/client"
+	flow "github.com/onflow/flow-go-sdk"
+	flowGrpc "github.com/onflow/flow-go-sdk/access/grpc"
 	"google.golang.org/grpc"
+	"google.golang.org/grpc/credentials/insecure"
 	"gorm.io/gorm"
 )
 
@@ -52,7 +53,7 @@ func getTestCfg(t *testing.T, b *testing.B) *config.Config {
 
 func getTestApp(cfg *config.Config, poll bool) (*app.App, func()) {
 
-	flowClient, err := client.New(cfg.AccessAPIHost, grpc.WithInsecure())
+	flowClient, err := flowGrpc.NewBaseClient(cfg.AccessAPIHost, grpc.WithTransportCredentials(insecure.NewCredentials()))
 	if err != nil {
 		panic(err)
 	}
@@ -104,7 +105,7 @@ func makeTestCollection(size int) []common.FlowID {
 	return collection
 }
 
-func getExampleNFTBalance(flowClient *client.Client, address flow.Address) (uint64, error) {
+func getExampleNFTBalance(flowClient *flowGrpc.BaseClient, address flow.Address) (uint64, error) {
 
 	balanceScript, err := flow_helpers.ParseCadenceTemplate(
 		"./cadence-scripts/collectibleNFT/balance.cdc",
@@ -130,7 +131,7 @@ func getExampleNFTBalance(flowClient *client.Client, address flow.Address) (uint
 	return v.ToGoValue().(*big.Int).Uint64(), err
 }
 
-func getExampleNFTIDs(flowClient *client.Client, address flow.Address, balance uint64) (common.FlowIDList, error) {
+func getExampleNFTIDs(flowClient *flowGrpc.BaseClient, address flow.Address, balance uint64) (common.FlowIDList, error) {
 
 	idsScript, err := flow_helpers.ParseCadenceTemplate(
 		"./cadence-scripts/collectibleNFT/balance_ids.cdc",

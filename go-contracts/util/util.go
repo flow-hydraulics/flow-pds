@@ -13,9 +13,9 @@ import (
 	"fmt"
 	"reflect"
 
-	"github.com/bjartek/go-with-the-flow/v2/gwtf"
+	"github.com/bjartek/overflow/overflow"
 	"github.com/onflow/cadence"
-	"github.com/onflow/flow-go-sdk"
+	flow "github.com/onflow/flow-go-sdk"
 	"github.com/stretchr/testify/assert"
 )
 
@@ -76,9 +76,9 @@ func ParseCadenceTemplate(templatePath string) []byte {
 	return buf.Bytes()
 }
 
-func ParseTestEvents(events []flow.Event) (formatedEvents []*gwtf.FormatedEvent) {
+func ParseTestEvents(events []flow.Event) (formatedEvents []*overflow.FormatedEvent) {
 	for _, e := range events {
-		formatedEvents = append(formatedEvents, gwtf.ParseEvent(e, uint64(0), time.Now(), nil))
+		formatedEvents = append(formatedEvents, overflow.ParseEvent(e, uint64(0), time.Now(), nil))
 	}
 	return
 }
@@ -102,13 +102,13 @@ func (te TestEvent) AddField(fieldName string, fieldValue interface{}) TestEvent
 	return te
 }
 
-func (te TestEvent) AssertHasKey(t *testing.T, event *gwtf.FormatedEvent, key string) {
+func (te TestEvent) AssertHasKey(t *testing.T, event *overflow.FormatedEvent, key string) {
 	assert.Equal(t, te.Name, event.Name)
 	_, exist := event.Fields[key]
 	assert.Equal(t, true, exist)
 }
 
-func (te TestEvent) AssertEqual(t *testing.T, event *gwtf.FormatedEvent) {
+func (te TestEvent) AssertEqual(t *testing.T, event *overflow.FormatedEvent) {
 	assert.Equal(t, event.Name, te.Name)
 	assert.Equal(t, len(te.Fields), len(event.Fields))
 	for k := range te.Fields {
@@ -135,7 +135,7 @@ func (te TestEvent) AssertEqual(t *testing.T, event *gwtf.FormatedEvent) {
 }
 
 // Gets the address in the format of a hex string from an account name
-func GetAccountAddr(g *gwtf.GoWithTheFlow, name string) string {
+func GetAccountAddr(g *overflow.Overflow, name string) string {
 	address := g.Account(name).Address().String()
 	zeroPrefix := "0"
 	if string(address[0]) == zeroPrefix {
@@ -152,26 +152,26 @@ func ReadCadenceCode(ContractPath string) []byte {
 	return b
 }
 
-func GetHash(g *gwtf.GoWithTheFlow, toHash string) (result string, err error) {
+func GetHash(g *overflow.Overflow, toHash string) (result string, err error) {
 	filename := "../cadence-scripts/packNFT/checksum.cdc"
 	script := ParseCadenceTemplate(filename)
-	r, err := g.ScriptFromFile(filename, script).StringArgument(toHash).RunReturns()
+	r, err := g.Script(string(script)).Args(g.Arguments().String(toHash)).RunReturns()
 	result = r.ToGoValue().(string)
 	return
 }
 
-func GetName(g *gwtf.GoWithTheFlow) (result string, err error) {
+func GetName(g *overflow.Overflow) (result string, err error) {
 	filename := "../../../scripts/contract/get_name.cdc"
 	script := ParseCadenceTemplate(filename)
-	r, err := g.ScriptFromFile(filename, script).RunReturns()
+	r, err := g.Script(string(script)).RunReturns()
 	result = r.ToGoValue().(string)
 	return
 }
 
-func GetVersion(g *gwtf.GoWithTheFlow) (result string, err error) {
+func GetVersion(g *overflow.Overflow) (result string, err error) {
 	filename := "../../../scripts/contract/get_version.cdc"
 	script := ParseCadenceTemplate(filename)
-	r, err := g.ScriptFromFile(filename, script).RunReturns()
+	r, err := g.Script(string(script)).RunReturns()
 	result = r.ToGoValue().(string)
 	return
 }

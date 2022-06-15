@@ -5,11 +5,11 @@ import (
 	"fmt"
 	"time"
 
-	"github.com/onflow/flow-go-sdk"
-	"github.com/onflow/flow-go-sdk/client"
+	flow "github.com/onflow/flow-go-sdk"
+	flowGrpc "github.com/onflow/flow-go-sdk/access/grpc"
 )
 
-func SignProposeAndPayAs(ctx context.Context, flowClient *client.Client, account *Account, tx *flow.Transaction) (UnlockKeyFunc, error) {
+func SignProposeAndPayAs(ctx context.Context, flowClient *flowGrpc.BaseClient, account *Account, tx *flow.Transaction) (UnlockKeyFunc, error) {
 
 	signer, err := account.GetSigner()
 	if err != nil {
@@ -38,7 +38,7 @@ func SignProposeAndPayAs(ctx context.Context, flowClient *client.Client, account
 // - the transaction gets an error status
 // - the transaction gets a "TransactionStatusSealed" or "TransactionStatusExpired" status
 // - timeout is reached
-func WaitForSeal(ctx context.Context, c *client.Client, id flow.Identifier, timeout time.Duration, pollInterval time.Duration) (*flow.TransactionResult, error) {
+func WaitForSeal(ctx context.Context, c *flowGrpc.BaseClient, id flow.Identifier, timeout time.Duration, pollInterval time.Duration) (*flow.TransactionResult, error) {
 	var (
 		result *flow.TransactionResult
 		err    error
