@@ -2,7 +2,7 @@ package main
 
 import (
 	"context"
-	"math/big"
+	big "math/big"
 	"reflect"
 	"strings"
 	"testing"

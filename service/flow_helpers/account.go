@@ -12,7 +12,7 @@ import (
 	flowGrpc "github.com/onflow/flow-go-sdk/access/grpc"
 	"github.com/onflow/flow-go-sdk/crypto"
 	"github.com/onflow/flow-go-sdk/crypto/cloudkms"
-	"github.com/trailofbits/go-mutexasserts"
+	mutexasserts "github.com/trailofbits/go-mutexasserts"
 )
 
 var ErrNoAccountKeyAvailable = errors.New("no account key available")
