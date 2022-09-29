@@ -1,5 +1,7 @@
 # Flow Pack Distribution Service
 
+**NOTE: This repository is currently not maintained.**
+
 ## Running the PDS backend service
 
 Docker
