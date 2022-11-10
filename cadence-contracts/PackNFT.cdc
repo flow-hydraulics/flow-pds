@@ -1,6 +1,7 @@
 import Crypto
 import NonFungibleToken from 0x{{.NonFungibleToken}}
 import IPackNFT from 0x{{.IPackNFT}}
+import MetadataViews from 0x{{.MetadataViews}}
 
 pub contract PackNFT: NonFungibleToken, IPackNFT {
 
@@ -110,7 +111,7 @@ pub contract PackNFT: NonFungibleToken, IPackNFT {
         }
     }
 
-    pub resource NFT: NonFungibleToken.INFT, IPackNFT.IPackNFTToken, IPackNFT.IPackNFTOwnerOperator {
+    pub resource NFT: NonFungibleToken.INFT, IPackNFT.IPackNFTToken, IPackNFT.IPackNFTOwnerOperator, MetadataViews.Resolver {
         pub let id: UInt64
         pub let commitHash: String
         pub let issuer: Address
@@ -129,13 +130,110 @@ pub contract PackNFT: NonFungibleToken, IPackNFT {
             self.issuer = issuer
         }
 
+
+        // All supported metadata views for the Moment including the Core NFT Views
+        //
+        pub fun getViews(): [Type] {
+            return [
+                Type<MetadataViews.Display>(),
+                Type<MetadataViews.ExternalURL>(),
+                Type<MetadataViews.Medias>(),
+                Type<MetadataViews.NFTCollectionData>(),
+                Type<MetadataViews.NFTCollectionDisplay>(),
+                Type<MetadataViews.Royalties>(),
+                Type<MetadataViews.Serial>(),
+            ]
+        }
+
+        pub fun resolveView(_ view: Type): AnyStruct? {
+            switch view {
+                case Type<MetadataViews.Display>():
+                    return MetadataViews.Display(
+                        name: "NFL All Day Pack",
+                        description: "Reveals official NFL All Day Moments when opened",
+                        thumbnail: MetadataViews.HTTPFile(url: self.getImage(imageType: "image", format: "jpeg", width: 256))
+                    )
+                case Type<MetadataViews.ExternalURL>():
+                    return MetadataViews.ExternalURL("https://nflallday.com/packNFTs/".concat(self.id.toString())) // might have to make a URL that redirects to packs page based on packNFT id -> distribution id
+                case Type<MetadataViews.Medias>():
+                    return MetadataViews.Medias(
+                        items: [
+                            MetadataViews.Media(
+                                file: MetadataViews.HTTPFile(url: self.getImage(imageType: "image", format: "jpeg", width: 512)),
+                                mediaType: "image/jpeg"
+                            ),
+                        ]
+                    )
+                case Type<MetadataViews.NFTCollectionData>():
+                    return MetadataViews.NFTCollectionData(
+                        storagePath: PackNFT.CollectionStoragePath,
+                        publicPath: PackNFT.CollectionPublicPath,
+                        providerPath: PackNFT.OperatorPrivPath,
+                        publicCollection: Type<&PackNFT.Collection{IPackNFT.IPackNFTCollectionPublic}>(),
+                        publicLinkedType: Type<&PackNFT.Collection{IPackNFT.IPackNFTCollectionPublic,NonFungibleToken.Receiver,NonFungibleToken.CollectionPublic,MetadataViews.ResolverCollection}>(),
+                        providerLinkedType: Type<&PackNFT.Collection{NonFungibleToken.Provider,IPackNFT.IPackNFTCollectionPublic,NonFungibleToken.Receiver,NonFungibleToken.CollectionPublic,MetadataViews.ResolverCollection}>(),
+                        createEmptyCollectionFunction: (fun (): @NonFungibleToken.Collection {
+                            return <-PackNFT.createEmptyCollection()
+                        })
+                    )
+                case Type<MetadataViews.NFTCollectionDisplay>():
+                   let bannerImage = MetadataViews.Media(
+                        file: MetadataViews.HTTPFile(
+                            url: "https://assets.nflallday.com/flow/catalogue/NFLAD_BANNER.png"
+                        ),
+                        mediaType: "image/png"
+                    )
+                    let squareImage = MetadataViews.Media(
+                        file: MetadataViews.HTTPFile(
+                            url: "https://assets.nflallday.com/flow/catalogue/NFLAD_SQUARE.png"
+                        ),
+                        mediaType: "image/png"
+                    )
+                    return MetadataViews.NFTCollectionDisplay(
+                        name: "NFL All Day Packs",
+                        description: "Officially Licensed Digital Collectibles Featuring the NFL’s Best Highlights. Buy, Sell and Collect Your Favorite NFL Moments",
+                        externalURL: MetadataViews.ExternalURL("https://nflallday.com/"),
+                        squareImage: squareImage,
+                        bannerImage: bannerImage,
+                        socials: {
+                            "instagram": MetadataViews.ExternalURL("https://www.instagram.com/nflallday/"),
+                            "twitter": MetadataViews.ExternalURL("https://twitter.com/NFLAllDay"),
+                            "discord": MetadataViews.ExternalURL("https://discord.com/invite/5K6qyTzj2k")
+                        }
+                    )
+                 case Type<MetadataViews.Royalties>():
+                    let royaltyReceiver: Capability<&{FungibleToken.Receiver}> =
+                        getAccount(0xALLDAYROYALTYADDRESS).getCapability<&AnyResource{FungibleToken.Receiver}>(MetadataViews.getRoyaltyReceiverPublicPath())
+                    return MetadataViews.Royalties(
+                        royalties: [
+                            MetadataViews.Royalty(
+                                receiver: royaltyReceiver,
+                                cut: 0.05,
+                                description: "NFL All Day marketplace royalty"
+                            )
+                        ]
+                    )
+                case Type<MetadataViews.Serial>():
+                    return MetadataViews.Serial(self.id)
+            }
+            return nil
+        }
+
+        pub fun assetPath(): String {
+            return "https://media.nflallday.com/packs/".concat(self.id.toString()).concat("/media/")
+        }
+
+        pub fun getImage(imageType: String, format: String, width: Int): String {
+            return self.assetPath().concat(imageType).concat("?format=").concat(format).concat("&width=").concat(width.toString())
+        }
     }
 
     pub resource Collection:
         NonFungibleToken.Provider,
         NonFungibleToken.Receiver,
         NonFungibleToken.CollectionPublic,
-        IPackNFT.IPackNFTCollectionPublic
+        IPackNFT.IPackNFTCollectionPublic,
+        MetadataViews.ResolverCollection
     {
         // dictionary of NFT conforming tokens
         // NFT is a resource type with an `UInt64` ID field
@@ -169,6 +267,12 @@ pub contract PackNFT: NonFungibleToken, IPackNFT {
         // getIDs returns an array of the IDs that are in the collection
         pub fun getIDs(): [UInt64] {
             return self.ownedNFTs.keys
+        }
+
+        pub fun borrowViewResolver(id: UInt64): &AnyResource{MetadataViews.Resolver} {
+            let nft = (&self.ownedNFTs[id] as auth &NonFungibleToken.NFT?)!
+            let allDayNFT = nft as! &AllDay.NFT
+            return allDayNFT as &AnyResource{MetadataViews.Resolver}
         }
 
         // borrowNFT gets a reference to an NFT in the collection
@@ -245,4 +349,3 @@ pub contract PackNFT: NonFungibleToken, IPackNFT {
     }
 
 }
-

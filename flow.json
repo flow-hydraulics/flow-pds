@@ -41,16 +41,10 @@
   },
   "deployments": {
     "emulator": {
-      "emulator-account": [
-        "NonFungibleToken"
-      ],
-      "emulator-issuer": [
-        "ExampleNFT"
-      ],
+      "emulator-account": ["NonFungibleToken"],
+      "emulator-issuer": ["ExampleNFT"],
       "emulator-owner": [],
-      "emulator-pds": [
-        "IPackNFT"
-      ]
+      "emulator-pds": ["IPackNFT"]
     }
   }
 }
