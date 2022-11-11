@@ -1,5 +1,6 @@
 import Crypto
 import NonFungibleToken from 0x{{.NonFungibleToken}}
+import FungibleToken from 0x{{.NonFungibleToken}}
 import IPackNFT from 0x{{.IPackNFT}}
 import MetadataViews from 0x{{.MetadataViews}}
 
@@ -141,7 +142,7 @@ pub contract PackNFT: NonFungibleToken, IPackNFT {
                 Type<MetadataViews.NFTCollectionData>(),
                 Type<MetadataViews.NFTCollectionDisplay>(),
                 Type<MetadataViews.Royalties>(),
-                Type<MetadataViews.Serial>(),
+                Type<MetadataViews.Serial>()
             ]
         }
 
@@ -161,7 +162,7 @@ pub contract PackNFT: NonFungibleToken, IPackNFT {
                             MetadataViews.Media(
                                 file: MetadataViews.HTTPFile(url: self.getImage(imageType: "image", format: "jpeg", width: 512)),
                                 mediaType: "image/jpeg"
-                            ),
+                            )
                         ]
                     )
                 case Type<MetadataViews.NFTCollectionData>():
@@ -203,7 +204,7 @@ pub contract PackNFT: NonFungibleToken, IPackNFT {
                     )
                  case Type<MetadataViews.Royalties>():
                     let royaltyReceiver: Capability<&{FungibleToken.Receiver}> =
-                        getAccount(0xALLDAYROYALTYADDRESS).getCapability<&AnyResource{FungibleToken.Receiver}>(MetadataViews.getRoyaltyReceiverPublicPath())
+                        getAccount(0x{{.RoyaltyAddress}}).getCapability<&AnyResource{FungibleToken.Receiver}>(MetadataViews.getRoyaltyReceiverPublicPath())
                     return MetadataViews.Royalties(
                         royalties: [
                             MetadataViews.Royalty(

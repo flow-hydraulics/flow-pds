@@ -14,6 +14,8 @@
     },
     "ExampleNFT": "./cadence-contracts/ExampleNFT.cdc",
     "IPackNFT": "./cadence-contracts/IPackNFT.cdc",
+    "FungibleToken": "./cadence-contracts/FungibleToken.cdc",
+    "MetadataViews": "./cadence-contracts/MetadataViews.cdc",
     "PackNFT": "./cadence-contracts/PackNFT.cdc"
   },
   "networks": {
@@ -41,7 +43,7 @@
   },
   "deployments": {
     "emulator": {
-      "emulator-account": ["NonFungibleToken"],
+      "emulator-account": ["NonFungibleToken", "FungibleToken", "MetadataViews"],
       "emulator-issuer": ["ExampleNFT"],
       "emulator-owner": [],
       "emulator-pds": ["IPackNFT"]
