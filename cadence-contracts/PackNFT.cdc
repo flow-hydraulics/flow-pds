@@ -155,7 +155,7 @@ pub contract PackNFT: NonFungibleToken, IPackNFT {
                         thumbnail: MetadataViews.HTTPFile(url: self.getImage(imageType: "image", format: "jpeg", width: 256))
                     )
                 case Type<MetadataViews.ExternalURL>():
-                    return MetadataViews.ExternalURL("https://nflallday.com/packNFTs/".concat(self.id.toString())) // might have to make a URL that redirects to packs page based on packNFT id -> distribution id
+                    return MetadataViews.ExternalURL("https://nflallday.com/packnfts/".concat(self.id.toString())) // might have to make a URL that redirects to packs page based on packNFT id -> distribution id
                 case Type<MetadataViews.Medias>():
                     return MetadataViews.Medias(
                         items: [
