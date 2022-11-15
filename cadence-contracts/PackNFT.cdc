@@ -272,8 +272,8 @@ pub contract PackNFT: NonFungibleToken, IPackNFT {
 
         pub fun borrowViewResolver(id: UInt64): &AnyResource{MetadataViews.Resolver} {
             let nft = (&self.ownedNFTs[id] as auth &NonFungibleToken.NFT?)!
-            let allDayNFT = nft as! &AllDay.NFT
-            return allDayNFT as &AnyResource{MetadataViews.Resolver}
+            let packNFT = nft as! &PackNFT.NFT
+            return packNFT as &AnyResource{MetadataViews.Resolver}
         }
 
         // borrowNFT gets a reference to an NFT in the collection
