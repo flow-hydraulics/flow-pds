@@ -33,6 +33,9 @@ type Addresses struct {
 	PackNFTAddress        string
 	CollectibleNFTName    string
 	CollectibleNFTAddress string
+	FungibleToken         string
+	MetadataViews         string
+	RoyaltyAddress        string
 }
 
 type TestEvent struct {
@@ -65,6 +68,9 @@ func ParseCadenceTemplate(templatePath string) []byte {
 		PackNFTAddress:        os.Getenv("PACKNFT_ADDRESS"),
 		CollectibleNFTName:    "ExampleNFT",
 		CollectibleNFTAddress: os.Getenv("EXAMPLE_NFT_ADDRESS"),
+		FungibleToken:         os.Getenv("FUNGIBLE_TOKEN_ADDRESS"),
+		MetadataViews:         os.Getenv("METADATA_VIEWS_ADDRESS"),
+		RoyaltyAddress:        os.Getenv("PACKNFT_ADDRESS"),
 	}
 
 	buf := &bytes.Buffer{}

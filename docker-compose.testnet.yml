@@ -37,3 +37,5 @@ services:
       FLOW_PDS_ACCESS_API_HOST: access.devnet.nodes.onflow.org:9000
       PDS_ADDRESS: 070704779ca994b7 # PDS account address
       NON_FUNGIBLE_TOKEN_ADDRESS: 631e88ae7f1d7c20
+      FUNGIBLE_TOKEN_ADDRESS: 631e88ae7f1d7c20
+      METADATA_VIEWS_ADDRESS: 631e88ae7f1d7c20

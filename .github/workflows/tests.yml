@@ -52,6 +52,8 @@ jobs:
           NETWORK: emulator
           RPC_ADDRESS: localhost:3569
           NON_FUNGIBLE_TOKEN_ADDRESS: f8d6e0586b0a20c7
+          FUNGIBLE_TOKEN_ADDRESS: f8d6e0586b0a20c7
+          METADATA_VIEWS_ADDRESS: f8d6e0586b0a20c7
           EXAMPLE_NFT_ADDRESS: 01cf0e2f2f715450
           PACKNFT_ADDRESS: 01cf0e2f2f715450
           PDS_ADDRESS: f3fcd2c1a78f5eee
