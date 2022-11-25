@@ -221,7 +221,7 @@ pub contract PackNFT: NonFungibleToken, IPackNFT {
         }
 
         pub fun assetPath(): String {
-            return "https://media.nflallday.com/packs/".concat(self.id.toString()).concat("/media/")
+            return "https://media.nflallday.com/packnfts/".concat(self.id.toString()).concat("/media/")
         }
 
         pub fun getImage(imageType: String, format: String, width: Int): String {
