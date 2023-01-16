@@ -71,6 +71,25 @@ func HandleCreateDistribution(logger *log.Logger, app *app.App) http.HandlerFunc
 	}
 }
 
+// Update distribution to complete
+func HandleUpdateDistributionComplete(logger *log.Logger, app *app.App) http.HandlerFunc {
+	return func(rw http.ResponseWriter, r *http.Request) {
+		vars := mux.Vars(r)
+		id, err := uuid.Parse(vars["id"])
+		if err != nil {
+			handleError(rw, logger, err)
+			return
+		}
+
+		if err := app.UpdateDistributionComplete(r.Context(), id); err != nil {
+			handleError(rw, logger, err)
+			return
+		}
+
+		handleJsonResponse(rw, http.StatusOK, "Ok")
+	}
+}
+
 // List distributions
 func HandleListDistributions(logger *log.Logger, app *app.App) http.HandlerFunc {
 	return func(rw http.ResponseWriter, r *http.Request) {
