@@ -82,6 +82,18 @@ func (app *App) CreateDistribution(ctx context.Context, distribution *Distributi
 	return nil
 }
 
+// UpdateDistributionComplete updates the distribution state to complete
+func (app *App) UpdateDistributionComplete(ctx context.Context, id uuid.UUID) error {
+	return app.db.Transaction(func(tx *gorm.DB) error {
+		distribution, err := GetDistributionSmall(tx, id)
+		if err != nil {
+			return err
+		}
+
+		return app.service.UpdateDistributionComplete(ctx, app.db, distribution)
+	})
+}
+
 // ListDistributions lists all distributions in the database. Uses 'limit' and 'offset' to
 // limit the fetched slice size.
 func (app *App) ListDistributions(ctx context.Context, limit, offset int) ([]Distribution, error) {

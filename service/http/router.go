@@ -24,6 +24,7 @@ func NewRouter(app *app.App) http.Handler {
 	rv.HandleFunc("/distributions", HandleCreateDistribution(requestLogger, app)).Methods(http.MethodPost)
 	rv.HandleFunc("/distributions", HandleListDistributions(requestLogger, app)).Methods(http.MethodGet)
 	rv.HandleFunc("/distributions/{id}", HandleGetDistribution(requestLogger, app)).Methods(http.MethodGet)
+	rv.HandleFunc("/distributions/{id}/updatestate", HandleUpdateDistributionComplete(requestLogger, app)).Methods(http.MethodPatch)
 	rv.HandleFunc("/distributions/{id}/abort", HandleAbortDistribution(requestLogger, app)).Methods(http.MethodPost)
 
 	// Add the pprof routes

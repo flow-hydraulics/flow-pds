@@ -114,6 +114,65 @@ func (svc *ContractService) SetDistCap(ctx context.Context, db *gorm.DB, issuer 
 	return nil
 }
 
+func (svc *ContractService) UpdateDistributionComplete(ctx context.Context, db *gorm.DB, dist *Distribution) error {
+	logger := log.WithFields(log.Fields{
+		"method":     "UpdateDistributionComplete",
+		"distID":     dist.ID,
+		"distFlowID": dist.FlowID,
+	})
+
+	logger.Trace("Update distribution complete")
+
+	minting, err := GetDistributionMinting(db, dist.ID)
+	if err != nil {
+		return err // rollback
+	}
+
+	if !minting.IsComplete() {
+		// Minting is not yet complete. Return early
+		return nil
+	}
+	// Distribution is now complete
+	logger.Info("Minting complete")
+
+	// Make sure the distribution is in correct state
+	if err := dist.SetComplete(); err != nil {
+		return err // rollback
+	}
+
+	// Update the distribution in database
+	if err := UpdateDistribution(db, dist); err != nil {
+		return err // rollback
+	}
+
+	// Update distribution state onchain
+	txScript, err := flow_helpers.ParseCadenceTemplate(UPDATE_STATE_SCRIPT, nil)
+	if err != nil {
+		return err // rollback
+	}
+
+	arguments := []cadence.Value{
+		cadence.UInt64(dist.FlowID.Int64),
+		cadence.UInt8(2),
+	}
+
+	t, err := transactions.NewTransactionWithDistributionID(UPDATE_STATE_SCRIPT, txScript, arguments, dist.ID)
+	if err != nil {
+		return err // rollback
+	}
+
+	if err := t.Save(db); err != nil {
+		return err // rollback
+	}
+
+	logger.WithFields(log.Fields{
+		"state":    2,
+		"stateStr": "complete",
+	}).Info("Distribution state update transaction saved")
+
+	return nil
+}
+
 // SetupDistribution will make sure the PDS account has a collection onchain
 // for the collectible NFTs in the Distribution.
 // It also makes sure the withdraw capability is linked.
@@ -773,51 +832,6 @@ func (svc *ContractService) UpdateMintingStatus(ctx context.Context, db *gorm.DB
 			eventLogger.Trace("Handling event complete")
 		}
 	}
-
-	if minting.IsComplete() {
-		// Distribution is now complete
-
-		// TODO: consider updating the distribution separately
-
-		// Make sure the distribution is in correct state
-		if err := dist.SetComplete(); err != nil {
-			return err // rollback
-		}
-
-		// Update the distribution in database
-		if err := UpdateDistribution(db, dist); err != nil {
-			return err // rollback
-		}
-
-		logger.Info("Minting complete")
-
-		// Update distribution state onchain
-
-		txScript, err := flow_helpers.ParseCadenceTemplate(UPDATE_STATE_SCRIPT, nil)
-		if err != nil {
-			return err // rollback
-		}
-
-		arguments := []cadence.Value{
-			cadence.UInt64(dist.FlowID.Int64),
-			cadence.UInt8(2),
-		}
-
-		t, err := transactions.NewTransactionWithDistributionID(UPDATE_STATE_SCRIPT, txScript, arguments, dist.ID)
-		if err != nil {
-			return err // rollback
-		}
-
-		if err := t.Save(db); err != nil {
-			return err // rollback
-		}
-
-		logger.WithFields(log.Fields{
-			"state":    2,
-			"stateStr": "complete",
-		}).Info("Distribution state update transaction saved")
-	}
-
 	minting.StartAtBlock = end
 
 	// Update the minting status in database
