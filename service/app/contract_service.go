@@ -2,6 +2,7 @@ package app
 
 import (
 	"context"
+	"errors"
 	"fmt"
 
 	"github.com/flow-hydraulics/flow-pds/service/common"
@@ -901,6 +902,10 @@ func (svc *ContractService) UpdateCirculatingPackContract(ctx context.Context, d
 
 				pack, err := GetPackByContractAndFlowID(db, contractRef, packFlowID)
 				if err != nil {
+					// since we are minting packs from another PDS, "record not found" error is expected.
+					if errors.Is(err, gorm.ErrRecordNotFound) {
+						continue
+					}
 					return err // rollback
 				}
 
